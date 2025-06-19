@@ -1,0 +1,17 @@
+{
+  "name": "voxpro-backend",
+  "version": "1.0.0",
+  "description": "VoxPro Media Management Backend API",
+  "main": "src/main.py",
+  "scripts": {
+    "start": "python src/main.py",
+    "dev": "python src/main.py"
+  },
+  "engines": {
+    "python": "3.11.0"
+  },
+  "keywords": ["voxpro", "media", "management", "flask", "api"],
+  "author": "VoxPro Team",
+  "license": "MIT"
+}
+
