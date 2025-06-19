@@ -47,7 +47,7 @@ def serve(path):
     static_folder_path = app.static_folder
     if static_folder_path is None:
         return "VoxPro Backend API - Ready", 200
-
+    
     if path != "" and os.path.exists(os.path.join(static_folder_path, path)):
         return send_from_directory(static_folder_path, path)
     else:
@@ -74,5 +74,6 @@ def health_check():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
+    print(f"Starting VoxPro Backend on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
 

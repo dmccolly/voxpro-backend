@@ -10,7 +10,7 @@
   "engines": {
     "python": "3.11.0"
   },
-  "keywords": ["voxpro", "media", "management", "flask", "api"],
+  "keywords": ["voxpro", "media", "management", "api", "flask"],
   "author": "VoxPro Team",
   "license": "MIT"
 }
