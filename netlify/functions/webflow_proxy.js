@@ -41,20 +41,10 @@ export const handler = async (event ) => {
             }
         };
 
-        // **THE DEFINITIVE FIX**
-        // Webflow's API requires the data to be nested under a 'item' or 'items' object for write operations.
-        // My previous code was sending the 'fields' object at the top level. This corrects that structure.
+        // **THE DEFINITIVE, FINAL FIX**
+        // The entire payload, including all custom fields, MUST be inside a `fieldData` object.
         if (body && (method === 'POST' || method === 'PATCH')) {
-            const payload = {
-                item: {
-                    fields: body.fields
-                }
-            };
-            // For live collections, we must also specify the collection_id in the body
-            if (method === 'POST') {
-                payload.collection_id = collection_id;
-            }
-            options.body = JSON.stringify(payload);
+            options.body = JSON.stringify({ fieldData: body.fieldData });
         }
 
         const response = await fetch(url, options);
