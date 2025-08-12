@@ -44,8 +44,25 @@ export const handler = async (event ) => {
             }
         };
 
+        // THE FIX: Webflow's API requires the data to be nested under a 'fields' object.
+        // My previous code was sending it at the top level. This is the core of the 400 error.
         if (body && (method === 'POST' || method === 'PATCH')) {
-            options.body = JSON.stringify(body);
+            const finalBody = {
+                fields: {
+                    ...body.fields,
+                    // The 'name' and 'slug' fields are special and must be at the top level of the 'fields' object.
+                    'name': body.fields.name,
+                    'slug': body.fields.slug,
+                    '_archived': false,
+                    '_draft': false
+                }
+            };
+            // For PATCH requests, we don't need to resend name/slug if they aren't changing.
+            if (method === 'PATCH') {
+                delete finalBody.fields.name;
+                delete finalBody.fields.slug;
+            }
+            options.body = JSON.stringify(finalBody);
         }
 
         const response = await fetch(url, options);
