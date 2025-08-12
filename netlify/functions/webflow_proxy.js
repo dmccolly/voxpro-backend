@@ -1,6 +1,6 @@
-const fetch = require('node-fetch');
+import fetch from 'node-fetch';
 
-const API_TOKEN = process.env.WEBFLOW_API_TOKEN; // Use environment variable
+const API_TOKEN = process.env.WEBFLOW_API_TOKEN;
 const SITE_ID = "688ed8debc05764047afa2a7";
 const COLLECTION_IDS = {
     "media_assets": "6891479d29ed1066b71124e9",
@@ -8,27 +8,30 @@ const COLLECTION_IDS = {
 };
 const API_BASE_URL = "https://api.webflow.com/v2";
 
-exports.handler = async function(event, context ) {
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+
+export const handler = async (event ) => {
+    if (event.httpMethod === 'OPTIONS' ) {
+        return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+    }
     if (event.httpMethod !== 'POST' ) {
-        return { statusCode: 405, body: 'Method Not Allowed' };
+        return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method Not Allowed' }) };
     }
 
     try {
         const { endpoint, method, body } = JSON.parse(event.body);
-        let url;
-
-        if (!endpoint) {
-            return { statusCode: 400, body: JSON.stringify({ error: "Endpoint key is missing" }) };
-        }
-
         const [collection_key, item_id] = endpoint.split('/');
         const collection_id = COLLECTION_IDS[collection_key];
 
         if (!collection_id) {
-            return { statusCode: 400, body: JSON.stringify({ error: `Invalid endpoint key: ${collection_key}` }) };
+            throw new Error(`Invalid endpoint key: ${collection_key}`);
         }
 
-        url = item_id 
+        const url = item_id 
             ? `${API_BASE_URL}/collections/${collection_id}/items/${item_id}`
             : `${API_BASE_URL}/collections/${collection_id}/items`;
 
@@ -38,7 +41,7 @@ exports.handler = async function(event, context ) {
                 'Authorization': `Bearer ${API_TOKEN}`,
                 'accept': 'application/json',
                 'Content-Type': 'application/json'
-            },
+            }
         };
 
         if (body && (method === 'POST' || method === 'PATCH')) {
@@ -46,21 +49,17 @@ exports.handler = async function(event, context ) {
         }
 
         const response = await fetch(url, options);
+        const responseText = await response.text();
         
         if (!response.ok) {
-            const errorText = await response.text();
-            return { statusCode: response.status, body: JSON.stringify({ error: `Webflow API Error: ${errorText}` }) };
+            throw new Error(`Webflow API Error (${response.status}): ${responseText}`);
         }
         
-        // Handle successful but empty responses
-        if (response.status === 204 || response.headers.get('content-length') === '0') {
-             return { statusCode: 200, body: JSON.stringify({ success: true }) };
-        }
-
-        const responseData = await response.json();
-        return { statusCode: 200, body: JSON.stringify(responseData) };
+        const finalBody = responseText || JSON.stringify({ success: true });
+        return { statusCode: 200, headers: CORS_HEADERS, body: finalBody };
 
     } catch (error) {
-        return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+        console.error("Handler Error:", error);
+        return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: error.message }) };
     }
 };
