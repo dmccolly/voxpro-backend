@@ -1,25 +1,20 @@
 // netlify/functions/search-media.js
-// Unified search across Xano + Webflow, with strict per-origin CORS.
+// Unified search: Webflow CMS + Xano (client-side fields).
+// Uses CORS allowlist via ALLOW_ORIGINS env var.
 
 const DEFAULT_LIMIT = 50;
 
-/** Return proper CORS headers for the incoming Origin */
 function corsHeaders(origin) {
-  const allowList = (process.env.ALLOW_ORIGINS || "*")
+  const allow = (process.env.ALLOW_ORIGINS || "*")
     .split(",")
     .map(s => s.trim())
     .filter(Boolean);
-
-  // If wildcard or specific match, echo the request origin. Otherwise block.
-  const allowed =
-    allowList.includes("*") ||
-    (origin && allowList.some(p => origin === p));
-
+  const ok = allow.includes("*") || (origin && allow.some(a => origin === a));
   return {
-    "Access-Control-Allow-Origin": allowed && origin ? origin : "*",
+    "Access-Control-Allow-Origin": ok && origin ? origin : "*",
     "Vary": "Origin",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Content-Type": "application/json",
   };
 }
@@ -33,29 +28,32 @@ exports.handler = async (event) => {
   }
 
   try {
-    const url = new URL(event.rawUrl || `https://dummy${event.path}?${event.queryStringParameters ? new URLSearchParams(event.queryStringParameters).toString() : ""}`);
+    const url = new URL(event.rawUrl);
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
     const limit = Math.min(parseInt(url.searchParams.get("limit") || DEFAULT_LIMIT, 10), 200);
 
-    const [xano, webflow] = await Promise.allSettled([
+    const [xanoRes, webflowRes] = await Promise.allSettled([
       fetchFromXano(q, limit),
       fetchFromWebflow(q, limit),
     ]);
 
-    const xanoResults = xano.status === "fulfilled" ? xano.value : [];
-    const webflowResults = webflow.status === "fulfilled" ? webflow.value : [];
+    const xano = xanoRes.status === "fulfilled" ? xanoRes.value : [];
+    const webflow = webflowRes.status === "fulfilled" ? webflowRes.value : [];
 
-    const results = [...xanoResults, ...webflowResults]
-      .sort((a, b) => (a.title || "").localeCompare(b.title || "") || (a.source || "").localeCompare(b.source || ""));
+    const results = [...xano, ...webflow].sort((a, b) =>
+      (a.title || "").localeCompare(b.title || "") ||
+      (a.source || "").localeCompare(b.source || "")
+    );
 
     return { statusCode: 200, headers, body: JSON.stringify({ q, count: results.length, results }) };
   } catch (err) {
-    console.error(err);
+    console.error("search-media error:", err);
     return { statusCode: 500, headers, body: JSON.stringify({ error: "Search failed", detail: String(err) }) };
   }
 };
 
-// ---------- XANO ----------
+/* ---------------- XANO ---------------- */
+
 async function fetchFromXano(q, limit) {
   const base = process.env.XANO_BASE_URL;
   if (!base) return [];
@@ -81,6 +79,7 @@ async function fetchFromXano(q, limit) {
     .slice(0, limit)
     .map((x) => normalize({
       id: `xano:${x.id}`,
+      source: "xano",
       title: x.title || "Untitled",
       description: x.description || "",
       station: x.station || "",
@@ -90,22 +89,29 @@ async function fetchFromXano(q, limit) {
       file_type: x.file_type || "",
       submitted_by: x.submitted_by || "",
       created_at: x.created_at || x.created || "",
-      source: "xano",
       raw: x,
     }));
 }
 
-// ---------- WEBFLOW ----------
+/* ---------------- WEBFLOW ---------------- */
+
 async function fetchFromWebflow(q, limit) {
   const token = process.env.WEBFLOW_TOKEN;
-  const ids = (process.env.WEBFLOW_COLLECTION_IDS || "").split(",").map(s => s.trim()).filter(Boolean);
+  const ids = (process.env.WEBFLOW_COLLECTION_IDS || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
   if (!token || ids.length === 0) return [];
 
   const versionHeader = process.env.WEBFLOW_API_VERSION
     ? { "x-webflow-api-version": process.env.WEBFLOW_API_VERSION }
     : { "accept-version": "1.0.0" };
 
-  const headers = { Authorization: `Bearer ${token}`, Accept: "application/json", ...versionHeader };
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/json",
+    ...versionHeader,
+  };
 
   const all = [];
   for (const cid of ids) {
@@ -114,7 +120,7 @@ async function fetchFromWebflow(q, limit) {
     while (all.length < limit) {
       const url = `https://api.webflow.com/collections/${cid}/items?limit=${step}&offset=${offset}`;
       const res = await fetch(url, { headers });
-      if (!res.ok) throw new Error(`Webflow HTTP ${res.status} for collection ${cid}`);
+      if (!res.ok) throw new Error(`Webflow HTTP ${res.status} (${cid})`);
       const data = await res.json();
       const items = data.items || data.data || [];
       all.push(...items);
@@ -135,25 +141,25 @@ async function fetchFromWebflow(q, limit) {
 
     return normalize({
       id: `webflow:${w._id || w.id}`,
+      source: "webflow",
       title, description, station, tags,
       thumbnail: thumb,
       media_url: fileUrl,
       file_type: guessType(fileUrl),
       submitted_by: w.submitted_by || "",
       created_at: w.created || w["created-on"] || w["createdAt"] || "",
-      source: "webflow",
       raw: w,
     });
   });
 
   const qlc = q.toLowerCase();
-  const match = (r) =>
-    !q || [r.title, r.description, r.station, r.tags, r.submitted_by].join(" ").toLowerCase().includes(qlc);
+  const match = (r) => !q || [r.title, r.description, r.station, r.tags, r.submitted_by].join(" ").toLowerCase().includes(qlc);
 
   return out.filter(match).slice(0, limit);
 }
 
-// ---------- helpers ----------
+/* --------------- helpers --------------- */
+
 function normalize(obj) {
   return {
     id: obj.id,
