@@ -1,19 +1,13 @@
 // netlify/functions/xano-proxy.js
-// Proxies requests to Xano with CORS for Webflow/other domains.
-// Required env:
-//   XANO_BASE_URL        e.g. https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX
-//   ALLOW_ORIGINS        e.g. https://history-of-idaho-broadcasting--717ee2.webflow.io,https://www.streamofdan.com
+// Proxies Xano requests to avoid CORS problems when embedding on Webflow/etc.
+// Env: XANO_BASE_URL, ALLOW_ORIGINS
 
 function corsHeaders(origin) {
   const allow = (process.env.ALLOW_ORIGINS || "*")
     .split(",")
     .map(s => s.trim())
     .filter(Boolean);
-
-  const ok =
-    allow.includes("*") ||
-    (origin && allow.some(a => origin === a));
-
+  const ok = allow.includes("*") || (origin && allow.some(a => origin === a));
   return {
     "Access-Control-Allow-Origin": ok && origin ? origin : "*",
     "Vary": "Origin",
@@ -31,20 +25,13 @@ exports.handler = async (event) => {
   }
 
   const base = process.env.XANO_BASE_URL;
-  if (!base) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: "XANO_BASE_URL not set" }) };
-  }
+  if (!base) return { statusCode: 500, headers, body: JSON.stringify({ error: "XANO_BASE_URL not set" }) };
 
   try {
-    // Everything after the function name becomes the Xano path suffix
-    // e.g. /.netlify/functions/xano-proxy/asset/123?foo=bar -> /asset/123?foo=bar
-    const fnPrefix = "/.netlify/functions/xano-proxy";
-    const suffix = (event.path || "").startsWith(fnPrefix)
-      ? event.path.slice(fnPrefix.length)
-      : (new URL(event.rawUrl)).pathname.replace(fnPrefix, "");
-
-    const qs = event.rawUrl.includes("?") ? "?" + event.rawUrl.split("?")[1] : "";
-    const target = base.replace(/\/$/, "") + (suffix || "") + qs;
+    const prefix = "/.netlify/functions/xano-proxy";
+    const url = new URL(event.rawUrl);
+    const pathSuffix = url.pathname.startsWith(prefix) ? url.pathname.slice(prefix.length) : "/";
+    const target = base.replace(/\/$/, "") + (pathSuffix || "/") + (url.search || "");
 
     const upstreamHeaders = {
       "Content-Type": event.headers["content-type"] || event.headers["Content-Type"] || "application/json",
@@ -57,16 +44,12 @@ exports.handler = async (event) => {
       body: ["GET", "HEAD"].includes(event.httpMethod) ? undefined : event.body,
     });
 
-    const text = await resp.text();
+    const bodyText = await resp.text();
     const contentType = resp.headers.get("content-type") || "application/json";
 
-    return {
-      statusCode: resp.status,
-      headers: { ...headers, "Content-Type": contentType },
-      body: text,
-    };
+    return { statusCode: resp.status, headers: { ...headers, "Content-Type": contentType }, body: bodyText };
   } catch (e) {
-    console.error("Proxy error:", e);
+    console.error("xano-proxy error:", e);
     return { statusCode: 502, headers, body: JSON.stringify({ error: "Proxy failed", detail: String(e) }) };
   }
 };
