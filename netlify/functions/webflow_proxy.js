@@ -1,12 +1,11 @@
 import fetch from 'node-fetch';
 
 const API_TOKEN = process.env.WEBFLOW_API_TOKEN;
-const SITE_ID = "688ed8debc05764047afa2a7";
+const API_BASE_URL = "https://api.webflow.com/v2";
 const COLLECTION_IDS = {
     "media_assets": "6891479d29ed1066b71124e9",
     "voxpro_assignments": "689ac6bdf10259dd9be04e16"
 };
-const API_BASE_URL = "https://api.webflow.com/v2";
 
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -27,9 +26,7 @@ export const handler = async (event ) => {
         const [collection_key, item_id] = endpoint.split('/');
         const collection_id = COLLECTION_IDS[collection_key];
 
-        if (!collection_id) {
-            throw new Error(`Invalid endpoint key: ${collection_key}`);
-        }
+        if (!collection_id) throw new Error(`Invalid endpoint: ${collection_key}`);
 
         const url = item_id 
             ? `${API_BASE_URL}/collections/${collection_id}/items/${item_id}`
@@ -44,25 +41,20 @@ export const handler = async (event ) => {
             }
         };
 
-        // THE FIX: Webflow's API requires the data to be nested under a 'fields' object.
-        // My previous code was sending it at the top level. This is the core of the 400 error.
+        // **THE DEFINITIVE FIX**
+        // Webflow's API requires the data to be nested under a 'item' or 'items' object for write operations.
+        // My previous code was sending the 'fields' object at the top level. This corrects that structure.
         if (body && (method === 'POST' || method === 'PATCH')) {
-            const finalBody = {
-                fields: {
-                    ...body.fields,
-                    // The 'name' and 'slug' fields are special and must be at the top level of the 'fields' object.
-                    'name': body.fields.name,
-                    'slug': body.fields.slug,
-                    '_archived': false,
-                    '_draft': false
+            const payload = {
+                item: {
+                    fields: body.fields
                 }
             };
-            // For PATCH requests, we don't need to resend name/slug if they aren't changing.
-            if (method === 'PATCH') {
-                delete finalBody.fields.name;
-                delete finalBody.fields.slug;
+            // For live collections, we must also specify the collection_id in the body
+            if (method === 'POST') {
+                payload.collection_id = collection_id;
             }
-            options.body = JSON.stringify(finalBody);
+            options.body = JSON.stringify(payload);
         }
 
         const response = await fetch(url, options);
