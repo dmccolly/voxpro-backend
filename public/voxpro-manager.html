@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -23,7 +22,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useCallback, useRef } = React;
+        const { useState, useEffect, useCallback } = React;
 
         // Mock Xano API for demonstration
         const mockXanoApi = {
@@ -31,8 +30,7 @@
                 { id: 1, title: "Test API Post", station: "Test Station", mime_type: "folder", url: "#" },
                 { id: 2, title: "Photo - happy little girl, sharing", station: "Unknown", mime_type: "image", url: "https://picsum.photos/seed/happy-girl/300/200.jpg" },
                 { id: 3, title: "Don Nelson, Michelle Edmonds", station: "KIVI, KNIN", mime_type: "image", url: "https://picsum.photos/seed/nelson-edmonds/300/200.jpg" },
-                { id: 4, title: "Test File Upload Fixed", station: "Unknown", mime_type: "folder", url: "#" },
-                { id: 5, title: "Audio Track - Nature Sounds", station: "Relaxation", mime_type: "audio", url: "#" }
+                { id: 4, title: "Test File Upload Fixed", station: "Unknown", mime_type: "folder", url: "#" }
             ],
             voxpro_assignments: [
                 { id: 1, key_number: 3, asset_id: 3 },
@@ -55,18 +53,32 @@
             // Load assignments with asset details
             const loadAssignments = useCallback(async () => {
                 try {
-                    const assignmentData = await Promise.all(
-                        assignments.map(async (assignment) => {
-                            const asset = items.find(item => item.id === assignment.asset_id);
-                            return { ...assignment, asset };
-                        })
-                    );
-                    setAssignments(assignmentData);
+                    // Fetch assignments from Xano
+                    const response = await fetch(`${XANO_API_BASE}/voxpro_assignments`);
+                    const assignments = await response.json();
+                    
+                    // Fetch all assets for efficient lookup
+                    const assetsResponse = await fetch(`${XANO_API_BASE}/assets`);
+                    const assets = await assetsResponse.json();
+                    
+                    // Map assets by ID for quick lookup
+                    const assetMap = {};
+                    assets.forEach(asset => {
+                        assetMap[asset.id] = asset;
+                    });
+                    
+                    // Enhance assignments with full asset data
+                    const enhancedAssignments = assignments.map(assignment => ({
+                        ...assignment,
+                        asset: assetMap[assignment.asset_id] || {}
+                    }));
+                    
+                    setAssignments(enhancedAssignments);
                 } catch (error) {
                     console.error("Error loading assignments:", error);
                     setErrorMessage('Failed to load assignments');
                 }
-            }, [assignments, items]);
+            }, [setAssignments, setErrorMessage]);
 
             // Create assignment
             const createAssignment = async () => {
@@ -231,7 +243,7 @@
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="flex-1 ml-3">
+                                        <div>
                                             <div className="font-medium">{item.title}</div>
                                             <div className="text-sm text-gray-400">{item.station} • {item.mime_type}</div>
                                         </div>
@@ -249,7 +261,7 @@
                                     >
                                         <option value="">Choose a key...</option>
                                         {[1, 2, 3, 4, 5].map(num => (
-                                            <option key={num} value={num}>{`Key ${num}`}</option>
+                                            <option key={num} value={num}>Key {num}</option>
                                         ))}
                                     </select>
                                 </div>
