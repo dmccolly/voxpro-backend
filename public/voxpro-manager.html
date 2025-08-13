@@ -219,31 +219,28 @@
       
       console.log('Creating thumbnail for:', item.title, 'Type:', fileType, 'Thumbnail:', thumbnailUrl, 'Media URL:', mediaUrl);
       
-      // If we have a thumbnail URL, try to use it
-      if (thumbnailUrl && thumbnailUrl.trim()) {
-        return `<img src="${esc(thumbnailUrl)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-                <div style="display:none;font-size:18px;">${getFileIcon(fileType)}</div>`;
-      }
-      
-      // For images, use the image itself as thumbnail
+      // For images, always use the image itself as thumbnail first
       if (fileType.includes('image') && mediaUrl) {
-        return `<img src="${esc(mediaUrl)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-                <div style="display:none;font-size:18px;">${getFileIcon(fileType)}</div>`;
+        return `<img src="${esc(mediaUrl)}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                <div style="width:42px;height:42px;border-radius:6px;background:#0b0b0b;display:none;align-items:center;justify-content:center;font-size:18px;color:#bbb;">${getFileIcon(fileType)}</div>`;
       }
       
-      // For PDFs, try to show first page (limited browser support)
-      if (fileType.includes('pdf') && mediaUrl) {
-        return `<iframe src="${esc(mediaUrl)}#page=1&zoom=fit" style="pointer-events:none;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"></iframe>
-                <div style="display:none;font-size:18px;">${getFileIcon(fileType)}</div>`;
+      // If we have a specific thumbnail URL, use it
+      if (thumbnailUrl && thumbnailUrl.trim() && !thumbnailUrl.includes('placeholder')) {
+        return `<img src="${esc(thumbnailUrl)}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                <div style="width:42px;height:42px;border-radius:6px;background:#0b0b0b;display:none;align-items:center;justify-content:center;font-size:18px;color:#bbb;">${getFileIcon(fileType)}</div>`;
       }
       
-      // For DOCX files, show document icon
-      if (fileType.includes('docx') || fileType.includes('document')) {
-        return `<div style="font-size:18px;">${getFileIcon(fileType)}</div>`;
+      // For videos, try to create a video thumbnail
+      if (fileType.includes('video') && mediaUrl) {
+        return `<video style="width:42px;height:42px;object-fit:cover;border-radius:6px;" muted preload="metadata" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                  <source src="${esc(mediaUrl)}#t=1" type="${fileType}">
+                </video>
+                <div style="width:42px;height:42px;border-radius:6px;background:#0b0b0b;display:none;align-items:center;justify-content:center;font-size:18px;color:#bbb;">${getFileIcon(fileType)}</div>`;
       }
       
       // Fallback to file type icon
-      return `<div style="font-size:18px;">${getFileIcon(fileType)}</div>`;
+      return `<div style="width:42px;height:42px;border-radius:6px;background:#0b0b0b;display:flex;align-items:center;justify-content:center;font-size:18px;color:#bbb;">${getFileIcon(fileType)}</div>`;
     }
 
     function getFileIcon(fileType) {
@@ -316,9 +313,20 @@
         const res = await xano(`voxpro_assignments/${assignmentId}`, { method:'DELETE' });
         console.log('Delete response:', res);
         
-        // Xano DELETE requests often return null/empty, so we check if the assignment is gone
-        show('success','Assignment removed'); 
+        // Show success message immediately
+        show('success','Assignment removed successfully!'); 
+        
+        // Force reload assignments to refresh the UI
+        console.log('Reloading assignments after deletion...');
         await loadAssignments(); 
+        
+        // Force re-render all UI components
+        renderAssignments();
+        updateKeyButtons();
+        renderAssignmentsManager();
+        
+        console.log('UI refresh complete after deletion');
+        
       } catch (error) {
         console.error('Delete failed:', error);
         show('error', `Failed to delete assignment: ${error.message}`);
@@ -369,6 +377,12 @@
       
       console.log(`Media type: ${type}, URL: ${mediaUrl}`);
       
+      if (!mediaUrl) {
+        console.error('No media URL found for asset:', asset);
+        show('error', 'No media file found for this asset');
+        return;
+      }
+      
       let node;
       
       if (type.includes('audio')){
@@ -378,40 +392,81 @@
         node.style.width = '100%';
         node.style.height = '60px';
         node.preload = 'auto';
+        node.volume = 0.8; // Set reasonable volume
         
-        // Add event listeners for better audio handling
+        // Better audio event handling
         node.addEventListener('loadstart', () => console.log('Audio loading started'));
-        node.addEventListener('canplay', () => console.log('Audio can start playing'));
-        node.addEventListener('error', (e) => console.error('Audio error:', e));
+        node.addEventListener('canplay', () => {
+          console.log('Audio can start playing');
+          node.play().catch(e => console.log('Audio autoplay blocked:', e));
+        });
+        node.addEventListener('error', (e) => {
+          console.error('Audio error:', e);
+          show('error', 'Failed to load audio file');
+        });
         
       } else if (type.includes('video')){
         node = document.createElement('video');
         node.controls = true;
         node.autoplay = true;
-        node.muted = false; // Enable sound by default
+        node.muted = false; // Start unmuted
         node.style.width = '100%';
         node.style.height = '100%';
         node.style.objectFit = 'contain';
         node.preload = 'auto';
+        node.volume = 0.8; // Set reasonable volume
         
-        // Add event listeners for better video handling
+        // Better video event handling
         node.addEventListener('loadstart', () => console.log('Video loading started'));
-        node.addEventListener('canplay', () => console.log('Video can start playing'));
-        node.addEventListener('error', (e) => console.error('Video error:', e));
+        node.addEventListener('canplay', () => {
+          console.log('Video can start playing');
+          // Try to play, if blocked try muted first
+          node.play().catch(e => {
+            console.log('Video autoplay blocked, trying muted:', e);
+            node.muted = true;
+            return node.play();
+          }).catch(e => console.log('Video autoplay failed:', e));
+        });
+        node.addEventListener('error', (e) => {
+          console.error('Video error:', e);
+          show('error', 'Failed to load video file');
+        });
         
       } else if (type.includes('image')){
         node = document.createElement('img');
         node.style.maxWidth = '100%';
         node.style.maxHeight = '100%';
         node.style.objectFit = 'contain';
-        node.addEventListener('error', (e) => console.error('Image error:', e));
+        node.style.display = 'block';
+        node.style.margin = 'auto';
+        
+        node.addEventListener('load', () => console.log('Image loaded successfully'));
+        node.addEventListener('error', (e) => {
+          console.error('Image error:', e);
+          show('error', 'Failed to load image file');
+          // Show a fallback message
+          node.style.display = 'none';
+          const fallback = document.createElement('div');
+          fallback.style.color = '#b0b0b0';
+          fallback.style.textAlign = 'center';
+          fallback.style.padding = '40px';
+          fallback.innerHTML = `
+            <div style="font-size:64px;margin-bottom:16px">🖼️</div>
+            <div>Failed to load image</div>
+            <a href="${esc(mediaUrl)}" target="_blank" style="color:var(--accent);margin-top:10px;display:inline-block">View Original</a>
+          `;
+          mediaPlayer.appendChild(fallback);
+        });
         
       } else if (type.includes('pdf')){
         node = document.createElement('iframe');
         node.style.width = '100%';
         node.style.height = '100%';
         node.style.border = 'none';
-        node.addEventListener('error', (e) => console.error('PDF error:', e));
+        node.addEventListener('error', (e) => {
+          console.error('PDF error:', e);
+          show('error', 'Failed to load PDF file');
+        });
         
       } else {
         // For DOCX, unknown files, etc.
@@ -426,7 +481,7 @@
           <div style="font-size:64px;margin-bottom:16px">${icon}</div>
           <div style="font-size:18px;margin-bottom:16px">${esc(fileName)}</div>
           <div style="font-size:14px;color:#888;margin-bottom:20px">${esc(type || 'Unknown format')}</div>
-          ${mediaUrl ? `<a href="${esc(mediaUrl)}" target="_blank" style="color:var(--accent);text-decoration:none;padding:10px 20px;border:1px solid var(--accent);border-radius:6px;display:inline-block">Open File</a>` : ''}
+          <a href="${esc(mediaUrl)}" target="_blank" style="color:var(--accent);text-decoration:none;padding:10px 20px;border:1px solid var(--accent);border-radius:6px;display:inline-block">Open File</a>
         `;
       }
       
@@ -451,6 +506,11 @@
       currentMeta.textContent = `${asset.station||'Unknown'} • ${asset.file_type||''}`;
       
       console.log('Playback setup complete');
+      
+      // For non-media files, show success message
+      if (!type.includes('audio') && !type.includes('video') && !type.includes('image')) {
+        show('success', `Opened ${asset.title || 'file'}`);
+      }
     }
 
     function reflectPlaying(){ 
