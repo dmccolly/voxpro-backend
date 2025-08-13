@@ -1,7 +1,7 @@
 // /.netlify/functions/xano-proxy.js
 // CORS proxy for Xano API calls
 
-const XANO_API_BASE = process.env.XANO_API_BASE || 'https://your-workspace.xano.io/api:version';
+const XANO_API_BASE = process.env.XANO_API_BASE || 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
 const XANO_API_KEY = process.env.XANO_API_KEY; // if you're using API key authentication
 
 exports.handler = async (event, context) => {
@@ -40,22 +40,19 @@ exports.handler = async (event, context) => {
     // Add body for POST/PATCH requests
     if (event.body && (event.httpMethod === 'POST' || event.httpMethod === 'PATCH')) {
       fetchOptions.body = event.body;
-    }
-
-    // Add query parameters
-    if (event.queryStringParameters) {
-      const params = new URLSearchParams(event.queryStringParameters);
-      const urlWithParams = `${xanoUrl}?${params.toString()}`;
-      console.log(`Full URL with params: ${urlWithParams}`);
+      console.log(`Request body: ${event.body}`);
     }
 
     // Make the request to Xano
-    const response = await fetch(
-      event.queryStringParameters 
-        ? `${xanoUrl}?${new URLSearchParams(event.queryStringParameters).toString()}`
-        : xanoUrl,
-      fetchOptions
-    );
+    const finalUrl = event.queryStringParameters 
+      ? `${xanoUrl}?${new URLSearchParams(event.queryStringParameters).toString()}`
+      : xanoUrl;
+    
+    console.log(`Making request to: ${finalUrl}`);
+    console.log(`Method: ${fetchOptions.method}`);
+    console.log(`Body: ${fetchOptions.body || 'none'}`);
+    
+    const response = await fetch(finalUrl, fetchOptions);
 
     const data = await response.text();
     let jsonData;
@@ -66,6 +63,9 @@ exports.handler = async (event, context) => {
       // If response isn't JSON, return as text
       jsonData = { data: data };
     }
+
+    console.log(`Response status: ${response.status}`);
+    console.log(`Response data:`, jsonData);
 
     if (!response.ok) {
       console.error(`Xano API error: ${response.status} ${response.statusText}`, jsonData);
