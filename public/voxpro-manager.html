@@ -24,14 +24,16 @@
     .key.assigned{background:linear-gradient(145deg,var(--blue),#003fb6);border-color:var(--blue)}
     .key.playing{background:linear-gradient(145deg,var(--accent),#05c86e);border-color:var(--accent);box-shadow:0 0 24px rgba(0,255,136,.6)}
     .grid-keys .key:nth-child(5){grid-column:1/-1;justify-self:center;width:220px}
-    .stop{background:linear-gradient(145deg,var(--red),#cc0000);border:2px solid var(--red);border-radius:12px;color:#fff;padding:12px 24px;font-weight:800}
+    .stop{background:linear-gradient(145deg,var(--red),#cc0000);border:2px solid var(--red);border-radius:12px;color:#fff;padding:12px 24px;font-weight:800;cursor:pointer}
     .section-title{font-size:16px;font-weight:800;color:var(--accent);margin:18px 0 10px}
     .list{background:var(--bg-input);border:1px solid var(--border);border-radius:10px;max-height:320px;overflow:auto}
     .row{display:flex;gap:12px;align-items:center;padding:12px;border-bottom:1px solid var(--border);cursor:pointer}
     .row:last-child{border-bottom:none}
     .row:hover{background:rgba(0,255,136,.07)}
     .row.selected{background:rgba(0,255,136,.14);border-left:4px solid var(--accent)}
-    .thumb{width:42px;height:42px;border-radius:6px;background:#0b0b0b;display:flex;align-items:center;justify-content:center;font-size:14px;color:#bbb}
+    .thumb{width:42px;height:42px;border-radius:6px;background:#0b0b0b;display:flex;align-items:center;justify-content:center;font-size:14px;color:#bbb;overflow:hidden}
+    .thumb img{width:100%;height:100%;object-fit:cover;border-radius:6px}
+    .thumb iframe{width:100%;height:100%;border:none;border-radius:6px}
     .info{flex:1}
     .title{font-weight:700}
     .meta{font-size:12px;color:var(--muted);margin-top:2px}
@@ -212,16 +214,36 @@
     
     function createThumbnail(item) {
       const thumbnailUrl = item.thumbnail || '';
-      const fileType = item.file_type || '';
+      const fileType = (item.file_type || '').toLowerCase();
+      const mediaUrl = item.media_url || item.database_url || item.file_url || item.url || '';
       
+      console.log('Creating thumbnail for:', item.title, 'Type:', fileType, 'Thumbnail:', thumbnailUrl, 'Media URL:', mediaUrl);
+      
+      // If we have a thumbnail URL, try to use it
       if (thumbnailUrl && thumbnailUrl.trim()) {
-        // Show actual thumbnail image
-        return `<img src="${esc(thumbnailUrl)}" style="width:42px;height:42px;object-fit:cover;border-radius:6px;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
-                <div style="width:42px;height:42px;border-radius:6px;background:#0b0b0b;display:none;align-items:center;justify-content:center;font-size:14px;color:#bbb;">${getFileIcon(fileType)}</div>`;
-      } else {
-        // Fallback to icon
-        return `<div style="width:42px;height:42px;border-radius:6px;background:#0b0b0b;display:flex;align-items:center;justify-content:center;font-size:14px;color:#bbb;">${getFileIcon(fileType)}</div>`;
+        return `<img src="${esc(thumbnailUrl)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                <div style="display:none;font-size:18px;">${getFileIcon(fileType)}</div>`;
       }
+      
+      // For images, use the image itself as thumbnail
+      if (fileType.includes('image') && mediaUrl) {
+        return `<img src="${esc(mediaUrl)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';" />
+                <div style="display:none;font-size:18px;">${getFileIcon(fileType)}</div>`;
+      }
+      
+      // For PDFs, try to show first page (limited browser support)
+      if (fileType.includes('pdf') && mediaUrl) {
+        return `<iframe src="${esc(mediaUrl)}#page=1&zoom=fit" style="pointer-events:none;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"></iframe>
+                <div style="display:none;font-size:18px;">${getFileIcon(fileType)}</div>`;
+      }
+      
+      // For DOCX files, show document icon
+      if (fileType.includes('docx') || fileType.includes('document')) {
+        return `<div style="font-size:18px;">${getFileIcon(fileType)}</div>`;
+      }
+      
+      // Fallback to file type icon
+      return `<div style="font-size:18px;">${getFileIcon(fileType)}</div>`;
     }
 
     function getFileIcon(fileType) {
@@ -230,6 +252,9 @@
       if (type.includes('video')) return '🎬';
       if (type.includes('image')) return '🖼️';
       if (type.includes('pdf')) return '📄';
+      if (type.includes('docx') || type.includes('document')) return '📝';
+      if (type.includes('xlsx') || type.includes('spreadsheet')) return '📊';
+      if (type.includes('pptx') || type.includes('presentation')) return '📽️';
       return '📁';
     }
     
@@ -246,11 +271,20 @@
     }
     async function xano(endpoint, opts){
       try{
+        console.log(`Xano request: ${endpoint}`, opts);
         const data = await fetch(`${XANO_PROXY_BASE}/${endpoint}`, {
           headers:{'Content-Type':'application/json'}, ...opts
-        }).then(r=>{ if(!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); });
+        }).then(r=>{ 
+          console.log(`Xano response status: ${r.status}`);
+          if(!r.ok) throw new Error(`${r.status} ${r.statusText}`); 
+          return r.json(); 
+        });
+        console.log(`Xano response data:`, data);
         setConn(true); return data;
-      }catch(e){ setConn(false); show('error', `Xano: ${e.message}`); return null; }
+      }catch(e){ 
+        console.error('Xano error:', e);
+        setConn(false); show('error', `Xano: ${e.message}`); return null; 
+      }
     }
 
     /* ==================== MEMORY (autocomplete) ==================== */
@@ -378,59 +412,61 @@
       console.log('Loading assignments...');
       
       const data = await xano('voxpro_assignments');
-      if (!data) return;
+      if (!data) {
+        console.log('No assignment data received');
+        assignments = [];
+        renderAssignments();
+        updateKeyButtons();
+        renderAssignmentsManager();
+        return;
+      }
       
       console.log('Raw assignments data:', data);
       
-      // Process each assignment and try to load asset details
-      assignments = [];
+      // Sort the assignments first
+      assignments = data.sort((a,b)=> (a.key_number||0)-(b.key_number||0));
       
-      for (const assignment of data) {
-        console.log('Processing assignment:', assignment);
-        
-        // Initialize asset as empty object
-        assignment.asset = {};
+      // Load all assets for the assignments
+      for (let i = 0; i < assignments.length; i++) {
+        const assignment = assignments[i];
+        console.log(`Processing assignment ${assignment.id}:`, assignment);
         
         if (assignment.asset_id) {
           try {
-            console.log(`Loading asset ${assignment.asset_id}...`);
+            console.log(`Loading asset ${assignment.asset_id} for assignment ${assignment.id}`);
             const asset = await xano(`asset/${assignment.asset_id}`);
             if (asset) {
               assignment.asset = asset;
-              console.log(`Successfully loaded asset:`, asset);
+              console.log(`Successfully loaded asset for assignment ${assignment.id}:`, asset);
             } else {
-              console.log(`Asset ${assignment.asset_id} not found`);
-              // Set default values if asset not found
+              console.log(`Asset ${assignment.asset_id} not found for assignment ${assignment.id}`);
               assignment.asset = {
-                title: `Asset ${assignment.asset_id}`,
+                id: assignment.asset_id,
+                title: `Missing Asset ${assignment.asset_id}`,
                 station: 'Unknown',
-                file_type: ''
+                file_type: 'unknown'
               };
             }
           } catch (error) {
-            console.error(`Error loading asset ${assignment.asset_id}:`, error);
-            // Set default values on error
+            console.error(`Failed to load asset ${assignment.asset_id} for assignment ${assignment.id}:`, error);
             assignment.asset = {
-              title: `Asset ${assignment.asset_id}`,
-              station: 'Unknown', 
-              file_type: ''
+              id: assignment.asset_id,
+              title: `Error Loading Asset ${assignment.asset_id}`,
+              station: 'Error',
+              file_type: 'error'
             };
           }
         } else {
-          console.log('No asset_id for assignment:', assignment);
+          console.log(`No asset_id for assignment ${assignment.id}`);
           assignment.asset = {
-            title: 'No Asset',
-            station: 'Unknown',
-            file_type: ''
+            title: 'No Asset ID',
+            station: 'Unknown', 
+            file_type: 'none'
           };
         }
-        
-        assignments.push(assignment);
       }
       
-      assignments.sort((a,b)=> (a.key_number||0)-(b.key_number||0));
-      
-      console.log('Final assignments with assets:', assignments);
+      console.log('Final assignments with loaded assets:', assignments);
       
       renderAssignments();
       updateKeyButtons();
@@ -444,6 +480,7 @@
       }
       assignmentsList.innerHTML = assignments.map(a=>{
         const asset = a.asset || {};
+        console.log(`Rendering assignment ${a.id}:`, a, 'Asset:', asset);
         return `
           <div class="row" data-assign-id="${a.id}">
             <div class="thumb">${createThumbnail(asset)}</div>
@@ -461,17 +498,20 @@
         assignmentsListManager.innerHTML = `<div class="row"><div class="info">No assignments yet</div></div>`;
         return;
       }
-      assignmentsListManager.innerHTML = assignments.map(a=>`
-        <div class="row">
-          <div class="info">
-            <div class="title">Key ${a.key_number}</div>
-            <div class="meta">${esc((a.asset && a.asset.title) || a.asset_title || '')}</div>
+      assignmentsListManager.innerHTML = assignments.map(a=>{
+        const asset = a.asset || {};
+        return `
+          <div class="row">
+            <div class="info">
+              <div class="title">Key ${a.key_number || '?'}</div>
+              <div class="meta">${esc(asset.title || 'Unknown')} • ${esc(asset.station || 'Unknown')}</div>
+            </div>
+            <div>
+              <button class="btn btn-danger" onclick="deleteAssignment(${a.id})">Remove</button>
+            </div>
           </div>
-          <div>
-            <button class="btn btn-danger" onclick="deleteAssignment(${a.id})">Remove</button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function updateKeyButtons(){
@@ -517,185 +557,4 @@
       
       console.log('Sending payload:', payload);
       
-      const res = await xano('voxpro_assignments', {
-        method:'POST',
-        body: JSON.stringify(payload)
-      });
-      
-      console.log('Create response:', res);
-      
-      if (res){ 
-        show('success','Assignment created'); 
-        await loadAssignments(); 
-      } else {
-        show('error','Failed to create assignment');
-      }
-    }
-
-    async function updateAssignment(assignmentId, key, assetId){
-      console.log(`Updating assignment ${assignmentId}: key=${key}, assetId=${assetId}`);
-      
-      const payload = { 
-        key_number: parseInt(key), 
-        asset_id: parseInt(assetId) 
-      };
-      
-      console.log('Sending payload:', payload);
-      
-      const res = await xano(`voxpro_assignments/${assignmentId}`, {
-        method:'PATCH',
-        body: JSON.stringify(payload)
-      });
-      
-      console.log('Update response:', res);
-      
-      if (res){ 
-        show('success','Assignment updated'); 
-        await loadAssignments(); 
-      } else {
-        show('error','Failed to update assignment');
-      }
-    }
-
-    async function deleteAssignment(assignmentId){
-      const ok = confirm('Remove this key assignment?');
-      if (!ok) return;
-      const res = await xano(`voxpro_assignments/${assignmentId}`, { method:'DELETE' });
-      if (res){ show('success','Assignment removed'); await loadAssignments(); }
-    }
-    // expose for inline onclick
-    window.deleteAssignment = deleteAssignment;
-
-    /* ==================== PLAYBACK ==================== */
-    async function playForKey(key){
-      const asn = assignments.find(a=> Number(a.key_number)===Number(key));
-      if (!asn){ show('error', `Key ${key} unassigned`); return; }
-
-      let asset = asn.asset || null;
-      if (!asset){ asset = await xano(`asset/${asn.asset_id}`); if (!asset){ show('error','Asset not found'); return; } }
-      playAsset(asset, key);
-    }
-
-    function playAsset(asset, key){
-      modalTitle.textContent = asset.title || 'Untitled';
-      mediaDescription.innerHTML = `
-        <strong>Title:</strong> ${esc(asset.title||'Untitled')}<br>
-        <strong>Station:</strong> ${esc(asset.station||'Unknown')}<br>
-        <strong>Type:</strong> ${esc(asset.file_type||'Unknown')}<br>
-        <strong>Description:</strong> ${esc(asset.description||'—')}<br>
-        <strong>Tags:</strong> ${esc(asset.tags||'—')}<br>
-        <strong>Submitted by:</strong> ${esc(asset.submitted_by||'Unknown')}
-      `;
-      const type = (asset.file_type||'').toLowerCase();
-      let node;
-      if (type.includes('audio')){
-        node = document.createElement('audio'); node.controls = true; node.autoplay = true; node.style.width='100%';
-      } else if (type.includes('video')){
-        node = document.createElement('video'); node.controls = true; node.autoplay = true; node.style.width='100%'; node.style.height='100%'; node.style.objectFit='contain';
-      } else if (type.includes('image')){
-        node = document.createElement('img'); node.style.maxWidth='100%'; node.style.maxHeight='100%'; node.style.objectFit='contain';
-      } else if (type.includes('pdf')){
-        node = document.createElement('iframe'); node.style.width='100%'; node.style.height='100%'; node.style.border='none';
-      } else {
-        node = document.createElement('div'); node.style.color='#b0b0b0';
-        const href = asset.database_url || asset.file_url || asset.url || '#';
-        node.innerHTML = `<div style="font-size:44px;margin-bottom:8px">📄</div>
-                          <div>${esc(asset.title||'Unknown file')}</div>
-                          <a href="${href}" target="_blank" style="color:var(--accent);display:inline-block;margin-top:8px">Open</a>`;
-      }
-      if (node.tagName !== 'DIV'){ node.src = asset.database_url || asset.file_url || asset.url || ''; }
-      mediaPlayer.innerHTML = ''; mediaPlayer.appendChild(node);
-
-      mediaModal.style.display = 'block';
-      playing = { key, assetId: asset.id };
-      reflectPlaying();
-      currentInfo.style.display = 'block';
-      currentTitle.textContent = asset.title || 'Untitled';
-      currentMeta.textContent = `${asset.station||'Unknown'} • ${asset.file_type||''}`;
-    }
-
-    function reflectPlaying(){ keyButtons.forEach(btn=> btn.classList.toggle('playing', playing && Number(btn.dataset.key)===playing.key)); }
-    function stopPlayback(){
-      playing = null; reflectPlaying();
-      mediaModal.style.display = 'none';
-      mediaPlayer.querySelectorAll('audio,video').forEach(el=>{ try{ el.pause(); el.currentTime = 0; }catch{} });
-      mediaPlayer.innerHTML = '<div style="color:#b0b0b0">Media stopped</div>';
-      currentInfo.style.display='none';
-    }
-
-    /* ==================== EVENTS ==================== */
-    keyButtons.forEach(btn=> btn.addEventListener('click', ()=> playForKey(btn.dataset.key)));
-    stopButton.addEventListener('click', stopPlayback);
-    modalClose.addEventListener('click', stopPlayback);
-    mediaModal.addEventListener('click', (e)=> { if (e.target === mediaModal) stopPlayback(); });
-    document.addEventListener('keydown', (e)=>{
-      if (e.key>='1' && e.key<='5'){ const b = keyButtons.find(x=> x.dataset.key===e.key); b && b.click(); }
-      if (e.key==='Escape' || e.key===' '){ e.preventDefault(); stopPlayback(); }
-    });
-
-    searchInput.addEventListener('input', e=> unifiedSearch(e.target.value));
-    [titleInput,stationInput].forEach(el=> el.addEventListener('blur', addMemory));
-
-    assignButton.addEventListener('click', async ()=>{
-      console.log('Assign button clicked');
-      console.log('selectedUnified:', selectedUnified);
-      console.log('keySelect.value:', keySelect.value);
-      
-      if (!selectedUnified){ show('error','Select a media item first'); return; }
-      const key = parseInt(keySelect.value, 10);
-      if (!key){ show('error','Choose a key'); return; }
-
-      console.log('Assignment validation passed, proceeding...');
-
-      // PATCH Xano if editable and changed (Xano-source only)
-      if (selectedUnified.source === 'xano'){
-        const xanoId = Number(String(selectedUnified.id).split(':')[1] || selectedUnified.id);
-        const patchBody = {
-          title: titleInput.value, description: descriptionInput.value,
-          station: stationInput.value, tags: tagsInput.value, submitted_by: submittedByInput.value
-        };
-        console.log('Updating Xano asset:', xanoId, patchBody);
-        await xano(`asset/${xanoId}`, { method:'PATCH', body: JSON.stringify(patchBody) });
-      }
-
-      const assetId = await ensureXanoAssetFromUnified({
-        ...selectedUnified,
-        title: titleInput.value,
-        description: descriptionInput.value,
-        station: stationInput.value,
-        tags: tagsInput.value,
-        submitted_by: submittedByInput.value
-      });
-      
-      console.log('Asset ID obtained:', assetId);
-      
-      if (!assetId) {
-        show('error', 'Failed to get asset ID');
-        return;
-      }
-
-      const existing = assignments.find(a=> Number(a.key_number)===key);
-      console.log('Existing assignment for key', key, ':', existing);
-      
-      if (existing) {
-        await updateAssignment(existing.id, key, assetId);
-      } else {
-        await createAssignment(key, assetId);
-      }
-
-      addMemory(); // remember title/station used
-      keySelect.value=''; assignButton.blur();
-    });
-
-    /* ==================== INIT ==================== */
-    async function init(){
-      populateDatalistsFromMemory();
-      setConn(false);
-      await unifiedSearch('');   // initial search (empty loads recent)
-      await loadAssignments();   // load keys
-      setInterval(loadAssignments, ASSIGNMENTS_REFRESH_MS);
-    }
-    init();
-  </script>
-</body>
-</html>
+      const res
