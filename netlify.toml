@@ -1,9 +1,9 @@
 [build]
   functions = "netlify/functions"
-  publish = "public"
 
 [build.environment]
   NODE_VERSION = "18"
+  PYTHON_VERSION = "3.9"
 
 [[headers]]
   for = "/netlify/functions/*"
@@ -13,11 +13,6 @@
     Access-Control-Allow-Methods = "GET, POST, PATCH, DELETE, OPTIONS"
 
 [[redirects]]
-  from = "/voxpro-manager"
-  to = "/voxpro-manager.html"
-  status = 200
-
-[[redirects]]
-  from = "/voxpro-manager/"
-  to = "/voxpro-manager.html"
+  from = "/*"
+  to = "/.netlify/functions/server"
   status = 200
