@@ -1,5 +1,6 @@
 [build]
   functions = "netlify/functions"
+  publish = "public"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -10,3 +11,13 @@
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
     Access-Control-Allow-Methods = "GET, POST, PATCH, DELETE, OPTIONS"
+
+[[redirects]]
+  from = "/voxpro-manager"
+  to = "/voxpro-manager.html"
+  status = 200
+
+[[redirects]]
+  from = "/voxpro-manager/"
+  to = "/voxpro-manager.html"
+  status = 200
