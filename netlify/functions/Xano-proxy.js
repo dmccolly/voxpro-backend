@@ -1,55 +1,99 @@
-// netlify/functions/xano-proxy.js
-// Proxies Xano requests to avoid CORS problems when embedding on Webflow/etc.
-// Env: XANO_BASE_URL, ALLOW_ORIGINS
+// /.netlify/functions/xano-proxy.js
+// CORS proxy for Xano API calls
 
-function corsHeaders(origin) {
-  const allow = (process.env.ALLOW_ORIGINS || "*")
-    .split(",")
-    .map(s => s.trim())
-    .filter(Boolean);
-  const ok = allow.includes("*") || (origin && allow.some(a => origin === a));
-  return {
-    "Access-Control-Allow-Origin": ok && origin ? origin : "*",
-    "Vary": "Origin",
-    "Access-Control-Allow-Methods": "GET,POST,PATCH,PUT,DELETE,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+const XANO_API_BASE = process.env.XANO_API_BASE || 'https://your-workspace.xano.io/api:version';
+const XANO_API_KEY = process.env.XANO_API_KEY; // if you're using API key authentication
+
+exports.handler = async (event, context) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'Content-Type': 'application/json'
   };
-}
 
-exports.handler = async (event) => {
-  const origin = event.headers?.origin || event.headers?.Origin || "";
-  const headers = corsHeaders(origin);
-
-  if (event.httpMethod === "OPTIONS") {
-    return { statusCode: 200, headers, body: "" };
+  // Handle CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
   }
 
-  const base = process.env.XANO_BASE_URL;
-  if (!base) return { statusCode: 500, headers, body: JSON.stringify({ error: "XANO_BASE_URL not set" }) };
-
   try {
-    const prefix = "/.netlify/functions/xano-proxy";
-    const url = new URL(event.rawUrl);
-    const pathSuffix = url.pathname.startsWith(prefix) ? url.pathname.slice(prefix.length) : "/";
-    const target = base.replace(/\/$/, "") + (pathSuffix || "/") + (url.search || "");
+    // Extract the endpoint from the path
+    const endpoint = event.path.replace('/.netlify/functions/xano-proxy/', '');
+    const xanoUrl = `${XANO_API_BASE}/${endpoint}`;
+    
+    console.log(`Proxying ${event.httpMethod} to: ${xanoUrl}`);
 
-    const upstreamHeaders = {
-      "Content-Type": event.headers["content-type"] || event.headers["Content-Type"] || "application/json",
-    };
-    if (event.headers.Authorization) upstreamHeaders.Authorization = event.headers.Authorization;
-
-    const resp = await fetch(target, {
+    // Prepare fetch options
+    const fetchOptions = {
       method: event.httpMethod,
-      headers: upstreamHeaders,
-      body: ["GET", "HEAD"].includes(event.httpMethod) ? undefined : event.body,
-    });
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    };
 
-    const bodyText = await resp.text();
-    const contentType = resp.headers.get("content-type") || "application/json";
+    // Add API key if available
+    if (XANO_API_KEY) {
+      fetchOptions.headers['Authorization'] = `Bearer ${XANO_API_KEY}`;
+    }
 
-    return { statusCode: resp.status, headers: { ...headers, "Content-Type": contentType }, body: bodyText };
-  } catch (e) {
-    console.error("xano-proxy error:", e);
-    return { statusCode: 502, headers, body: JSON.stringify({ error: "Proxy failed", detail: String(e) }) };
+    // Add body for POST/PATCH requests
+    if (event.body && (event.httpMethod === 'POST' || event.httpMethod === 'PATCH')) {
+      fetchOptions.body = event.body;
+    }
+
+    // Add query parameters
+    if (event.queryStringParameters) {
+      const params = new URLSearchParams(event.queryStringParameters);
+      const urlWithParams = `${xanoUrl}?${params.toString()}`;
+      console.log(`Full URL with params: ${urlWithParams}`);
+    }
+
+    // Make the request to Xano
+    const response = await fetch(
+      event.queryStringParameters 
+        ? `${xanoUrl}?${new URLSearchParams(event.queryStringParameters).toString()}`
+        : xanoUrl,
+      fetchOptions
+    );
+
+    const data = await response.text();
+    let jsonData;
+    
+    try {
+      jsonData = JSON.parse(data);
+    } catch (e) {
+      // If response isn't JSON, return as text
+      jsonData = { data: data };
+    }
+
+    if (!response.ok) {
+      console.error(`Xano API error: ${response.status} ${response.statusText}`, jsonData);
+      return {
+        statusCode: response.status,
+        headers,
+        body: JSON.stringify({
+          error: `Xano API error: ${response.status} ${response.statusText}`,
+          details: jsonData
+        })
+      };
+    }
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify(jsonData)
+    };
+
+  } catch (error) {
+    console.error('Xano proxy error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({
+        error: 'Proxy request failed',
+        message: error.message
+      })
+    };
   }
 };
