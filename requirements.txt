@@ -1,4 +1,4 @@
-Flask
-Flask-Cors
-requests
-gunicorn
+Flask==2.3.3
+Flask-CORS==4.0.0
+serverless-wsgi==0.1.7
+requests==2.31.0
