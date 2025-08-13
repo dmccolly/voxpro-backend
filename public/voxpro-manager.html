@@ -382,14 +382,49 @@
       
       console.log('Raw assignments data:', data);
       
-      // For each assignment, load the asset details
+      // Process each assignment and try to load asset details
       assignments = [];
+      
       for (const assignment of data) {
+        console.log('Processing assignment:', assignment);
+        
+        // Initialize asset as empty object
+        assignment.asset = {};
+        
         if (assignment.asset_id) {
-          const asset = await xano(`asset/${assignment.asset_id}`);
-          assignment.asset = asset;
-          console.log(`Loaded asset for assignment ${assignment.id}:`, asset);
+          try {
+            console.log(`Loading asset ${assignment.asset_id}...`);
+            const asset = await xano(`asset/${assignment.asset_id}`);
+            if (asset) {
+              assignment.asset = asset;
+              console.log(`Successfully loaded asset:`, asset);
+            } else {
+              console.log(`Asset ${assignment.asset_id} not found`);
+              // Set default values if asset not found
+              assignment.asset = {
+                title: `Asset ${assignment.asset_id}`,
+                station: 'Unknown',
+                file_type: ''
+              };
+            }
+          } catch (error) {
+            console.error(`Error loading asset ${assignment.asset_id}:`, error);
+            // Set default values on error
+            assignment.asset = {
+              title: `Asset ${assignment.asset_id}`,
+              station: 'Unknown', 
+              file_type: ''
+            };
+          }
+        } else {
+          console.log('No asset_id for assignment:', assignment);
+          assignment.asset = {
+            title: 'No Asset',
+            station: 'Unknown',
+            file_type: ''
+          };
         }
+        
         assignments.push(assignment);
       }
       
