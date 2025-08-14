@@ -1,1 +1,7 @@
-/voxpro-manager  /voxpro-manager.html  200
+/ (publish root)
+  voxpro-manager.html
+  _redirects
+  _headers               (optional but recommended)
+  /assets
+    voxpro-manager.css
+    voxpro-manager.js
