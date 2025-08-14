@@ -8,10 +8,9 @@ window.addEventListener('load', () => {
 
 /* ===== Config ===== */
 const SEARCH_API_PRIMARY = 'https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/search-media';
-const SEARCH_API_SECONDARY = ''; // optional fallback
+const SEARCH_API_SECONDARY = '';
 const XANO_PROXY_BASE = 'https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/xano-proxy';
 const ASSIGNMENTS_REFRESH_MS = 30000;
-const FETCH_TIMEOUT_MS = 12000; // 12s safety timeout for each call
 
 /* ===== State ===== */
 let unifiedResults = [];
@@ -55,39 +54,13 @@ const tapPlayBtn = document.getElementById('tapPlayBtn');
 const titleOptions = document.getElementById('titleOptions');
 const stationOptions = document.getElementById('stationOptions');
 
-/* ===== Small diagnostics banner (in-page) ===== */
-(function ensureDiag() {
-  if (document.getElementById('diag')) return;
-  const box = document.createElement('div');
-  box.id = 'diag';
-  box.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:99999;background:#111;border:1px solid #333;color:#9fe;padding:8px 10px;border-radius:8px;font:12px/1.3 system-ui;max-width:320px';
-  box.innerHTML = `
-    <div style="font-weight:800;color:#0f8">Connectivity</div>
-    <div id="diag-search" style="margin-top:4px">search-media: <em>pending…</em></div>
-    <div id="diag-xano" style="margin-top:2px">xano-proxy: <em>pending…</em></div>
-    <div id="diag-last" style="margin-top:6px;color:#bbb;max-height:90px;overflow:auto"></div>
-  `;
-  document.body.appendChild(box);
-})();
-
-const diagSearch = () => document.getElementById('diag-search');
-const diagXano = () => document.getElementById('diag-xano');
-const diagLast = () => document.getElementById('diag-last');
-
-function logDiag(line) {
-  try {
-    console.log('[VoxPro]', line);
-    if (diagLast()) {
-      const div = document.createElement('div');
-      div.textContent = String(line);
-      diagLast().prepend(div);
-    }
-  } catch {}
-}
-
 /* ===== Utils ===== */
 const esc = (s) => (s ?? '').toString().replace(/[&<>"']/g, (c) => ({
-  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
 }[c]));
 
 function show(type, msg) {
@@ -104,48 +77,49 @@ function setConn(ok) {
   connectionStatus.classList.toggle('bad', !ok);
 }
 
-/* ===== fetch with timeout ===== */
-async function fetchWithTimeout(url, opts = {}, timeoutMs = FETCH_TIMEOUT_MS) {
-  const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { ...opts, signal: ctrl.signal });
-    clearTimeout(id);
-    return res;
-  } catch (e) {
-    clearTimeout(id);
-    throw e;
-  }
+function fetchWithTimeout(resource, options = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(resource, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(id));
 }
 
 /* ===== API ===== */
 async function fetchJSON(url, opts) {
-  const r = await fetchWithTimeout(url, opts);
-  if (!r.ok) {
-    const txt = await r.text().catch(() => '');
-    throw new Error(`${r.status} ${r.statusText} @ ${url}\n${txt.slice(0, 240)}`);
-  }
+  const r = await fetchWithTimeout(url, opts, 12000);
+  if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
   return r.json();
 }
 
 async function xano(endpoint, opts = {}) {
-  const url = `${XANO_PROXY_BASE}/${endpoint}`;
   try {
+    const url = `${XANO_PROXY_BASE}/${endpoint}`
+      .replace(/(?<!:)\/{2,}/g, '/')
+      .replace('https:/', 'https://');
+
     const r = await fetchWithTimeout(url, {
-      headers: { 'Content-Type': 'application/json' },
+      method: (opts && opts.method) || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(opts.headers || {})
+      },
+      mode: 'cors',
+      credentials: 'omit',
       ...opts
-    });
+    }, 12000);
+
     if (!r.ok) {
-      const txt = await r.text().catch(() => '');
-      throw new Error(`${r.status} ${r.statusText} @ ${url}\n${txt.slice(0, 240)}`);
+      const text = await r.text().catch(() => '');
+      throw new Error(`${r.status} ${r.statusText}${text ? ` — ${text.slice(0, 200)}` : ''}`);
     }
-    const j = await r.json();
+
+    const j = await r.json().catch(() => ({}));
     setConn(true);
     return j;
   } catch (err) {
+    console.error('Xano error:', err);
     setConn(false);
-    logDiag(err.message || err);
-    show('error', 'Xano call failed. See console/diagnostics.');
+    show('error', 'Server error: ' + (err?.message || err));
     return null;
   }
 }
@@ -193,10 +167,14 @@ async function createVideoThumb(url) {
   return new Promise((res) => {
     try {
       const v = document.createElement('video');
-      v.muted = true; v.preload = 'metadata'; v.src = url + (url.includes('#') ? '' : '#t=0.2'); v.playsInline = true;
+      v.muted = true;
+      v.preload = 'metadata';
+      v.src = url + (url.includes('#') ? '' : '#t=0.2');
+      v.playsInline = true;
       v.onloadeddata = () => {
         try {
-          const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+          const c = document.createElement('canvas');
+          c.width = 128; c.height = 128;
           const g = c.getContext('2d');
           const r = Math.min(128 / v.videoWidth, 128 / v.videoHeight);
           const w = v.videoWidth * r, h = v.videoHeight * r;
@@ -230,16 +208,19 @@ function loadPdfJs() {
 }
 
 async function pdfPageThumb(url) {
-  const pdfjs = await loadPdfJs(); if (!pdfjs) return null;
+  const pdfjs = await loadPdfJs();
+  if (!pdfjs) return null;
   try {
     const pdf = await pdfjs.getDocument(url).promise;
     const page = await pdf.getPage(1);
     const v = page.getViewport({ scale: .5 });
-    const c = document.createElement('canvas'); const g = c.getContext('2d');
+    const c = document.createElement('canvas');
+    const g = c.getContext('2d');
     c.width = 128; c.height = 128;
     const s = Math.min(c.width / v.width, c.height / v.height);
     const v2 = page.getViewport({ scale: s });
-    const off = document.createElement('canvas'); off.width = v2.width; off.height = v2.height;
+    const off = document.createElement('canvas');
+    off.width = v2.width; off.height = v2.height;
     await page.render({ canvasContext: off.getContext('2d'), viewport: v2 }).promise;
     g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, c.width, c.height);
     g.drawImage(off, (c.width - off.width) / 2, (c.height - off.height) / 2);
@@ -251,14 +232,16 @@ const audioWaveThumbCache = new Map();
 async function renderAudioWaveThumb(url) {
   if (audioWaveThumbCache.has(url)) return audioWaveThumbCache.get(url);
   try {
-    const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
     const ctx = new AC();
-    const resp = await fetchWithTimeout(url, { mode: 'cors' });
+    const resp = await fetchWithTimeout(url, { mode: 'cors' }, 12000);
     if (!resp.ok) throw new Error('audio fetch failed');
     const buf = await resp.arrayBuffer();
     const audio = await ctx.decodeAudioData(buf);
     const ch = audio.getChannelData(0);
-    const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d');
+    const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+    const g = c.getContext('2d');
     g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, 128, 128);
     g.strokeStyle = '#00ff88'; g.lineWidth = 1; g.beginPath();
     const samples = 1000, step = Math.max(1, Math.floor(ch.length / samples));
@@ -281,12 +264,27 @@ async function createThumbnail(item) {
   const mediaUrl = item.media_url || item.database_url || item.file_url || item.url || '';
   const turl = item.thumbnail || '';
   const type = detectType(item);
-  if (turl) return `<img src="${esc(turl)}" onload="this.style.opacity=1" onerror="this.style.display='none'" style="opacity:0;transition:opacity .3s">`;
-  if (type.includes('image') && mediaUrl) return `<img src="${esc(mediaUrl)}" onload="this.style.opacity=1" onerror="this.style.display='none'" style="opacity:0;transition:opacity .3s">`;
-  if (type.includes('video') && mediaUrl) { const data = await createVideoThumb(mediaUrl); return data ? `<img src="${data}">` : `<video muted preload="metadata" playsinline><source src="${esc(mediaUrl)}#t=1"></video>`; }
-  if (type.includes('pdf') && mediaUrl) { const data = await pdfPageThumb(mediaUrl); return data ? `<img src="${data}">` : '<div class="icon">📄</div>'; }
-  if (type.includes('audio') && mediaUrl) { const data = await renderAudioWaveThumb(mediaUrl); return data ? `<img src="${data}" alt="waveform">` : '<div class="icon">🎵</div>'; }
-  if (type.includes('doc')) return '<div class="icon">📝</div>';
+
+  if (turl) {
+    return `<img src="${esc(turl)}" onload="this.style.opacity=1" onerror="this.style.display='none'" style="opacity:0;transition:opacity .3s">`;
+  }
+  if (type.includes('image') && mediaUrl) {
+    return `<img src="${esc(mediaUrl)}" onload="this.style.opacity=1" onerror="this.style.display='none'" style="opacity:0;transition:opacity .3s">`;
+  }
+  if (type.includes('video') && mediaUrl) {
+    const data = await createVideoThumb(mediaUrl);
+    return data ? `<img src="${data}">`
+                : `<video muted preload="metadata" playsinline><source src="${esc(mediaUrl)}#t=1"></video>`;
+  }
+  if (type.includes('pdf') && mediaUrl) {
+    const data = await pdfPageThumb(mediaUrl);
+    return data ? `<img src="${data}">` : '<div class="icon">📄</div>';
+  }
+  if (type.includes('audio') && mediaUrl) {
+    const data = await renderAudioWaveThumb(mediaUrl);
+    return data ? `<img src="${data}" alt="waveform">` : '<div class="icon">🎵</div>';
+  }
+  if (type.includes('doc'))  return '<div class="icon">📝</div>';
   if (type.includes('sheet')) return '<div class="icon">📊</div>';
   return '<div class="icon">📁</div>';
 }
@@ -300,29 +298,19 @@ async function unifiedSearch(term = '') {
         const q = term.trim();
         const endpoints = searchEndpointChosen ? [searchEndpointChosen] : [SEARCH_API_PRIMARY, SEARCH_API_SECONDARY].filter(Boolean);
         let data = null, lastErr = null;
-        const u = endpoints.map(ep => ep + '?' + (q ? ('q=' + encodeURIComponent(q) + '&') : '') + 'limit=20');
 
-        // Try all endpoints until one returns
-        for (const url of u) {
+        for (const ep of endpoints) {
           try {
-            const now = Date.now();
-            const out = await fetchJSON(url);
-            logDiag(`search ok (${Date.now() - now}ms): ${url}`);
-            if (diagSearch()) diagSearch().innerHTML = 'search-media: ✅ OK';
-            data = out; searchEndpointChosen = url.split('?')[0]; break;
-          } catch (e) {
-            lastErr = e;
-            logDiag(`search fail: ${e.message}`);
-            if (diagSearch()) diagSearch().innerHTML = 'search-media: ❌ ' + esc(e.message);
-          }
+            const url = ep + '?' + (q ? ('q=' + encodeURIComponent(q) + '&') : '') + 'limit=100';
+            data = await fetchJSON(url, { mode: 'cors' });
+            searchEndpointChosen = ep;
+            break;
+          } catch (e) { lastErr = e; }
         }
 
         if (!data) {
-          // Fallback to Xano direct listing
-          const now = Date.now();
           const assets = await xano('asset');
-          if (!assets) throw lastErr || new Error('No search endpoint responded (and Xano fallback failed)');
-          logDiag(`xano asset ok (${Date.now() - now}ms)`);
+          if (!assets) throw lastErr || new Error('No search endpoint responded');
           const qlc = q.toLowerCase();
           const filtered = (assets || []).filter(a => {
             const hay = [a.title, a.description, a.station, a.tags, a.submitted_by]
@@ -346,16 +334,16 @@ async function unifiedSearch(term = '') {
         setConn(true);
         resolve(unifiedResults);
       } catch (e) {
-        logDiag('search fatal: ' + (e.message || e));
+        console.error(e);
         setConn(false);
-        show('error', 'Search failed — see diagnostics bubble (bottom-right).');
+        show('error', 'Search failed');
         resolve([]);
       }
     }, 180);
   });
 }
 
-/* Render list with async thumbnail updates */
+/* ===== Media list (async thumbs) ===== */
 function renderMediaBrowser() {
   if (!unifiedResults.length) {
     mediaBrowser.innerHTML = '<div class="row"><div class="info">No media found</div></div>';
@@ -368,7 +356,7 @@ function renderMediaBrowser() {
 
     const thumb = document.createElement('div');
     thumb.className = 'thumb';
-    thumb.innerHTML = '<div class="icon">📁</div>'; // placeholder immediately
+    thumb.innerHTML = '<div class="icon">📁</div>';
 
     const info = document.createElement('div');
     info.className = 'info';
@@ -379,14 +367,11 @@ function renderMediaBrowser() {
     row.appendChild(info);
     mediaBrowser.appendChild(row);
 
-    // Async thumbnail fill; ignore errors
     (async () => {
       try {
         const html = await createThumbnail(r);
         if (row.isConnected) thumb.innerHTML = html;
-      } catch (e) {
-        logDiag('thumb error: ' + (e.message || e));
-      }
+      } catch {}
     })();
 
     row.addEventListener('click', () => {
@@ -417,36 +402,50 @@ function selectUnifiedAsset(asset) {
 
 /* ===== Assignments ===== */
 async function loadAssignments() {
-  try {
-    if (diagXano()) diagXano().innerHTML = 'xano-proxy: …';
-    const now = Date.now();
-    const data = await xano('voxpro_assignments');
-    if (!data) {
-      assignments = [];
-      assignmentsList.innerHTML = '<div class="row"><div class="info">Assignments failed to load (see diagnostics)</div></div>';
-      return;
-    }
-    logDiag(`assignments ok (${Date.now() - now}ms)`);
-    if (diagXano()) diagXano().innerHTML = 'xano-proxy: ✅ OK';
+  if (!assignmentsList.querySelector('.row')) {
+    assignmentsList.innerHTML = '<div class="row"><div class="info">Loading assignments…</div></div>';
+  }
 
-    assignments = data.sort((a, b) => (a.key_number || 0) - (b.key_number || 0));
-    for (const a of assignments) {
-      if (a.asset_id != null) {
-        try {
-          const asset = await xano('asset/' + a.asset_id);
-          a.asset = asset || { id: a.asset_id, title: `Missing Asset ${a.asset_id}`, station: 'Unknown', file_type: 'unknown' };
-        } catch (e) {
-          logDiag('load asset fail: ' + (e.message || e));
-          a.asset = { id: a.asset_id, title: `Missing Asset ${a.asset_id}`, station: 'Unknown', file_type: 'unknown' };
-        }
+  const data = await xano('voxpro_assignments');
+
+  if (!data) {
+    assignments = [];
+    assignmentsList.innerHTML = '<div class="row"><div class="info">No assignments (could not reach server)</div></div>';
+    assignmentsListManager.innerHTML = '<div class="row"><div class="info">No assignments (server error)</div></div>';
+    updateKeyButtons();
+    return;
+  }
+
+  try {
+    assignments = (Array.isArray(data) ? data : []).sort((a, b) => (a.key_number || 0) - (b.key_number || 0));
+
+    renderAssignments();
+    renderAssignmentsManager();
+
+    await Promise.all(assignments.map(async (a, idx) => {
+      if (a && a.asset_id != null) {
+        const asset = await xano('asset/' + a.asset_id);
+        assignments[idx].asset = asset || {
+          id: a.asset_id,
+          title: `Missing Asset ${a.asset_id}`,
+          station: 'Unknown',
+          file_type: 'unknown'
+        };
       } else {
-        a.asset = { title: 'No Asset ID', station: 'Unknown', file_type: 'none' };
+        assignments[idx].asset = { title: 'No Asset ID', station: 'Unknown', file_type: 'none' };
       }
-    }
-    forceUpdateUI();
+    }));
+
+    renderAssignments();
+    renderAssignmentsManager();
+    updateKeyButtons();
   } catch (e) {
-    logDiag('assignments fatal: ' + (e.message || e));
-    assignmentsList.innerHTML = '<div class="row"><div class="info">Assignments failed to load (see diagnostics)</div></div>';
+    console.error('loadAssignments parse error:', e);
+    show('error', 'Could not parse assignments');
+    assignments = [];
+    assignmentsList.innerHTML = '<div class="row"><div class="info">No assignments (parse error)</div></div>';
+    assignmentsListManager.innerHTML = '<div class="row"><div class="info">No assignments (parse error)</div></div>';
+    updateKeyButtons();
   }
 }
 
@@ -472,7 +471,6 @@ function renderAssignments() {
     </div>`;
   }).join('');
 
-  // Fill thumbs asynchronously
   assignmentsList.querySelectorAll('.row').forEach(async (row, idx) => {
     const a = assignments[idx];
     if (!a || !a.asset) return;
@@ -480,9 +478,7 @@ function renderAssignments() {
     try {
       const html = await createThumbnail(a.asset);
       if (row.isConnected) thumb.innerHTML = html;
-    } catch (e) {
-      logDiag('assign thumb error: ' + (e.message || e));
-    }
+    } catch {}
   });
 }
 
@@ -612,7 +608,7 @@ async function ensurePlayable(el) {
     tapOverlay.style.display = 'flex';
     tapOverlay.style.zIndex = '2';
     tapPlayBtn.onclick = async () => {
-      try { await el.play(); tapOverlay.style.display = 'none'; } catch (e) { logDiag('play blocked: ' + (e?.message || e)); }
+      try { await el.play(); tapOverlay.style.display = 'none'; } catch {}
     };
   }
 }
@@ -675,7 +671,7 @@ function openMediaModal(asset) {
           g.stroke();
         })();
       }
-    } catch (e) { logDiag('audio viz error: ' + (e.message || e)); }
+    } catch {}
 
     mediaModal.style.display = 'block';
     ensurePlayable(audio);
@@ -710,4 +706,102 @@ function openMediaModal(asset) {
   }
 
   mediaPlayer.prepend(el);
-  mediaModal.style
+  mediaModal.style.display = 'block';
+}
+
+function closeMediaModal() {
+  clearActiveMedia();
+  mediaModal.style.display = 'none';
+  tapOverlay.style.display = 'none';
+}
+
+function playKey(keyNum) {
+  const asn = assignments.find(a => Number(a.key_number) === Number(keyNum));
+  if (!asn) { show('error', 'No assignment for that key'); return; }
+  const asset = asn.asset || {};
+  playing = { key: keyNum, asset };
+  reflectPlaying();
+  openMediaModal(asset);
+}
+
+function stopPlayback() {
+  playing = null;
+  reflectPlaying();
+  clearActiveMedia();
+}
+
+/* ===== Drag + Resize ===== */
+(function dragAndResize() {
+  const modal = sheet, header = sheetHeader, grip = sheetResize;
+
+  // Drag
+  let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
+  function onDown(x, y) {
+    dragging = true;
+    const rect = modal.getBoundingClientRect();
+    startLeft = rect.left; startTop = rect.top;
+    startX = x; startY = y;
+    modal.style.right = 'auto'; modal.style.bottom = 'auto';
+    document.body.style.userSelect = 'none';
+  }
+  function onMove(x, y) {
+    if (!dragging) return;
+    const dx = x - startX, dy = y - startY;
+    modal.style.left = (startLeft + dx) + 'px';
+    modal.style.top = (startTop + dy) + 'px';
+  }
+  function onUp() { dragging = false; document.body.style.userSelect = ''; }
+
+  header.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
+  document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
+  document.addEventListener('mouseup', onUp);
+
+  header.addEventListener('touchstart', e => { const t = e.touches[0]; onDown(t.clientX, t.clientY); }, { passive: true });
+  document.addEventListener('touchmove', e => { const t = e.touches[0]; onMove(t.clientX, t.clientY); }, { passive: true });
+  document.addEventListener('touchend', onUp);
+
+  // Resize
+  let resizing = false, rStartX = 0, rStartY = 0, startW = 0, startH = 0;
+  function rDown(x, y) {
+    resizing = true; rStartX = x; rStartY = y;
+    const rect = modal.getBoundingClientRect();
+    startW = rect.width; startH = rect.height;
+    document.body.style.userSelect = 'none';
+  }
+  function rMove(x, y) {
+    if (!resizing) return;
+    const dx = x - rStartX, dy = y - rStartY;
+    modal.style.width = Math.max(360, startW + dx) + 'px';
+    modal.style.height = Math.max(320, startH + dy) + 'px';
+  }
+  function rUp() { resizing = false; document.body.style.userSelect = ''; }
+
+  grip.addEventListener('mousedown', e => { e.stopPropagation(); rDown(e.clientX, e.clientY); });
+  document.addEventListener('mousemove', e => rMove(e.clientX, e.clientY));
+  document.addEventListener('mouseup', rUp);
+
+  grip.addEventListener('touchstart', e => { e.stopPropagation(); const t = e.touches[0]; rDown(t.clientX, t.clientY); }, { passive: true });
+  document.addEventListener('touchmove', e => { const t = e.touches[0]; rMove(t.clientX, t.clientY); }, { passive: true });
+  document.addEventListener('touchend', rUp);
+})();
+
+/* ===== Init & Events ===== */
+document.addEventListener('DOMContentLoaded', async () => {
+  populateDatalistsFromMemory();
+  await loadAssignments();
+  await unifiedSearch('');
+  setInterval(loadAssignments, ASSIGNMENTS_REFRESH_MS);
+});
+
+searchInput.addEventListener('input', () => unifiedSearch(searchInput.value));
+assignButton.addEventListener('click', assignSelectedToKey);
+keyButtons.forEach(btn => btn.addEventListener('click', () => playKey(btn.dataset.key)));
+stopButton.addEventListener('click', stopPlayback);
+modalClose.addEventListener('click', closeMediaModal);
+mediaModal.addEventListener('click', (e) => { if (e.target === mediaModal) closeMediaModal(); });
+window.addEventListener('keydown', (e) => {
+  const k = e.key;
+  if (/[1-5]/.test(k)) { playKey(Number(k)); }
+  else if (k === ' ') { e.preventDefault(); stopPlayback(); }
+  else if (k === 'Escape') { closeMediaModal(); }
+});
