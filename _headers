@@ -1,0 +1,14 @@
+/voxpro-manager
+  Cache-Control: no-store
+  X-Content-Type-Options: nosniff
+  Content-Security-Policy: default-src 'self' https: blob: data:;
+    img-src * data: blob:;
+    media-src * data: blob:;
+    connect-src *;
+    script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline';
+    style-src 'self' 'unsafe-inline';
+    frame-src *;
+
+# pdf.js worker (served from cdnjs)
+https://cdnjs.cloudflare.com
+  Access-Control-Allow-Origin: *
