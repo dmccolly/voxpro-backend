@@ -5,10 +5,6 @@
     img-src * data: blob:;
     media-src * data: blob:;
     connect-src *;
-    script-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline';
+    script-src 'self' https://cdnjs.cloudflare.com;
     style-src 'self' 'unsafe-inline';
     frame-src *;
-
-# pdf.js worker (served from cdnjs)
-https://cdnjs.cloudflare.com
-  Access-Control-Allow-Origin: *
