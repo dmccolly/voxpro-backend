@@ -1,22 +1,11 @@
 [build]
+  publish = "public"
   functions = "netlify/functions"
 
-[build.environment]
-  NODE_VERSION = "18"
-
 [[headers]]
-  for = "/netlify/functions/*"
+  for = "/.netlify/functions/*"
   [headers.values]
-    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Origin = "https://www.streamofdan.com"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
     Access-Control-Allow-Headers = "Content-Type, Authorization"
-    Access-Control-Allow-Methods = "GET, POST, PATCH, DELETE, OPTIONS"
-
-[[redirects]]
-  from = "/voxpro-manager"
-  to = "/voxpro-manager.html"
-  status = 200
-
-[[redirects]]
-  from = "/voxpro-manager/"
-  to = "/voxpro-manager.html"
-  status = 200
+    Access-Control-Allow-Credentials = "true"
