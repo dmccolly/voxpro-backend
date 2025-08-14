@@ -1,13 +1,11 @@
-# This section controls the build settings for your site.
 [build]
-  # This tells Netlify to publish the main (root) directory of your repository.
-  # This is the fix for the "Deploy directory does not exist" error.
-  publish = "."
+publish   = "public"
+functions = "netlify/functions"
 
-  # This gives Netlify a safe, empty command to run so it doesn't fail.
-  command = "echo 'No build command required'"
-
-# This section tells Netlify where to find your serverless functions.
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
+[[headers]]
+for = "/.netlify/functions/*"
+[headers.values]
+Access-Control-Allow-Origin = "https://www.streamofdan.com"
+Access-Control-Allow-Credentials = "true"
+Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+Access-Control-Allow-Headers = "Content-Type, Authorization"
