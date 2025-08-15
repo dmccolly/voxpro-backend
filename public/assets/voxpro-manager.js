@@ -1,4 +1,4 @@
-// Worker (pdf.js)
+// Worker (pdf.js) – safe to keep; we won't canvas-render PDFs for thumbs.
 window.addEventListener('load', () => {
   if (window.pdfjsLib) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -56,11 +56,7 @@ const stationOptions = document.getElementById('stationOptions');
 
 /* ===== Utils ===== */
 const esc = (s) => (s ?? '').toString().replace(/[&<>"']/g, (c) => ({
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[c]));
 
 function show(type, msg) {
@@ -99,10 +95,7 @@ async function xano(endpoint, opts = {}) {
 
     const r = await fetchWithTimeout(url, {
       method: (opts && opts.method) || 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(opts.headers || {})
-      },
+      headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
       mode: 'cors',
       credentials: 'omit',
       ...opts
@@ -149,7 +142,7 @@ function populateDatalistsFromMemory() {
   stationOptions.innerHTML = stations.slice(-200).reverse().map(v => `<option value="${esc(v)}">`).join('');
 }
 
-/* ===== Type detect & thumbnails ===== */
+/* ===== Type detect & thumbnails (CORS-safe) ===== */
 function detectType(item) {
   const t = (item.file_type || '').toLowerCase();
   if (t) return t;
@@ -163,128 +156,46 @@ function detectType(item) {
   return '';
 }
 
-async function createVideoThumb(url) {
-  return new Promise((res) => {
-    try {
-      const v = document.createElement('video');
-      v.muted = true;
-      v.preload = 'metadata';
-      v.src = url + (url.includes('#') ? '' : '#t=0.2');
-      v.playsInline = true;
-      v.onloadeddata = () => {
-        try {
-          const c = document.createElement('canvas');
-          c.width = 128; c.height = 128;
-          const g = c.getContext('2d');
-          const r = Math.min(128 / v.videoWidth, 128 / v.videoHeight);
-          const w = v.videoWidth * r, h = v.videoHeight * r;
-          g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, 128, 128);
-          g.drawImage(v, (128 - w) / 2, (128 - h) / 2, w, h);
-          res(c.toDataURL('image/png'));
-        } catch { res(null); }
-      };
-      v.onerror = () => res(null);
-    } catch { res(null); }
-  });
-}
-
-let _pdfReady = null;
-function loadPdfJs() {
-  if (_pdfReady) return _pdfReady;
-  _pdfReady = new Promise((res, rej) => {
-    function go() {
-      try {
-        if (!window.pdfjsLib) throw new Error('pdf.js missing');
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        res(window.pdfjsLib);
-      } catch (e) { rej(e); }
-    }
-    if (window.pdfjsLib) return go();
-    const t = setInterval(() => { if (window.pdfjsLib) { clearInterval(t); go(); } }, 200);
-    setTimeout(() => { if (!window.pdfjsLib) rej(new Error('pdf.js not loaded')); }, 5000);
-  }).catch(() => null);
-  return _pdfReady;
-}
-
-async function pdfPageThumb(url) {
-  const pdfjs = await loadPdfJs();
-  if (!pdfjs) return null;
-  try {
-    const pdf = await pdfjs.getDocument(url).promise;
-    const page = await pdf.getPage(1);
-    const v = page.getViewport({ scale: .5 });
-    const c = document.createElement('canvas');
-    const g = c.getContext('2d');
-    c.width = 128; c.height = 128;
-    const s = Math.min(c.width / v.width, c.height / v.height);
-    const v2 = page.getViewport({ scale: s });
-    const off = document.createElement('canvas');
-    off.width = v2.width; off.height = v2.height;
-    await page.render({ canvasContext: off.getContext('2d'), viewport: v2 }).promise;
-    g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, c.width, c.height);
-    g.drawImage(off, (c.width - off.width) / 2, (c.height - off.height) / 2);
-    return c.toDataURL('image/png');
-  } catch { return null; }
-}
-
-const audioWaveThumbCache = new Map();
-async function renderAudioWaveThumb(url) {
-  if (audioWaveThumbCache.has(url)) return audioWaveThumbCache.get(url);
-  try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    const ctx = new AC();
-    const resp = await fetchWithTimeout(url, { mode: 'cors' }, 12000);
-    if (!resp.ok) throw new Error('audio fetch failed');
-    const buf = await resp.arrayBuffer();
-    const audio = await ctx.decodeAudioData(buf);
-    const ch = audio.getChannelData(0);
-    const c = document.createElement('canvas'); c.width = 128; c.height = 128;
-    const g = c.getContext('2d');
-    g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, 128, 128);
-    g.strokeStyle = '#00ff88'; g.lineWidth = 1; g.beginPath();
-    const samples = 1000, step = Math.max(1, Math.floor(ch.length / samples));
-    for (let x = 0; x < 128; x++) {
-      const start = Math.min(ch.length - 1, Math.floor((x / 128) * samples) * step);
-      const end = Math.min(ch.length - 1, start + step);
-      let min = 1, max = -1;
-      for (let i = start; i < end; i++) { const v = ch[i]; if (v < min) min = v; if (v > max) max = v; }
-      const y1 = 64 + min * 60, y2 = 64 + max * 60;
-      g.moveTo(x, y1); g.lineTo(x, y2);
-    }
-    g.stroke();
-    const data = c.toDataURL('image/png');
-    audioWaveThumbCache.set(url, data);
-    return data;
-  } catch { return null; }
-}
+// tiny inline SVG waveform (no canvas)
+const AUDIO_SVG_DATA = (() => {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" fill="#0b0b0b"/><g stroke="#00ff88" stroke-width="2">` +
+  Array.from({length:32}).map((_,i)=>{
+    const x=4+i*4, h=10+((i*7)%50);
+    return `<line x1="${x}" y1="${64-h/2}" x2="${x}" y2="${64+h/2}"/>`;
+  }).join('') + `</g></svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+})();
 
 async function createThumbnail(item) {
   const mediaUrl = item.media_url || item.database_url || item.file_url || item.url || '';
   const turl = item.thumbnail || '';
   const type = detectType(item);
 
+  // Prefer server-provided thumbnail (no CORS issues)
   if (turl) {
     return `<img src="${esc(turl)}" onload="this.style.opacity=1" onerror="this.style.display='none'" style="opacity:0;transition:opacity .3s">`;
   }
+
   if (type.includes('image') && mediaUrl) {
+    // Safe: <img> doesn't taint canvas (we're not drawing it)
     return `<img src="${esc(mediaUrl)}" onload="this.style.opacity=1" onerror="this.style.display='none'" style="opacity:0;transition:opacity .3s">`;
   }
+
   if (type.includes('video') && mediaUrl) {
-    const data = await createVideoThumb(mediaUrl);
-    return data ? `<img src="${data}">`
-                : `<video muted preload="metadata" playsinline><source src="${esc(mediaUrl)}#t=1"></video>`;
+    // CORS-safe preview: just show a <video> tile with posterless metadata
+    return `<video muted preload="metadata" playsinline onerror="this.outerHTML='<div class=&quot;icon&quot;>🎬</div>'">
+              <source src="${esc(mediaUrl)}#t=0.1">
+            </video>`;
   }
-  if (type.includes('pdf') && mediaUrl) {
-    const data = await pdfPageThumb(mediaUrl);
-    return data ? `<img src="${data}">` : '<div class="icon">📄</div>';
+
+  if (type.includes('audio')) {
+    // CORS-safe: inline SVG
+    return `<img src="${AUDIO_SVG_DATA}" alt="audio">`;
   }
-  if (type.includes('audio') && mediaUrl) {
-    const data = await renderAudioWaveThumb(mediaUrl);
-    return data ? `<img src="${data}" alt="waveform">` : '<div class="icon">🎵</div>';
-  }
-  if (type.includes('doc'))  return '<div class="icon">📝</div>';
+
+  if (type.includes('pdf'))   return '<div class="icon">📄</div>';
+  if (type.includes('doc'))   return '<div class="icon">📝</div>';
   if (type.includes('sheet')) return '<div class="icon">📊</div>';
   return '<div class="icon">📁</div>';
 }
@@ -405,7 +316,6 @@ async function loadAssignments() {
   if (!assignmentsList.querySelector('.row')) {
     assignmentsList.innerHTML = '<div class="row"><div class="info">Loading assignments…</div></div>';
   }
-
   const data = await xano('voxpro_assignments');
 
   if (!data) {
@@ -426,10 +336,7 @@ async function loadAssignments() {
       if (a && a.asset_id != null) {
         const asset = await xano('asset/' + a.asset_id);
         assignments[idx].asset = asset || {
-          id: a.asset_id,
-          title: `Missing Asset ${a.asset_id}`,
-          station: 'Unknown',
-          file_type: 'unknown'
+          id: a.asset_id, title: `Missing Asset ${a.asset_id}`, station: 'Unknown', file_type: 'unknown'
         };
       } else {
         assignments[idx].asset = { title: 'No Asset ID', station: 'Unknown', file_type: 'none' };
@@ -594,7 +501,7 @@ async function deleteAssignment(id) {
   await loadAssignments();
 }
 
-/* ===== Player / Modal ===== */
+/* ===== Player / Modal (CORS-tolerant) ===== */
 function clearActiveMedia() {
   try { if (activeMediaEl) { activeMediaEl.pause?.(); activeMediaEl.src = ''; } } catch {}
   activeMediaEl = null;
@@ -608,7 +515,9 @@ async function ensurePlayable(el) {
     tapOverlay.style.display = 'flex';
     tapOverlay.style.zIndex = '2';
     tapPlayBtn.onclick = async () => {
-      try { await el.play(); tapOverlay.style.display = 'none'; } catch {}
+      try { await el.play(); tapOverlay.style.display = 'none'; } catch (e) {
+        show('error', 'Playback blocked or failed');
+      }
     };
   }
 }
@@ -627,85 +536,69 @@ function openMediaModal(asset) {
   if (!url) { show('error', 'No media URL on this asset'); mediaModal.style.display = 'block'; return; }
 
   const type = (asset.file_type || detectType(asset) || '').toLowerCase();
-  let el = null;
 
   if (type.includes('audio')) {
-    const wrap = document.createElement('div');
-    wrap.style.display = 'grid';
-    wrap.style.gridTemplateRows = '1fr auto';
-    wrap.style.height = '100%';
-
-    const canvas = document.createElement('canvas');
-    canvas.width = 460; canvas.height = 220;
-    canvas.style.margin = '8px';
-    canvas.style.background = '#0b0b0b';
-
     const audio = document.createElement('audio');
-    audio.controls = true; audio.autoplay = false; audio.style.width = '100%'; audio.playsInline = true;
-    const src = document.createElement('source'); src.src = url; audio.appendChild(src);
-
-    wrap.appendChild(canvas); wrap.appendChild(audio);
-    mediaPlayer.prepend(wrap);
+    audio.controls = true;
+    audio.autoplay = false;
+    audio.playsInline = true;
+    audio.style.width = '100%';
+    audio.crossOrigin = 'anonymous';
+    audio.src = url;
+    audio.addEventListener('error', () => show('error', 'Audio failed to load'));
+    mediaPlayer.prepend(audio);
     activeMediaEl = audio;
-
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) {
-        const ctx = new AC();
-        const analyser = ctx.createAnalyser(); analyser.fftSize = 2048;
-        const msrc = ctx.createMediaElementSource(audio);
-        msrc.connect(analyser); analyser.connect(ctx.destination);
-        const g = canvas.getContext('2d');
-        (function draw() {
-          requestAnimationFrame(draw);
-          const data = new Uint8Array(analyser.frequencyBinCount);
-          analyser.getByteTimeDomainData(data);
-          g.clearRect(0, 0, canvas.width, canvas.height);
-          g.strokeStyle = '#00ff88'; g.lineWidth = 2; g.beginPath();
-          const slice = canvas.width / data.length; let x = 0;
-          for (let i = 0; i < data.length; i++) {
-            const v = (data[i] / 128) - 1;
-            const y = (canvas.height / 2) + v * (canvas.height / 2 - 10);
-            i ? g.lineTo(x, y) : g.moveTo(x, y); x += slice;
-          }
-          g.stroke();
-        })();
-      }
-    } catch {}
-
     mediaModal.style.display = 'block';
+    audio.load();
     ensurePlayable(audio);
     return;
   }
 
   if (type.includes('video')) {
-    el = document.createElement('video');
-    el.controls = true; el.autoplay = false; el.style.maxWidth = '100%'; el.style.maxHeight = '100%'; el.playsInline = true;
-    const s = document.createElement('source'); s.src = url + '#t=0.1'; el.appendChild(s);
-    mediaPlayer.prepend(el);
-    activeMediaEl = el;
+    const video = document.createElement('video');
+    video.controls = true;
+    video.autoplay = false;
+    video.playsInline = true;
+    video.style.maxWidth = '100%';
+    video.style.maxHeight = '100%';
+    video.crossOrigin = 'anonymous';
+    video.src = url + (url.includes('#') ? '' : '#t=0.1');
+    video.addEventListener('error', () => show('error', 'Video failed to load'));
+    mediaPlayer.prepend(video);
+    activeMediaEl = video;
     mediaModal.style.display = 'block';
-    ensurePlayable(el);
+    video.load();
+    ensurePlayable(video);
     return;
   }
 
   if (type.includes('image')) {
-    el = document.createElement('img');
-    el.alt = asset.title || '';
-    el.src = url;
-    el.style.maxWidth = '100%'; el.style.maxHeight = '100%';
-  } else if (type.includes('pdf')) {
-    el = document.createElement('embed');
-    el.type = 'application/pdf'; el.src = url;
-    el.style.width = '100%'; el.style.height = '100%';
-  } else {
-    const div = document.createElement('div');
-    div.style.padding = '16px';
-    div.textContent = 'Preview not available';
-    el = div;
+    const img = document.createElement('img');
+    img.alt = asset.title || '';
+    img.src = url;
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '100%';
+    img.addEventListener('error', () => show('error', 'Image failed to load'));
+    mediaPlayer.prepend(img);
+    mediaModal.style.display = 'block';
+    return;
   }
 
-  mediaPlayer.prepend(el);
+  if (type.includes('pdf')) {
+    const emb = document.createElement('embed');
+    emb.type = 'application/pdf';
+    emb.src = url;
+    emb.style.width = '100%';
+    emb.style.height = '100%';
+    mediaPlayer.prepend(emb);
+    mediaModal.style.display = 'block';
+    return;
+  }
+
+  const div = document.createElement('div');
+  div.style.padding = '16px';
+  div.textContent = 'Preview not available';
+  mediaPlayer.prepend(div);
   mediaModal.style.display = 'block';
 }
 
@@ -730,7 +623,7 @@ function stopPlayback() {
   clearActiveMedia();
 }
 
-/* ===== Drag + Resize ===== */
+/* ===== Drag + Resize (already works) ===== */
 (function dragAndResize() {
   const modal = sheet, header = sheetHeader, grip = sheetResize;
 
