@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>VoxPro Manager</title>
-  <link rel="stylesheet" href="/assets/voxpro-manager.css?v=3">
+
+  <link rel="stylesheet" href="/assets/voxpro-manager.css?v=5">
   <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
@@ -14,6 +15,7 @@
         <div class="panel-title">VoxPro Media Player</div>
         <div class="status" id="connectionStatus">Connecting…</div>
       </div>
+
       <div class="grid-keys" id="keyGrid">
         <button class="key" data-key="1">KEY 1</button>
         <button class="key" data-key="2">KEY 2</button>
@@ -21,9 +23,12 @@
         <button class="key" data-key="4">KEY 4</button>
         <button class="key" data-key="5">KEY 5</button>
       </div>
+
       <button class="stop" id="stopButton">STOP</button>
+
       <div class="section-title">Current Key Assignments</div>
       <div class="list" id="assignmentsList"><div class="row"><div class="info">Loading assignments…</div></div></div>
+
       <div class="current" id="currentInfo" style="display:none;">
         <div class="h" id="currentTitle">Now Playing</div>
         <div class="meta" id="currentMeta"></div>
@@ -39,7 +44,7 @@
       <div id="alert" class="alert"></div>
 
       <label class="label" for="searchInput">Search Media (title, description, station, tags)</label>
-      <input class="input" id="searchInput" placeholder="Type to search… or leave empty for recent">
+      <input class="input" id="searchInput" placeholder="Type to search… or leave empty for recent" />
 
       <div class="list" id="mediaBrowser" style="margin-top:10px">
         <div class="row"><div class="info">Waiting for search…</div></div>
@@ -58,21 +63,21 @@
       </select>
 
       <label class="label" for="titleInput">Title</label>
-      <input class="input" id="titleInput" placeholder="Title" list="titleOptions" readonly>
+      <input class="input" id="titleInput" placeholder="Title" list="titleOptions" readonly />
       <datalist id="titleOptions"></datalist>
 
       <label class="label" for="descriptionInput">Description</label>
       <textarea class="textarea" id="descriptionInput" placeholder="Description" readonly></textarea>
 
       <label class="label" for="stationInput">Station</label>
-      <input class="input" id="stationInput" placeholder="Station" list="stationOptions" readonly>
+      <input class="input" id="stationInput" placeholder="Station" list="stationOptions" readonly />
       <datalist id="stationOptions"></datalist>
 
       <label class="label" for="tagsInput">Tags</label>
-      <input class="input" id="tagsInput" placeholder="Comma-separated" readonly>
+      <input class="input" id="tagsInput" placeholder="Comma-separated" readonly />
 
       <label class="label" for="submittedByInput">Submitted By</label>
-      <input class="input" id="submittedByInput" placeholder="Name or initials" readonly>
+      <input class="input" id="submittedByInput" placeholder="Name or initials" readonly />
 
       <div style="margin-top:14px;display:flex;gap:10px">
         <button class="btn" id="assignButton" style="flex:1">Assign / Update Key</button>
@@ -85,6 +90,7 @@
     </section>
   </div>
 
+  <!-- Modal -->
   <div class="modal" id="mediaModal">
     <div class="sheet" id="sheet">
       <div class="sheet-h" id="sheetHeader">
@@ -101,6 +107,6 @@
     </div>
   </div>
 
-  <script src="/assets/voxpro-manager.js?v=3" defer></script>
+  <script src="/assets/voxpro-manager.js?v=5" defer></script>
 </body>
 </html>
