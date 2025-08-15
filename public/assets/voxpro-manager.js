@@ -42,7 +42,6 @@ let unifiedResults = [];
 let assignments = [];
 let selectedUnified = null;
 let playing = null;
-let connGood = false;
 let searchEndpointChosen = null;
 let activeMediaEl = null;
 
@@ -74,7 +73,6 @@ const sheet = document.getElementById('sheet');
 const sheetHeader = document.getElementById('sheetHeader');
 const sheetResize = document.getElementById('sheetResize');
 const tapOverlay = document.getElementById('tapOverlay');
-const tapPlayBtn = document.getElementById('tapPlayBtn');
 const titleOptions = document.getElementById('titleOptions');
 const stationOptions = document.getElementById('stationOptions');
 
@@ -90,7 +88,6 @@ function show(type, msg) {
   show._t = setTimeout(() => { alertBox.style.display = 'none'; }, type === 'error' ? 6000 : 3000);
 }
 function setConn(ok) {
-  connGood = !!ok;
   connectionStatus.textContent = ok ? 'Connected' : 'Connection Error';
   connectionStatus.classList.toggle('bad', !ok);
 }
@@ -105,22 +102,17 @@ async function fetchJSON(url, opts) {
   if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
   return r.json();
 }
-
-/* ===== API (Xano proxy) ===== */
 async function xano(endpoint, opts = {}) {
   try {
     const url = `${XANO_PROXY_BASE}/${endpoint}`.replace(/(?<!:)\/{2,}/g, '/').replace('https:/','https://');
     const r = await fetchWithTimeout(url, {
-      method: (opts && opts.method) || 'GET',
+      method: opts.method || 'GET',
       headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
       mode: 'cors',
       credentials: 'omit',
       ...opts
     }, 12000);
-    if (!r.ok) {
-      const text = await r.text().catch(() => '');
-      throw new Error(`${r.status} ${r.statusText}${text ? ` — ${text.slice(0,200)}` : ''}`);
-    }
+    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
     const j = await r.json().catch(() => ({}));
     setConn(true);
     return j;
@@ -132,7 +124,7 @@ async function xano(endpoint, opts = {}) {
   }
 }
 
-/* ===== MEMORY (datalists) ===== */
+/* ===== DATALISTS MEMORY ===== */
 const LS_TITLES = 'voxpro_titles';
 const LS_STATIONS = 'voxpro_stations';
 const readSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(k) || '[]')); } catch { return new Set(); } };
@@ -150,39 +142,19 @@ function populateDatalistsFromMemory(){
 }
 
 /* ===== URL DETECTION ===== */
-/** 1) Common fields */
 function assetUrlCommon(a){
   return a?.media_url || a?.database_url || a?.file_url || a?.url ||
          a?.public_url || a?.signed_url || a?.s3_url || a?.storage_url ||
          a?.path || a?.source_url || (a?.file && (a.file.url || a.file.path || a.file.public_url)) || '';
 }
-/** 2) Deep scan for any http(s) string (fallback) */
 function findUrlDeep(obj, depth=0, maxDepth=4){
   if (!obj || depth>maxDepth) return '';
-  if (typeof obj === 'string') {
-    if (/^https?:\/\//i.test(obj)) return obj;
-    return '';
-  }
-  if (Array.isArray(obj)) {
-    for (const v of obj){ const u=findUrlDeep(v, depth+1, maxDepth); if(u) return u; }
-    return '';
-  }
-  if (typeof obj === 'object') {
-    for (const k of Object.keys(obj)){
-      const v=obj[k];
-      const u=findUrlDeep(v, depth+1, maxDepth);
-      if(u) return u;
-    }
-  }
+  if (typeof obj === 'string') return /^https?:\/\//i.test(obj) ? obj : '';
+  if (Array.isArray(obj)) { for (const v of obj){ const u=findUrlDeep(v, depth+1, maxDepth); if(u) return u; } return ''; }
+  if (typeof obj === 'object') { for (const k of Object.keys(obj)){ const u=findUrlDeep(obj[k], depth+1, maxDepth); if(u) return u; } }
   return '';
 }
-/** Final resolver: try common fields, else deep-scan */
-function assetUrlRaw(a){
-  const common = assetUrlCommon(a);
-  if (common) return common;
-  const deep = findUrlDeep(a);
-  return deep || '';
-}
+function assetUrlRaw(a){ return assetUrlCommon(a) || findUrlDeep(a) || ''; }
 function proxied(url){ return url ? (url.startsWith(MEDIA_PROXY)?url:MEDIA_PROXY+encodeURIComponent(url)) : ''; }
 function assetUrl(a){ return proxied(assetUrlRaw(a)); }
 
@@ -200,11 +172,12 @@ function detectType(item){
   return '';
 }
 
-/* ===== THUMBNAILS (simple, proxy-backed) ===== */
+/* ===== THUMBNAILS ===== */
 async function createThumbnail(item){
   const raw=item.thumbnail || assetUrlRaw(item);
   const url=raw?proxied(raw):'';
   const type=detectType(item);
+
   if (!url){
     if(type.includes('audio')) return '<div class="icon">🎵</div>';
     if(type.includes('video')) return '<div class="icon">🎬</div>';
@@ -228,7 +201,7 @@ async function createThumbnail(item){
   return `<img src="${esc(url)}" onerror="this.outerHTML='<div class=&quot;icon&quot;>📁</div>'" />`;
 }
 
-/* ===== DIAGNOSTIC: selection line ===== */
+/* ===== DIAGNOSTICS LINE ===== */
 function setSelectionDiagnostics(asset){
   const raw=assetUrlRaw(asset);
   selectedMedia.textContent = `Selected (${asset.source}): ${asset.title||'Untitled'} — ` + (raw ? `URL ✓ (${raw.slice(0,80)}${raw.length>80?'…':''})` : 'NO URL');
@@ -331,6 +304,7 @@ async function loadAssignments(){
   try{
     assignments=(Array.isArray(data)?data:[]).sort((a,b)=>(a.key_number||0)-(b.key_number||0));
     renderAssignments(); renderAssignmentsManager();
+
     await Promise.all(assignments.map(async (a,idx)=>{
       if(a && a.asset_id!=null){
         const asset=await xano('asset/'+a.asset_id);
@@ -339,6 +313,7 @@ async function loadAssignments(){
         assignments[idx].asset = { title:'No Asset ID', station:'Unknown', file_type:'none' };
       }
     }));
+
     renderAssignments(); renderAssignmentsManager(); updateKeyButtons();
     reportUrlCoverage('assignments', assignments.map(a=>a.asset||{}));
   }catch(e){
@@ -349,7 +324,6 @@ async function loadAssignments(){
     updateKeyButtons();
   }
 }
-function forceUpdateUI(){ renderAssignments(); updateKeyButtons(); renderAssignmentsManager(); }
 function renderAssignments(){
   if(!assignments.length){
     assignmentsList.innerHTML='<div class="row"><div class="info">No assignments yet</div></div>'; return;
@@ -410,7 +384,7 @@ function reflectPlaying(){
   }
 }
 
-/* ===== ASSIGN/DELETE ===== */
+/* ===== ASSIGN / DELETE ===== */
 async function ensureXanoAssetFromUnified(asset){
   if(!asset) return null;
   if(asset.source==='xano'){
@@ -501,15 +475,27 @@ function openMediaModal(asset){
   mediaPlayer.innerHTML='<div style="padding:12px">Preview not available.</div>';
   mediaModal.style.display='block';
 }
-function closeMediaModal(){ clearActiveMedia(); mediaModal.style.display='none'; tapOverlay.style.display='none'; }
+function closeMediaModal(){ clearActiveMedia(); mediaModal.style.display='none'; }
 function playKey(keyNum){
   const asn=assignments.find(a=>Number(a.key_number)===Number(keyNum));
   if(!asn){ show('error','No assignment for that key'); return; }
   const asset=asn.asset||{}; playing={key:keyNum,asset}; reflectPlaying(); openMediaModal(asset);
 }
 function stopPlayback(){ playing=null; reflectPlaying(); clearActiveMedia(); }
+function reflectPlaying(){
+  keyButtons.forEach(btn=>btn.classList.remove('playing'));
+  if(playing&&playing.key){
+    const btn=keyButtons.find(b=>Number(b.dataset.key)===Number(playing.key));
+    if(btn) btn.classList.add('playing');
+    currentInfo.style.display='block';
+    currentTitle.textContent=playing.asset?.title?`Now Playing — ${playing.asset.title}`:'Now Playing';
+    currentMeta.textContent=[playing.asset?.station||'',playing.asset?.file_type||''].filter(Boolean).join(' • ');
+  } else {
+    currentInfo.style.display='none';
+  }
+}
 
-/* ===== DRAG + RESIZE (handle + CSS resize) ===== */
+/* ===== DRAG + RESIZE ===== */
 (function dragAndResize(){
   const modal=sheet, header=sheetHeader, grip=sheetResize;
   let dragging=false,startX=0,startY=0,startLeft=0,startTop=0;
@@ -522,6 +508,7 @@ function stopPlayback(){ playing=null; reflectPlaying(); clearActiveMedia(); }
   header.addEventListener('touchstart',e=>{const t=e.touches[0];onDown(t.clientX,t.clientY)},{passive:true});
   document.addEventListener('touchmove',e=>{const t=e.touches[0];onMove(t.clientX,t.clientY)},{passive:true});
   document.addEventListener('touchend',onUp);
+
   let resizing=false,rStartX=0,rStartY=0,startW=0,startH=0;
   function rDown(x,y){resizing=true;rStartX=x;rStartY=y;const r=modal.getBoundingClientRect();startW=r.width;startH=r.height;document.body.style.userSelect='none'}
   function rMove(x,y){if(!resizing)return;const dx=x-rStartX,dy=y-rStartY;modal.style.width=Math.max(360,startW+dx)+'px';modal.style.height=Math.max(320,startH+dy)+'px'}
@@ -536,29 +523,20 @@ function stopPlayback(){ playing=null; reflectPlaying(); clearActiveMedia(); }
   }
 })();
 
-/* ===== DIAGNOSTICS: URL coverage ===== */
+/* ===== COVERAGE NOTICE ===== */
 function reportUrlCoverage(label, items){
   let have=0, total=items.length;
-  const misses=[];
-  for (const a of items){
-    const u=assetUrlRaw(a);
-    if (u) have++; else misses.push(a);
-  }
-  console.log(`[${label}] media URLs found: ${have}/${total}`);
-  if (misses.length){
-    console.log(`[${label}] examples missing URL (first 3):`,
-      misses.slice(0,3).map(x=>({id:x?.id, keys:Object.keys(x||{})})));
-  }
+  for (const a of items){ if (assetUrlRaw(a)) have++; }
   if (total){
     alertBox.className='alert success';
     alertBox.textContent=`Media URLs found: ${have}/${total}`;
     alertBox.style.display='block';
     clearTimeout(reportUrlCoverage._t);
-    reportUrlCoverage._t=setTimeout(()=>{alertBox.style.display='none'}, 3500);
+    reportUrlCoverage._t=setTimeout(()=>{alertBox.style.display='none'}, 3000);
   }
 }
 
-/* ===== INIT & EVENTS ===== */
+/* ===== INIT ===== */
 document.addEventListener('DOMContentLoaded', async ()=>{
   populateDatalistsFromMemory();
   await loadAssignments();
@@ -569,11 +547,11 @@ searchInput.addEventListener('input',()=>unifiedSearch(searchInput.value));
 assignButton.addEventListener('click',assignSelectedToKey);
 keyButtons.forEach(btn=>btn.addEventListener('click',()=>playKey(btn.dataset.key)));
 stopButton.addEventListener('click',stopPlayback);
-modalClose.addEventListener('click',closeMediaModal);
-mediaModal.addEventListener('click',e=>{if(e.target===mediaModal) closeMediaModal();});
+modalClose.addEventListener('click',()=>mediaModal.style.display='none');
+mediaModal.addEventListener('click',e=>{if(e.target===mediaModal) mediaModal.style.display='none';});
 window.addEventListener('keydown',e=>{
   const k=e.key;
   if(/[1-5]/.test(k)){ playKey(Number(k)); }
   else if(k===' '){ e.preventDefault(); stopPlayback(); }
-  else if(k==='Escape'){ closeMediaModal(); }
+  else if(k==='Escape'){ mediaModal.style.display='none'; }
 });
