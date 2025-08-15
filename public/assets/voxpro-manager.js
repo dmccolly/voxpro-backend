@@ -298,4 +298,305 @@ function renderMediaBrowser() {
     row.addEventListener('click', () => {
       mediaBrowser.querySelectorAll('.row').forEach(n => n.classList.remove('selected'));
       row.classList.add('selected');
-      const asset =
+      const asset = unifiedResults.find(x => String(x.id) === String(r.id));
+      if (asset) selectUnifiedAsset(asset);
+    });
+    row.addEventListener('dblclick', () => {
+      const asset = unifiedResults.find(x => String(x.id) === String(r.id));
+      if (asset) openMediaModal(asset);
+    });
+  });
+}
+function selectUnifiedAsset(asset) {
+  selectedUnified = asset;
+  selectedMedia.textContent = `Selected (${asset.source}): ${asset.title || 'Untitled'}`;
+  titleInput.value = asset.title || '';
+  descriptionInput.value = asset.description || '';
+  stationInput.value = asset.station || '';
+  tagsInput.value = asset.tags || '';
+  submittedByInput.value = asset.submitted_by || '';
+  const editable = asset.source === 'xano';
+  [titleInput, descriptionInput, stationInput, tagsInput, submittedByInput].forEach(i => { i.readOnly = !editable; });
+}
+
+/* ===== Assignments ===== */
+async function loadAssignments() {
+  if (!assignmentsList.querySelector('.row')) {
+    assignmentsList.innerHTML = '<div class="row"><div class="info">Loading assignments…</div></div>';
+  }
+  const data = await xano('voxpro_assignments');
+  if (!data) {
+    assignments = [];
+    assignmentsList.innerHTML = '<div class="row"><div class="info">No assignments (could not reach server)</div></div>';
+    assignmentsListManager.innerHTML = '<div class="row"><div class="info">No assignments (server error)</div></div>';
+    updateKeyButtons();
+    return;
+  }
+  try {
+    assignments = (Array.isArray(data) ? data : []).sort((a, b) => (a.key_number || 0) - (b.key_number || 0));
+    renderAssignments();
+    renderAssignmentsManager();
+
+    await Promise.all(assignments.map(async (a, idx) => {
+      if (a && a.asset_id != null) {
+        const asset = await xano('asset/' + a.asset_id);
+        assignments[idx].asset = asset || {
+          id: a.asset_id, title: `Missing Asset ${a.asset_id}`, station: 'Unknown', file_type: 'unknown'
+        };
+      } else {
+        assignments[idx].asset = { title: 'No Asset ID', station: 'Unknown', file_type: 'none' };
+      }
+    }));
+
+    renderAssignments();
+    renderAssignmentsManager();
+    updateKeyButtons();
+  } catch (e) {
+    console.error('loadAssignments parse error:', e);
+    show('error', 'Could not parse assignments');
+    assignments = [];
+    assignmentsList.innerHTML = '<div class="row"><div class="info">No assignments (parse error)</div></div>';
+    assignmentsListManager.innerHTML = '<div class="row"><div class="info">No assignments (parse error)</div></div>';
+    updateKeyButtons();
+  }
+}
+function forceUpdateUI(){ renderAssignments(); updateKeyButtons(); renderAssignmentsManager(); }
+function renderAssignments() {
+  if (!assignments.length) {
+    assignmentsList.innerHTML = '<div class="row"><div class="info">No assignments yet</div></div>';
+    return;
+  }
+  assignmentsList.innerHTML = assignments.map(a => {
+    const asset = a.asset || {};
+    return `<div class="row" data-assign-id="${a.id}">
+      <div class="thumb"><div class="icon">📁</div></div>
+      <div class="info">
+        <div class="title">Key ${a.key_number || '?'} — ${esc(asset.title || 'Unknown')}</div>
+        <div class="meta">${esc(asset.station || 'Unknown')} • ${esc(asset.file_type || '')}</div>
+      </div>
+    </div>`;
+  }).join('');
+  assignmentsList.querySelectorAll('.row').forEach(async (row, idx) => {
+    const a = assignments[idx]; if (!a || !a.asset) return;
+    const thumb = row.querySelector('.thumb');
+    try { const html = await createThumbnail(a.asset); if (row.isConnected) thumb.innerHTML = html; } catch {}
+  });
+}
+function renderAssignmentsManager() {
+  if (!assignments.length) {
+    assignmentsListManager.innerHTML = '<div class="row"><div class="info">No assignments yet</div></div>';
+    return;
+  }
+  assignmentsListManager.innerHTML = assignments.map(a => {
+    const asset = a.asset || {};
+    return `<div class="row">
+      <div class="info">
+        <div class="title">Key ${a.key_number || '?'}</div>
+        <div class="meta">${esc(asset.title || 'Unknown')} • ${esc(asset.station || 'Unknown')}</div>
+      </div>
+      <div><button class="btn btn-danger" data-del-id="${a.id}">Remove</button></div>
+    </div>`;
+  }).join('');
+  assignmentsListManager.querySelectorAll('[data-del-id]').forEach(btn => {
+    btn.addEventListener('click', () => deleteAssignment(btn.getAttribute('data-del-id')));
+  });
+}
+function updateKeyButtons() {
+  keyButtons.forEach(btn => {
+    btn.classList.remove('assigned','playing');
+    const key = Number(btn.dataset.key);
+    const asn = assignments.find(a => Number(a.key_number) === key);
+    if (asn) btn.classList.add('assigned');
+  });
+  reflectPlaying();
+}
+function reflectPlaying() {
+  keyButtons.forEach(btn => btn.classList.remove('playing'));
+  if (playing && playing.key) {
+    const btn = keyButtons.find(b => Number(b.dataset.key) === Number(playing.key));
+    if (btn) btn.classList.add('playing');
+    currentInfo.style.display = 'block';
+    currentTitle.textContent = playing.asset?.title ? `Now Playing — ${playing.asset.title}` : 'Now Playing';
+    currentMeta.textContent = [playing.asset?.station || '', playing.asset?.file_type || ''].filter(Boolean).join(' • ');
+  } else {
+    currentInfo.style.display = 'none';
+  }
+}
+
+/* ===== Xano asset ensure (unchanged) ===== */
+async function ensureXanoAssetFromUnified(asset) {
+  if (!asset) return null;
+  if (asset.source === 'xano') {
+    const idStr = String(asset.id || '').split(':')[1] || String(asset.id);
+    const nid = Number(idStr);
+    return Number.isFinite(nid) ? nid : null;
+  }
+  const payload = {
+    title: asset.title || 'Untitled',
+    description: asset.description || '',
+    station: asset.station || '',
+    tags: asset.tags || '',
+    thumbnail: asset.thumbnail || '',
+    database_url: asset.media_url || asset.url || '',
+    file_url: asset.file_url || '',
+    file_type: asset.file_type || '',
+    submitted_by: asset.submitted_by || ''
+  };
+  const created = await xano('asset', { method: 'POST', body: JSON.stringify(payload) });
+  return created && created.id ? Number(created.id) : null;
+}
+async function assignSelectedToKey() {
+  const key = Number(keySelect.value);
+  if (!key) { show('error', 'Choose a key slot'); return; }
+  if (!selectedUnified) { show('error', 'Select a media item first'); return; }
+  const assetId = await ensureXanoAssetFromUnified(selectedUnified);
+  if (!assetId) { show('error', 'Could not resolve asset'); return; }
+  if (selectedUnified.source === 'xano') {
+    const updates = {
+      title: titleInput.value || '',
+      description: descriptionInput.value || '',
+      station: stationInput.value || '',
+      tags: tagsInput.value || '',
+      submitted_by: submittedByInput.value || ''
+    };
+    await xano('asset/' + assetId, { method: 'PUT', body: JSON.stringify(updates) });
+  }
+  addMemory();
+  const existing = assignments.find(a => Number(a.key_number) === key);
+  if (existing) {
+    await xano('voxpro_assignments/' + existing.id, { method: 'PUT', body: JSON.stringify({ key_number: key, asset_id: assetId }) });
+  } else {
+    await xano('voxpro_assignments', { method: 'POST', body: JSON.stringify({ key_number: key, asset_id: assetId }) });
+  }
+  show('success', 'Key assigned');
+  await loadAssignments();
+  updateKeyButtons();
+}
+async function deleteAssignment(id) {
+  if (!id) return;
+  await xano('voxpro_assignments/' + id, { method: 'DELETE' });
+  show('success', 'Assignment removed');
+  await loadAssignments();
+}
+
+/* ===== Player / Modal (via proxy) ===== */
+function clearActiveMedia() {
+  try { if (activeMediaEl) { activeMediaEl.pause?.(); activeMediaEl.src = ''; } } catch {}
+  activeMediaEl = null;
+}
+function openMediaModal(asset) {
+  mediaPlayer.innerHTML = '';
+  mediaPlayer.style.position = 'relative';
+  tapOverlay.style.display = 'none';
+  mediaPlayer.appendChild(tapOverlay);
+
+  mediaDescription.textContent = asset.description || '';
+  modalTitle.textContent = asset.title || 'Player';
+
+  const raw = assetUrl(asset);
+  const url = raw ? proxied(raw) : '';
+  if (!url) {
+    mediaPlayer.innerHTML = '<div style="padding:12px">No media URL on this asset.</div>';
+    mediaModal.style.display = 'block';
+    return;
+  }
+  const type = (asset.file_type || detectType(asset) || '').toLowerCase();
+
+  if (type.includes('audio')) {
+    const audio = document.createElement('audio');
+    audio.controls = true; audio.autoplay = false; audio.playsInline = true;
+    audio.style.width = '100%'; audio.crossOrigin = 'anonymous';
+    audio.src = url;
+    audio.onerror = () => show('error', 'Audio failed to load');
+    mediaPlayer.prepend(audio);
+    activeMediaEl = audio;
+    mediaModal.style.display = 'block';
+    return;
+  }
+  if (type.includes('video')) {
+    const video = document.createElement('video');
+    video.controls = true; video.autoplay = false; video.playsInline = true;
+    video.style.maxWidth = '100%'; video.style.maxHeight = '100%';
+    video.crossOrigin = 'anonymous';
+    video.src = url + (url.includes('#') ? '' : '#t=0.1');
+    video.onerror = () => show('error', 'Video failed to load');
+    mediaPlayer.prepend(video);
+    activeMediaEl = video;
+    mediaModal.style.display = 'block';
+    return;
+  }
+  if (type.includes('image')) {
+    const img = document.createElement('img');
+    img.alt = asset.title || ''; img.src = url;
+    img.style.maxWidth = '100%'; img.style.maxHeight = '100%';
+    img.onerror = () => show('error', 'Image failed to load');
+    mediaPlayer.prepend(img);
+    mediaModal.style.display = 'block';
+    return;
+  }
+  if (type.includes('pdf')) {
+    const emb = document.createElement('embed');
+    emb.type = 'application/pdf'; emb.src = url;
+    emb.style.width = '100%'; emb.style.height = '100%';
+    mediaPlayer.prepend(emb);
+    mediaModal.style.display = 'block';
+    return;
+  }
+  mediaPlayer.innerHTML = '<div style="padding:12px">Preview not available.</div>';
+  mediaModal.style.display = 'block';
+}
+function closeMediaModal() { clearActiveMedia(); mediaModal.style.display = 'none'; tapOverlay.style.display = 'none'; }
+function playKey(keyNum) {
+  const asn = assignments.find(a => Number(a.key_number) === Number(keyNum));
+  if (!asn) { show('error', 'No assignment for that key'); return; }
+  const asset = asn.asset || {};
+  playing = { key: keyNum, asset };
+  reflectPlaying();
+  openMediaModal(asset);
+}
+function stopPlayback() { playing = null; reflectPlaying(); clearActiveMedia(); }
+
+/* ===== Drag + Resize (unchanged) ===== */
+(function dragAndResize() {
+  const modal = sheet, header = sheetHeader, grip = sheetResize;
+  let dragging=false,startX=0,startY=0,startLeft=0,startTop=0;
+  function onDown(x,y){dragging=true;const r=modal.getBoundingClientRect();startLeft=r.left;startTop=r.top;startX=x;startY=y;modal.style.right='auto';modal.style.bottom='auto';document.body.style.userSelect='none'}
+  function onMove(x,y){if(!dragging)return;const dx=x-startX,dy=y-startY;modal.style.left=(startLeft+dx)+'px';modal.style.top=(startTop+dy)+'px'}
+  function onUp(){dragging=false;document.body.style.userSelect=''}
+  header.addEventListener('mousedown',e=>onDown(e.clientX,e.clientY));
+  document.addEventListener('mousemove',e=>onMove(e.clientX,e.clientY));
+  document.addEventListener('mouseup',onUp);
+  header.addEventListener('touchstart',e=>{const t=e.touches[0];onDown(t.clientX,t.clientY)},{passive:true});
+  document.addEventListener('touchmove',e=>{const t=e.touches[0];onMove(t.clientX,t.clientY)},{passive:true});
+  document.addEventListener('touchend',onUp);
+  let resizing=false,rStartX=0,rStartY=0,startW=0,startH=0;
+  function rDown(x,y){resizing=true;rStartX=x;rStartY=y;const r=modal.getBoundingClientRect();startW=r.width;startH=r.height;document.body.style.userSelect='none'}
+  function rMove(x,y){if(!resizing)return;const dx=x-rStartX,dy=y-rStartY;modal.style.width=Math.max(360,startW+dx)+'px';modal.style.height=Math.max(320,startH+dy)+'px'}
+  function rUp(){resizing=false;document.body.style.userSelect=''}
+  grip.addEventListener('mousedown',e=>{e.stopPropagation();rDown(e.clientX,e.clientY)});
+  document.addEventListener('mousemove',e=>rMove(e.clientX,e.clientY));
+  document.addEventListener('mouseup',rUp);
+  grip.addEventListener('touchstart',e=>{e.stopPropagation();const t=e.touches[0];rDown(t.clientX,t.clientY)},{passive:true});
+  document.addEventListener('touchmove',e=>{const t=e.touches[0];rMove(t.clientX,t.clientY)},{passive:true});
+  document.addEventListener('touchend',rUp);
+})();
+
+/* ===== Init & Events ===== */
+document.addEventListener('DOMContentLoaded', async () => {
+  populateDatalistsFromMemory();
+  await loadAssignments();
+  await unifiedSearch('');
+  setInterval(loadAssignments, ASSIGNMENTS_REFRESH_MS);
+});
+searchInput.addEventListener('input', () => unifiedSearch(searchInput.value));
+assignButton.addEventListener('click', assignSelectedToKey);
+keyButtons.forEach(btn => btn.addEventListener('click', () => playKey(btn.dataset.key)));
+stopButton.addEventListener('click', stopPlayback);
+modalClose.addEventListener('click', closeMediaModal);
+mediaModal.addEventListener('click', (e) => { if (e.target === mediaModal) closeMediaModal(); });
+window.addEventListener('keydown', (e) => {
+  const k = e.key;
+  if (/[1-5]/.test(k)) { playKey(Number(k)); }
+  else if (k === ' ') { e.preventDefault(); stopPlayback(); }
+  else if (k === 'Escape') { closeMediaModal(); }
+});
