@@ -1,4 +1,27 @@
-// Worker (pdf.js) – safe to keep; we won't canvas-render PDFs for thumbs.
+// ===== Global error surface (helps catch silent blockers) =====
+window.addEventListener('error', (e) => {
+  const msg = (e && e.message) ? e.message : String(e);
+  const where = e?.filename ? ` @ ${e.filename}:${e.lineno || ''}` : '';
+  try {
+    const alertBox = document.getElementById('alert');
+    alertBox.className = 'alert error';
+    alertBox.textContent = `JS error: ${msg}${where}`;
+    alertBox.style.display = 'block';
+  } catch {}
+  console.error('Global error:', e);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  const msg = e?.reason?.message || String(e?.reason || 'unhandledrejection');
+  try {
+    const alertBox = document.getElementById('alert');
+    alertBox.className = 'alert error';
+    alertBox.textContent = `Promise error: ${msg}`;
+    alertBox.style.display = 'block';
+  } catch {}
+  console.error('Unhandled rejection:', e);
+});
+
+// ===== pdf.js worker (safe even if unused) =====
 window.addEventListener('load', () => {
   if (window.pdfjsLib) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -66,13 +89,11 @@ function show(type, msg) {
   clearTimeout(show._t);
   show._t = setTimeout(() => { alertBox.style.display = 'none'; }, type === 'error' ? 6000 : 3000);
 }
-
 function setConn(ok) {
   connGood = !!ok;
   connectionStatus.textContent = ok ? 'Connected' : 'Connection Error';
   connectionStatus.classList.toggle('bad', !ok);
 }
-
 function fetchWithTimeout(resource, options = {}, timeoutMs = 12000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -86,13 +107,11 @@ async function fetchJSON(url, opts) {
   if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
   return r.json();
 }
-
 async function xano(endpoint, opts = {}) {
   try {
     const url = `${XANO_PROXY_BASE}/${endpoint}`
       .replace(/(?<!:)\/{2,}/g, '/')
       .replace('https:/', 'https://');
-
     const r = await fetchWithTimeout(url, {
       method: (opts && opts.method) || 'GET',
       headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
@@ -100,12 +119,10 @@ async function xano(endpoint, opts = {}) {
       credentials: 'omit',
       ...opts
     }, 12000);
-
     if (!r.ok) {
       const text = await r.text().catch(() => '');
       throw new Error(`${r.status} ${r.statusText}${text ? ` — ${text.slice(0, 200)}` : ''}`);
     }
-
     const j = await r.json().catch(() => ({}));
     setConn(true);
     return j;
@@ -120,13 +137,8 @@ async function xano(endpoint, opts = {}) {
 /* ===== Memory (datalists) ===== */
 const LS_TITLES = 'voxpro_titles';
 const LS_STATIONS = 'voxpro_stations';
-
-const readSet = (k) => {
-  try { return new Set(JSON.parse(localStorage.getItem(k) || '[]')); }
-  catch { return new Set(); }
-};
+const readSet = (k) => { try { return new Set(JSON.parse(localStorage.getItem(k) || '[]')); } catch { return new Set(); } };
 const writeSet = (k, s) => localStorage.setItem(k, JSON.stringify([...s].slice(0, 300)));
-
 function addMemory() {
   const t = (titleInput.value || '').trim();
   const s = (stationInput.value || '').trim();
@@ -134,7 +146,6 @@ function addMemory() {
   if (s) { const set = readSet(LS_STATIONS); set.delete(s); set.add(s); writeSet(LS_STATIONS, set); }
   populateDatalistsFromMemory();
 }
-
 function populateDatalistsFromMemory() {
   const titles = [...readSet(LS_TITLES)];
   const stations = [...readSet(LS_STATIONS)];
@@ -142,7 +153,7 @@ function populateDatalistsFromMemory() {
   stationOptions.innerHTML = stations.slice(-200).reverse().map(v => `<option value="${esc(v)}">`).join('');
 }
 
-/* ===== Type detect & thumbnails (CORS-safe) ===== */
+/* ===== Type detect & thumbnails (CORS-safe: no canvas) ===== */
 function detectType(item) {
   const t = (item.file_type || '').toLowerCase();
   if (t) return t;
@@ -155,49 +166,35 @@ function detectType(item) {
   if (/\.(xls|xlsx|csv)(\?|$)/.test(u)) return 'sheet';
   return '';
 }
-
-// tiny inline SVG waveform (no canvas)
 const AUDIO_SVG_DATA = (() => {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
   <rect width="128" height="128" fill="#0b0b0b"/><g stroke="#00ff88" stroke-width="2">` +
-  Array.from({length:32}).map((_,i)=>{
-    const x=4+i*4, h=10+((i*7)%50);
-    return `<line x1="${x}" y1="${64-h/2}" x2="${x}" y2="${64+h/2}"/>`;
-  }).join('') + `</g></svg>`;
+  Array.from({length:32}).map((_,i)=>{const x=4+i*4,h=10+((i*7)%50);return `<line x1="${x}" y1="${64-h/2}" x2="${x}" y2="${64+h/2}"/>`;}).join('') +
+  `</g></svg>`;
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 })();
-
 async function createThumbnail(item) {
-  const mediaUrl = item.media_url || item.database_url || item.file_url || item.url || '';
-  const turl = item.thumbnail || '';
+  const url = item.thumbnail || item.media_url || item.database_url || item.file_url || item.url || '';
   const type = detectType(item);
-
-  // Prefer server-provided thumbnail (no CORS issues)
-  if (turl) {
-    return `<img src="${esc(turl)}" onload="this.style.opacity=1" onerror="this.style.display='none'" style="opacity:0;transition:opacity .3s">`;
+  if (!url) {
+    if (type.includes('audio')) return '<div class="icon">🎵</div>';
+    if (type.includes('video')) return '<div class="icon">🎬</div>';
+    if (type.includes('pdf'))   return '<div class="icon">📄</div>';
+    if (type.includes('doc'))   return '<div class="icon">📝</div>';
+    if (type.includes('sheet')) return '<div class="icon">📊</div>';
+    return '<div class="icon">📁</div>';
   }
-
-  if (type.includes('image') && mediaUrl) {
-    // Safe: <img> doesn't taint canvas (we're not drawing it)
-    return `<img src="${esc(mediaUrl)}" onload="this.style.opacity=1" onerror="this.style.display='none'" style="opacity:0;transition:opacity .3s">`;
+  if (type.includes('image')) {
+    return `<img src="${esc(url)}" onerror="this.outerHTML='<div class=&quot;icon&quot;>🖼️</div>'" />`;
   }
-
-  if (type.includes('video') && mediaUrl) {
-    // CORS-safe preview: just show a <video> tile with posterless metadata
-    return `<video muted preload="metadata" playsinline onerror="this.outerHTML='<div class=&quot;icon&quot;>🎬</div>'">
-              <source src="${esc(mediaUrl)}#t=0.1">
-            </video>`;
+  if (type.includes('video')) {
+    return `<video muted preload="metadata" playsinline onerror="this.outerHTML='<div class=&quot;icon&quot;>🎬</div>'"><source src="${esc(url)}#t=0.1"></video>`;
   }
-
-  if (type.includes('audio')) {
-    // CORS-safe: inline SVG
-    return `<img src="${AUDIO_SVG_DATA}" alt="audio">`;
-  }
-
-  if (type.includes('pdf'))   return '<div class="icon">📄</div>';
-  if (type.includes('doc'))   return '<div class="icon">📝</div>';
-  if (type.includes('sheet')) return '<div class="icon">📊</div>';
-  return '<div class="icon">📁</div>';
+  if (type.includes('audio'))  return `<img src="${AUDIO_SVG_DATA}" alt="audio">`;
+  if (type.includes('pdf'))    return '<div class="icon">📄</div>';
+  if (type.includes('doc'))    return '<div class="icon">📝</div>';
+  if (type.includes('sheet'))  return '<div class="icon">📊</div>';
+  return `<img src="${esc(url)}" onerror="this.outerHTML='<div class=&quot;icon&quot;>📁</div>'" />`;
 }
 
 /* ===== Search ===== */
@@ -209,7 +206,6 @@ async function unifiedSearch(term = '') {
         const q = term.trim();
         const endpoints = searchEndpointChosen ? [searchEndpointChosen] : [SEARCH_API_PRIMARY, SEARCH_API_SECONDARY].filter(Boolean);
         let data = null, lastErr = null;
-
         for (const ep of endpoints) {
           try {
             const url = ep + '?' + (q ? ('q=' + encodeURIComponent(q) + '&') : '') + 'limit=100';
@@ -218,7 +214,6 @@ async function unifiedSearch(term = '') {
             break;
           } catch (e) { lastErr = e; }
         }
-
         if (!data) {
           const assets = await xano('asset');
           if (!assets) throw lastErr || new Error('No search endpoint responded');
@@ -239,7 +234,6 @@ async function unifiedSearch(term = '') {
           }));
           data = { results: filtered };
         }
-
         unifiedResults = data.results || [];
         renderMediaBrowser();
         setConn(true);
@@ -291,14 +285,12 @@ function renderMediaBrowser() {
       const asset = unifiedResults.find(x => String(x.id) === String(r.id));
       if (asset) selectUnifiedAsset(asset);
     });
-
     row.addEventListener('dblclick', () => {
       const asset = unifiedResults.find(x => String(x.id) === String(r.id));
       if (asset) openMediaModal(asset);
     });
   });
 }
-
 function selectUnifiedAsset(asset) {
   selectedUnified = asset;
   selectedMedia.textContent = `Selected (${asset.source}): ${asset.title || 'Untitled'}`;
@@ -317,7 +309,6 @@ async function loadAssignments() {
     assignmentsList.innerHTML = '<div class="row"><div class="info">Loading assignments…</div></div>';
   }
   const data = await xano('voxpro_assignments');
-
   if (!data) {
     assignments = [];
     assignmentsList.innerHTML = '<div class="row"><div class="info">No assignments (could not reach server)</div></div>';
@@ -325,24 +316,18 @@ async function loadAssignments() {
     updateKeyButtons();
     return;
   }
-
   try {
     assignments = (Array.isArray(data) ? data : []).sort((a, b) => (a.key_number || 0) - (b.key_number || 0));
-
     renderAssignments();
     renderAssignmentsManager();
-
     await Promise.all(assignments.map(async (a, idx) => {
       if (a && a.asset_id != null) {
         const asset = await xano('asset/' + a.asset_id);
-        assignments[idx].asset = asset || {
-          id: a.asset_id, title: `Missing Asset ${a.asset_id}`, station: 'Unknown', file_type: 'unknown'
-        };
+        assignments[idx].asset = asset || { id:a.asset_id, title:`Missing Asset ${a.asset_id}`, station:'Unknown', file_type:'unknown' };
       } else {
-        assignments[idx].asset = { title: 'No Asset ID', station: 'Unknown', file_type: 'none' };
+        assignments[idx].asset = { title:'No Asset ID', station:'Unknown', file_type:'none' };
       }
     }));
-
     renderAssignments();
     renderAssignmentsManager();
     updateKeyButtons();
@@ -355,13 +340,7 @@ async function loadAssignments() {
     updateKeyButtons();
   }
 }
-
-function forceUpdateUI() {
-  renderAssignments();
-  updateKeyButtons();
-  renderAssignmentsManager();
-}
-
+function forceUpdateUI(){ renderAssignments(); updateKeyButtons(); renderAssignmentsManager(); }
 function renderAssignments() {
   if (!assignments.length) {
     assignmentsList.innerHTML = '<div class="row"><div class="info">No assignments yet</div></div>';
@@ -377,18 +356,12 @@ function renderAssignments() {
       </div>
     </div>`;
   }).join('');
-
   assignmentsList.querySelectorAll('.row').forEach(async (row, idx) => {
-    const a = assignments[idx];
-    if (!a || !a.asset) return;
+    const a = assignments[idx]; if (!a || !a.asset) return;
     const thumb = row.querySelector('.thumb');
-    try {
-      const html = await createThumbnail(a.asset);
-      if (row.isConnected) thumb.innerHTML = html;
-    } catch {}
+    try { const html = await createThumbnail(a.asset); if (row.isConnected) thumb.innerHTML = html; } catch {}
   });
 }
-
 function renderAssignmentsManager() {
   if (!assignments.length) {
     assignmentsListManager.innerHTML = '<div class="row"><div class="info">No assignments yet</div></div>';
@@ -404,22 +377,19 @@ function renderAssignmentsManager() {
       <div><button class="btn btn-danger" data-del-id="${a.id}">Remove</button></div>
     </div>`;
   }).join('');
-
   assignmentsListManager.querySelectorAll('[data-del-id]').forEach(btn => {
     btn.addEventListener('click', () => deleteAssignment(btn.getAttribute('data-del-id')));
   });
 }
-
 function updateKeyButtons() {
   keyButtons.forEach(btn => {
-    btn.classList.remove('assigned', 'playing');
+    btn.classList.remove('assigned','playing');
     const key = Number(btn.dataset.key);
     const asn = assignments.find(a => Number(a.key_number) === key);
     if (asn) btn.classList.add('assigned');
   });
   reflectPlaying();
 }
-
 function reflectPlaying() {
   keyButtons.forEach(btn => btn.classList.remove('playing'));
   if (playing && playing.key) {
@@ -432,7 +402,6 @@ function reflectPlaying() {
     currentInfo.style.display = 'none';
   }
 }
-
 async function ensureXanoAssetFromUnified(asset) {
   if (!asset) return null;
   if (asset.source === 'xano') {
@@ -454,15 +423,12 @@ async function ensureXanoAssetFromUnified(asset) {
   const created = await xano('asset', { method: 'POST', body: JSON.stringify(payload) });
   return created && created.id ? Number(created.id) : null;
 }
-
 async function assignSelectedToKey() {
   const key = Number(keySelect.value);
   if (!key) { show('error', 'Choose a key slot'); return; }
   if (!selectedUnified) { show('error', 'Select a media item first'); return; }
-
   const assetId = await ensureXanoAssetFromUnified(selectedUnified);
   if (!assetId) { show('error', 'Could not resolve asset'); return; }
-
   if (selectedUnified.source === 'xano') {
     const updates = {
       title: titleInput.value || '',
@@ -473,27 +439,17 @@ async function assignSelectedToKey() {
     };
     await xano('asset/' + assetId, { method: 'PUT', body: JSON.stringify(updates) });
   }
-
   addMemory();
-
   const existing = assignments.find(a => Number(a.key_number) === key);
   if (existing) {
-    await xano('voxpro_assignments/' + existing.id, {
-      method: 'PUT',
-      body: JSON.stringify({ key_number: key, asset_id: assetId })
-    });
+    await xano('voxpro_assignments/' + existing.id, { method: 'PUT', body: JSON.stringify({ key_number: key, asset_id: assetId }) });
   } else {
-    await xano('voxpro_assignments', {
-      method: 'POST',
-      body: JSON.stringify({ key_number: key, asset_id: assetId })
-    });
+    await xano('voxpro_assignments', { method: 'POST', body: JSON.stringify({ key_number: key, asset_id: assetId }) });
   }
-
   show('success', 'Key assigned');
   await loadAssignments();
   updateKeyButtons();
 }
-
 async function deleteAssignment(id) {
   if (!id) return;
   await xano('voxpro_assignments/' + id, { method: 'DELETE' });
@@ -501,84 +457,59 @@ async function deleteAssignment(id) {
   await loadAssignments();
 }
 
-/* ===== Player / Modal (CORS-tolerant) ===== */
+/* ===== Player / Modal (simple, CORS-tolerant) ===== */
 function clearActiveMedia() {
   try { if (activeMediaEl) { activeMediaEl.pause?.(); activeMediaEl.src = ''; } } catch {}
   activeMediaEl = null;
 }
-
-async function ensurePlayable(el) {
-  try {
-    await el.play();
-    tapOverlay.style.display = 'none';
-  } catch {
-    tapOverlay.style.display = 'flex';
-    tapOverlay.style.zIndex = '2';
-    tapPlayBtn.onclick = async () => {
-      try { await el.play(); tapOverlay.style.display = 'none'; } catch (e) {
-        show('error', 'Playback blocked or failed');
-      }
-    };
-  }
-}
-
 function openMediaModal(asset) {
   mediaPlayer.innerHTML = '';
   mediaPlayer.style.position = 'relative';
   tapOverlay.style.display = 'none';
-  tapOverlay.style.zIndex = '2';
   mediaPlayer.appendChild(tapOverlay);
 
   mediaDescription.textContent = asset.description || '';
   modalTitle.textContent = asset.title || 'Player';
 
   const url = asset.media_url || asset.database_url || asset.file_url || asset.url || '';
-  if (!url) { show('error', 'No media URL on this asset'); mediaModal.style.display = 'block'; return; }
+  if (!url) {
+    mediaPlayer.innerHTML = '<div style="padding:12px">No media URL on this asset.</div>';
+    mediaModal.style.display = 'block';
+    return;
+  }
 
   const type = (asset.file_type || detectType(asset) || '').toLowerCase();
 
   if (type.includes('audio')) {
     const audio = document.createElement('audio');
-    audio.controls = true;
-    audio.autoplay = false;
-    audio.playsInline = true;
-    audio.style.width = '100%';
-    audio.crossOrigin = 'anonymous';
+    audio.controls = true; audio.autoplay = false; audio.playsInline = true;
+    audio.style.width = '100%'; audio.crossOrigin = 'anonymous';
     audio.src = url;
-    audio.addEventListener('error', () => show('error', 'Audio failed to load'));
+    audio.onerror = () => show('error', 'Audio failed to load');
     mediaPlayer.prepend(audio);
     activeMediaEl = audio;
     mediaModal.style.display = 'block';
-    audio.load();
-    ensurePlayable(audio);
     return;
   }
 
   if (type.includes('video')) {
     const video = document.createElement('video');
-    video.controls = true;
-    video.autoplay = false;
-    video.playsInline = true;
-    video.style.maxWidth = '100%';
-    video.style.maxHeight = '100%';
+    video.controls = true; video.autoplay = false; video.playsInline = true;
+    video.style.maxWidth = '100%'; video.style.maxHeight = '100%';
     video.crossOrigin = 'anonymous';
     video.src = url + (url.includes('#') ? '' : '#t=0.1');
-    video.addEventListener('error', () => show('error', 'Video failed to load'));
+    video.onerror = () => show('error', 'Video failed to load');
     mediaPlayer.prepend(video);
     activeMediaEl = video;
     mediaModal.style.display = 'block';
-    video.load();
-    ensurePlayable(video);
     return;
   }
 
   if (type.includes('image')) {
     const img = document.createElement('img');
-    img.alt = asset.title || '';
-    img.src = url;
-    img.style.maxWidth = '100%';
-    img.style.maxHeight = '100%';
-    img.addEventListener('error', () => show('error', 'Image failed to load'));
+    img.alt = asset.title || ''; img.src = url;
+    img.style.maxWidth = '100%'; img.style.maxHeight = '100%';
+    img.onerror = () => show('error', 'Image failed to load');
     mediaPlayer.prepend(img);
     mediaModal.style.display = 'block';
     return;
@@ -586,28 +517,21 @@ function openMediaModal(asset) {
 
   if (type.includes('pdf')) {
     const emb = document.createElement('embed');
-    emb.type = 'application/pdf';
-    emb.src = url;
-    emb.style.width = '100%';
-    emb.style.height = '100%';
+    emb.type = 'application/pdf'; emb.src = url;
+    emb.style.width = '100%'; emb.style.height = '100%';
     mediaPlayer.prepend(emb);
     mediaModal.style.display = 'block';
     return;
   }
 
-  const div = document.createElement('div');
-  div.style.padding = '16px';
-  div.textContent = 'Preview not available';
-  mediaPlayer.prepend(div);
+  mediaPlayer.innerHTML = '<div style="padding:12px">Preview not available.</div>';
   mediaModal.style.display = 'block';
 }
-
 function closeMediaModal() {
   clearActiveMedia();
   mediaModal.style.display = 'none';
   tapOverlay.style.display = 'none';
 }
-
 function playKey(keyNum) {
   const asn = assignments.find(a => Number(a.key_number) === Number(keyNum));
   if (!asn) { show('error', 'No assignment for that key'); return; }
@@ -616,66 +540,33 @@ function playKey(keyNum) {
   reflectPlaying();
   openMediaModal(asset);
 }
+function stopPlayback() { playing = null; reflectPlaying(); clearActiveMedia(); }
 
-function stopPlayback() {
-  playing = null;
-  reflectPlaying();
-  clearActiveMedia();
-}
-
-/* ===== Drag + Resize (already works) ===== */
+/* ===== Drag + Resize ===== */
 (function dragAndResize() {
   const modal = sheet, header = sheetHeader, grip = sheetResize;
-
   // Drag
-  let dragging = false, startX = 0, startY = 0, startLeft = 0, startTop = 0;
-  function onDown(x, y) {
-    dragging = true;
-    const rect = modal.getBoundingClientRect();
-    startLeft = rect.left; startTop = rect.top;
-    startX = x; startY = y;
-    modal.style.right = 'auto'; modal.style.bottom = 'auto';
-    document.body.style.userSelect = 'none';
-  }
-  function onMove(x, y) {
-    if (!dragging) return;
-    const dx = x - startX, dy = y - startY;
-    modal.style.left = (startLeft + dx) + 'px';
-    modal.style.top = (startTop + dy) + 'px';
-  }
-  function onUp() { dragging = false; document.body.style.userSelect = ''; }
-
-  header.addEventListener('mousedown', e => onDown(e.clientX, e.clientY));
-  document.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
-  document.addEventListener('mouseup', onUp);
-
-  header.addEventListener('touchstart', e => { const t = e.touches[0]; onDown(t.clientX, t.clientY); }, { passive: true });
-  document.addEventListener('touchmove', e => { const t = e.touches[0]; onMove(t.clientX, t.clientY); }, { passive: true });
-  document.addEventListener('touchend', onUp);
-
+  let dragging=false,startX=0,startY=0,startLeft=0,startTop=0;
+  function onDown(x,y){dragging=true;const r=modal.getBoundingClientRect();startLeft=r.left;startTop=r.top;startX=x;startY=y;modal.style.right='auto';modal.style.bottom='auto';document.body.style.userSelect='none'}
+  function onMove(x,y){if(!dragging)return;const dx=x-startX,dy=y-startY;modal.style.left=(startLeft+dx)+'px';modal.style.top=(startTop+dy)+'px'}
+  function onUp(){dragging=false;document.body.style.userSelect=''}
+  header.addEventListener('mousedown',e=>onDown(e.clientX,e.clientY));
+  document.addEventListener('mousemove',e=>onMove(e.clientX,e.clientY));
+  document.addEventListener('mouseup',onUp);
+  header.addEventListener('touchstart',e=>{const t=e.touches[0];onDown(t.clientX,t.clientY)},{passive:true});
+  document.addEventListener('touchmove',e=>{const t=e.touches[0];onMove(t.clientX,t.clientY)},{passive:true});
+  document.addEventListener('touchend',onUp);
   // Resize
-  let resizing = false, rStartX = 0, rStartY = 0, startW = 0, startH = 0;
-  function rDown(x, y) {
-    resizing = true; rStartX = x; rStartY = y;
-    const rect = modal.getBoundingClientRect();
-    startW = rect.width; startH = rect.height;
-    document.body.style.userSelect = 'none';
-  }
-  function rMove(x, y) {
-    if (!resizing) return;
-    const dx = x - rStartX, dy = y - rStartY;
-    modal.style.width = Math.max(360, startW + dx) + 'px';
-    modal.style.height = Math.max(320, startH + dy) + 'px';
-  }
-  function rUp() { resizing = false; document.body.style.userSelect = ''; }
-
-  grip.addEventListener('mousedown', e => { e.stopPropagation(); rDown(e.clientX, e.clientY); });
-  document.addEventListener('mousemove', e => rMove(e.clientX, e.clientY));
-  document.addEventListener('mouseup', rUp);
-
-  grip.addEventListener('touchstart', e => { e.stopPropagation(); const t = e.touches[0]; rDown(t.clientX, t.clientY); }, { passive: true });
-  document.addEventListener('touchmove', e => { const t = e.touches[0]; rMove(t.clientX, t.clientY); }, { passive: true });
-  document.addEventListener('touchend', rUp);
+  let resizing=false,rStartX=0,rStartY=0,startW=0,startH=0;
+  function rDown(x,y){resizing=true;rStartX=x;rStartY=y;const r=modal.getBoundingClientRect();startW=r.width;startH=r.height;document.body.style.userSelect='none'}
+  function rMove(x,y){if(!resizing)return;const dx=x-rStartX,dy=y-rStartY;modal.style.width=Math.max(360,startW+dx)+'px';modal.style.height=Math.max(320,startH+dy)+'px'}
+  function rUp(){resizing=false;document.body.style.userSelect=''}
+  grip.addEventListener('mousedown',e=>{e.stopPropagation();rDown(e.clientX,e.clientY)});
+  document.addEventListener('mousemove',e=>rMove(e.clientX,e.clientY));
+  document.addEventListener('mouseup',rUp);
+  grip.addEventListener('touchstart',e=>{e.stopPropagation();const t=e.touches[0];rDown(t.clientX,t.clientY)},{passive:true});
+  document.addEventListener('touchmove',e=>{const t=e.touches[0];rMove(t.clientX,t.clientY)},{passive:true});
+  document.addEventListener('touchend',rUp);
 })();
 
 /* ===== Init & Events ===== */
@@ -685,7 +576,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await unifiedSearch('');
   setInterval(loadAssignments, ASSIGNMENTS_REFRESH_MS);
 });
-
 searchInput.addEventListener('input', () => unifiedSearch(searchInput.value));
 assignButton.addEventListener('click', assignSelectedToKey);
 keyButtons.forEach(btn => btn.addEventListener('click', () => playKey(btn.dataset.key)));
