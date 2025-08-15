@@ -1,4 +1,4 @@
-// ========== GLOBAL ERROR SURFACE ==========
+// ---------- Global error surfacing ----------
 window.addEventListener('error', (e) => {
   const msg = (e && e.message) ? e.message : String(e);
   const where = e?.filename ? ` @ ${e.filename}:${e.lineno || ''}` : '';
@@ -21,7 +21,7 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error('Unhandled rejection:', e);
 });
 
-// ===== pdf.js worker (safe) =====
+// ---------- pdf.js worker (safe even if unused) ----------
 window.addEventListener('load', () => {
   if (window.pdfjsLib) {
     window.pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -159,7 +159,7 @@ function populateDatalistsFromMemory() {
 function detectType(item) {
   const t = (item.file_type || '').toLowerCase();
   if (t) return t;
-  const u = (item.media_url || item.database_url || item.file_url || item.url || '').toLowerCase();
+  const u = (assetUrlRaw(item) || '').toLowerCase();
   if (/\.(mp3|m4a|aac|wav|ogg|flac)(\?|$)/.test(u)) return 'audio';
   if (/\.(mp4|mov|mkv|webm)(\?|$)/.test(u)) return 'video';
   if (/\.(png|jpg|jpeg|gif|webp|avif)(\?|$)/.test(u)) return 'image';
@@ -169,20 +169,29 @@ function detectType(item) {
   return '';
 }
 
-/* ===== Build a fetchable URL via the proxy ===== */
+/* ===== Resolve asset URL (checks many common Xano field names) ===== */
+function assetUrlRaw(a) {
+  if (!a) return '';
+  const candidates = [
+    a.media_url, a.database_url, a.file_url, a.url,
+    a.public_url, a.signed_url, a.s3_url, a.storage_url,
+    a.path, a.file, a.source_url
+  ];
+  // Some APIs store nested shapes like a.file?.url etc.
+  if (a.file && typeof a.file === 'object') {
+    candidates.push(a.file.url, a.file.path, a.file.public_url);
+  }
+  return candidates.find(Boolean) || '';
+}
 function proxied(url) {
   if (!url) return '';
-  // If it’s already our proxy, keep it. Otherwise wrap it.
-  if (url.startsWith(MEDIA_PROXY)) return url;
-  return MEDIA_PROXY + encodeURIComponent(url);
+  return url.startsWith(MEDIA_PROXY) ? url : MEDIA_PROXY + encodeURIComponent(url);
 }
-function assetUrl(a) {
-  return a?.media_url || a?.database_url || a?.file_url || a?.url || '';
-}
+function assetUrl(a) { return proxied(assetUrlRaw(a)); }
 
-/* ===== Thumbnails (CORS-safe) ===== */
+/* ===== Thumbnails (no canvas, proxy-backed) ===== */
 async function createThumbnail(item) {
-  const raw = item.thumbnail || assetUrl(item);
+  const raw = item.thumbnail || assetUrlRaw(item);
   const url = raw ? proxied(raw) : '';
   const type = detectType(item);
 
@@ -194,7 +203,6 @@ async function createThumbnail(item) {
     if (type.includes('sheet')) return '<div class="icon">📊</div>';
     return '<div class="icon">📁</div>';
   }
-
   if (type.includes('image')) {
     return `<img src="${esc(url)}" onerror="this.outerHTML='<div class=&quot;icon&quot;>🖼️</div>'" />`;
   }
@@ -208,6 +216,13 @@ async function createThumbnail(item) {
   if (type.includes('doc'))    return '<div class="icon">📝</div>';
   if (type.includes('sheet'))  return '<div class="icon">📊</div>';
   return `<img src="${esc(url)}" onerror="this.outerHTML='<div class=&quot;icon&quot;>📁</div>'" />`;
+}
+
+/* ===== Diagnostics line under selection ===== */
+function setSelectionDiagnostics(asset) {
+  const raw = assetUrlRaw(asset);
+  const out = raw ? `URL detected ✓ (${raw.slice(0, 80)}${raw.length>80?'…':''})` : `No media URL on this asset`;
+  selectedMedia.textContent = `Selected (${asset.source}): ${asset.title || 'Untitled'}  —  ${out}`;
 }
 
 /* ===== Search ===== */
@@ -309,7 +324,7 @@ function renderMediaBrowser() {
 }
 function selectUnifiedAsset(asset) {
   selectedUnified = asset;
-  selectedMedia.textContent = `Selected (${asset.source}): ${asset.title || 'Untitled'}`;
+  setSelectionDiagnostics(asset);
   titleInput.value = asset.title || '';
   descriptionInput.value = asset.description || '';
   stationInput.value = asset.station || '';
@@ -479,27 +494,28 @@ async function deleteAssignment(id) {
   await loadAssignments();
 }
 
-/* ===== Player / Modal (via proxy) ===== */
+/* ===== Player / Modal ===== */
 function clearActiveMedia() {
   try { if (activeMediaEl) { activeMediaEl.pause?.(); activeMediaEl.src = ''; } } catch {}
   activeMediaEl = null;
 }
 function openMediaModal(asset) {
   mediaPlayer.innerHTML = '';
-  mediaPlayer.style.position = 'relative';
   tapOverlay.style.display = 'none';
   mediaPlayer.appendChild(tapOverlay);
 
   mediaDescription.textContent = asset.description || '';
   modalTitle.textContent = asset.title || 'Player';
 
-  const raw = assetUrl(asset);
+  const raw = assetUrlRaw(asset);
   const url = raw ? proxied(raw) : '';
+
   if (!url) {
-    mediaPlayer.innerHTML = '<div style="padding:12px">No media URL on this asset.</div>';
+    mediaPlayer.innerHTML = '<div style="padding:12px;color:#b0b0b0;text-align:center">No media URL on this asset.</div>';
     mediaModal.style.display = 'block';
     return;
   }
+
   const type = (asset.file_type || detectType(asset) || '').toLowerCase();
 
   if (type.includes('audio')) {
@@ -542,6 +558,7 @@ function openMediaModal(asset) {
     mediaModal.style.display = 'block';
     return;
   }
+
   mediaPlayer.innerHTML = '<div style="padding:12px">Preview not available.</div>';
   mediaModal.style.display = 'block';
 }
@@ -556,9 +573,10 @@ function playKey(keyNum) {
 }
 function stopPlayback() { playing = null; reflectPlaying(); clearActiveMedia(); }
 
-/* ===== Drag + Resize (unchanged) ===== */
+/* ===== Drag + Resize (JS handle + CSS fallback) ===== */
 (function dragAndResize() {
   const modal = sheet, header = sheetHeader, grip = sheetResize;
+  // Drag
   let dragging=false,startX=0,startY=0,startLeft=0,startTop=0;
   function onDown(x,y){dragging=true;const r=modal.getBoundingClientRect();startLeft=r.left;startTop=r.top;startX=x;startY=y;modal.style.right='auto';modal.style.bottom='auto';document.body.style.userSelect='none'}
   function onMove(x,y){if(!dragging)return;const dx=x-startX,dy=y-startY;modal.style.left=(startLeft+dx)+'px';modal.style.top=(startTop+dy)+'px'}
@@ -569,16 +587,20 @@ function stopPlayback() { playing = null; reflectPlaying(); clearActiveMedia(); 
   header.addEventListener('touchstart',e=>{const t=e.touches[0];onDown(t.clientX,t.clientY)},{passive:true});
   document.addEventListener('touchmove',e=>{const t=e.touches[0];onMove(t.clientX,t.clientY)},{passive:true});
   document.addEventListener('touchend',onUp);
+
+  // Resize (explicit handle)
   let resizing=false,rStartX=0,rStartY=0,startW=0,startH=0;
   function rDown(x,y){resizing=true;rStartX=x;rStartY=y;const r=modal.getBoundingClientRect();startW=r.width;startH=r.height;document.body.style.userSelect='none'}
   function rMove(x,y){if(!resizing)return;const dx=x-rStartX,dy=y-rStartY;modal.style.width=Math.max(360,startW+dx)+'px';modal.style.height=Math.max(320,startH+dy)+'px'}
   function rUp(){resizing=false;document.body.style.userSelect=''}
-  grip.addEventListener('mousedown',e=>{e.stopPropagation();rDown(e.clientX,e.clientY)});
-  document.addEventListener('mousemove',e=>rMove(e.clientX,e.clientY));
-  document.addEventListener('mouseup',rUp);
-  grip.addEventListener('touchstart',e=>{e.stopPropagation();const t=e.touches[0];rDown(t.clientX,t.clientY)},{passive:true});
-  document.addEventListener('touchmove',e=>{const t=e.touches[0];rMove(t.clientX,t.clientY)},{passive:true});
-  document.addEventListener('touchend',rUp);
+  if (grip) {
+    grip.addEventListener('mousedown',e=>{e.stopPropagation();rDown(e.clientX,e.clientY)});
+    document.addEventListener('mousemove',e=>rMove(e.clientX,e.clientY));
+    document.addEventListener('mouseup',rUp);
+    grip.addEventListener('touchstart',e=>{e.stopPropagation();const t=e.touches[0];rDown(t.clientX,t.clientY)},{passive:true});
+    document.addEventListener('touchmove',e=>{const t=e.touches[0];rMove(t.clientX,t.clientY)},{passive:true});
+    document.addEventListener('touchend',rUp);
+  }
 })();
 
 /* ===== Init & Events ===== */
