@@ -155,7 +155,10 @@ function findUrlDeep(obj, depth=0, maxDepth=4){
   return '';
 }
 function assetUrlRaw(a){ return assetUrlCommon(a) || findUrlDeep(a) || ''; }
-function proxied(url){ return url ? (url.startsWith(MEDIA_PROXY)?url:MEDIA_PROXY+encodeURIComponent(url)) : ''; }
+function proxied(url){ 
+  const urlStr = String(url || '');
+  return urlStr ? (urlStr.startsWith(MEDIA_PROXY)?urlStr:MEDIA_PROXY+encodeURIComponent(urlStr)) : ''; 
+}
 function assetUrl(a){ return proxied(assetUrlRaw(a)); }
 
 /* ===== TYPE GUESS ===== */
