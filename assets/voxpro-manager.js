@@ -86,12 +86,30 @@ async function fetchJSON(url, opts) {
 
 async function xano(endpoint, opts = {}) {
   try {
-    const r = await fetch(`${XANO_PROXY_BASE}/${endpoint}`, {
+    const url = `${XANO_PROXY_BASE}/${endpoint}`;
+    console.log(`%c[XANO Request] -> ${opts.method || 'GET'} ${url}`, 'color: #00A4CC');
+    if (opts.body) {
+      try {
+        console.log('%c[XANO Request Body]', 'color: #00A4CC', JSON.parse(opts.body));
+      } catch {
+        console.log('%c[XANO Request Body (non-JSON)]', 'color: #00A4CC', opts.body);
+      }
+    }
+
+    const r = await fetch(url, {
       headers: { 'Content-Type': 'application/json' },
       ...opts
     });
-    if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
-    const j = await r.json();
+
+    const responseText = await r.text();
+    if (!r.ok) {
+        console.error(`%c[XANO Response Error] ${r.status} ${r.statusText} for ${url}`, 'color: #FF5555', responseText);
+        throw new Error(`${r.status} ${r.statusText}`);
+    }
+
+    const j = JSON.parse(responseText);
+    console.log(`%c[XANO Response] <- ${url}`, 'color: #00CC66', j);
+
     setConn(true);
     return j;
   } catch (err) {
@@ -185,6 +203,29 @@ function loadPdfJs() {
   return _pdfReady;
 }
 
+let _mammothReady = null;
+function loadMammothJs() {
+  if (_mammothReady) return _mammothReady;
+  _mammothReady = new Promise((res, rej) => {
+    if (window.mammoth) return res(window.mammoth);
+
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.10.0/mammoth.browser.js';
+    script.onload = () => {
+        if(window.mammoth) {
+            res(window.mammoth);
+        } else {
+            rej(new Error('mammoth.js loaded but global not found'));
+        }
+    };
+    script.onerror = () => rej(new Error('Failed to load mammoth.js'));
+    document.head.appendChild(script);
+
+    setTimeout(() => { if (!window.mammoth) rej(new Error('mammoth.js not loaded')); }, 5000);
+  }).catch(() => null);
+  return _mammothReady;
+}
+
 async function pdfPageThumb(url) {
   const pdfjs = await loadPdfJs();
   if (!pdfjs) return null;
@@ -204,6 +245,90 @@ async function pdfPageThumb(url) {
     g.drawImage(off, (c.width - off.width) / 2, (c.height - off.height) / 2);
     return c.toDataURL('image/png');
   } catch { return null; }
+}
+
+async function renderPdfInModal(url, container) {
+  const pdfjs = await loadPdfJs();
+  if (!pdfjs) {
+    container.textContent = 'Failed to load PDF viewer.';
+    return;
+  }
+
+  container.innerHTML = '<div>Loading PDF...</div>';
+  container.style.overflow = 'auto';
+  container.style.height = '100%';
+  container.style.textAlign = 'center';
+
+  try {
+    const pdf = await pdfjs.getDocument({ url, CMapReaderFactory: null, CMapPacked: true }).promise;
+    let currentPageNum = 1;
+    const numPages = pdf.numPages;
+
+    const canvas = document.createElement('canvas');
+    const controls = document.createElement('div');
+    controls.style.padding = '10px';
+    const prevButton = document.createElement('button');
+    prevButton.textContent = 'Prev';
+    const nextButton = document.createElement('button');
+    nextButton.textContent = 'Next';
+    const pageNumSpan = document.createElement('span');
+    pageNumSpan.style.margin = '0 10px';
+
+    controls.appendChild(prevButton);
+    controls.appendChild(pageNumSpan);
+    controls.appendChild(nextButton);
+
+    container.innerHTML = '';
+    container.appendChild(controls);
+    container.appendChild(canvas);
+
+    const renderPage = async (num) => {
+      try {
+        const page = await pdf.getPage(num);
+        const viewport = page.getViewport({ scale: 1.5 });
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderContext = {
+          canvasContext: context,
+          viewport: viewport
+        };
+        await page.render(renderContext).promise;
+        pageNumSpan.textContent = `Page ${num} of ${numPages}`;
+        prevButton.disabled = num <= 1;
+        nextButton.disabled = num >= numPages;
+      } catch(e) {
+        console.error('Error rendering page', e);
+        container.textContent = 'Error rendering PDF page.';
+      }
+    };
+
+    prevButton.addEventListener('click', () => {
+      if (currentPageNum > 1) {
+        currentPageNum--;
+        renderPage(currentPageNum);
+      }
+    });
+
+    nextButton.addEventListener('click', () => {
+      if (currentPageNum < numPages) {
+        currentPageNum++;
+        renderPage(currentPageNum);
+      }
+    });
+
+    renderPage(currentPageNum);
+
+  } catch (error) {
+    console.error('Error rendering PDF:', error);
+    // A common issue is a CORS problem. Let's suggest that.
+    if (error.message.includes('CORS')) {
+       container.innerHTML = 'Error loading PDF: A Cross-Origin (CORS) issue is preventing the file from being loaded. The server hosting the PDF must allow requests from this website.';
+    } else {
+       container.textContent = 'Error loading PDF file. It may be corrupt or in an unsupported format.';
+    }
+  }
 }
 
 const audioWaveThumbCache = new Map();
@@ -657,9 +782,50 @@ function openMediaModal(asset) {
     el.src = url;
     el.style.maxWidth = '100%'; el.style.maxHeight = '100%';
   } else if (type.includes('pdf')) {
-    el = document.createElement('embed');
-    el.type = 'application/pdf'; el.src = url;
-    el.style.width = '100%'; el.style.height = '100%';
+    const pdfContainer = document.createElement('div');
+    pdfContainer.style.width = '100%';
+    pdfContainer.style.height = '100%';
+    pdfContainer.style.background = '#333'; // A background for while it loads
+    renderPdfInModal(url, pdfContainer);
+    el = pdfContainer;
+  } else if (type.includes('doc')) {
+    const docContainer = document.createElement('div');
+    docContainer.style.width = '100%';
+    docContainer.style.height = '100%';
+    docContainer.style.overflowY = 'auto';
+    docContainer.style.background = 'white';
+    docContainer.style.color = 'black';
+    docContainer.style.padding = '20px';
+    docContainer.style.boxSizing = 'border-box';
+    docContainer.innerHTML = '<div>Loading document...</div>';
+
+    (async () => {
+        const mammoth = await loadMammothJs();
+        if (!mammoth) {
+            docContainer.innerHTML = 'Failed to load document viewer component.';
+            return;
+        }
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Failed to fetch docx file. Status: ${response.status}`);
+            const arrayBuffer = await response.arrayBuffer();
+            const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+            docContainer.innerHTML = result.value;
+            const messages = result.messages;
+            if (messages && messages.length > 0) {
+                console.warn('Mammoth.js messages:', messages);
+                // Optionally display important messages to the user
+            }
+        } catch (error) {
+            console.error('Error rendering DOCX:', error);
+            if (error.message.includes('CORS') || error.message.includes('fetch')) {
+               docContainer.innerHTML = 'Error loading DOCX: A Cross-Origin (CORS) issue is preventing the file from being loaded. The server hosting the file must allow requests from this website.';
+            } else {
+               docContainer.innerHTML = 'Error loading DOCX file. It may be corrupt or in an unsupported format.';
+            }
+        }
+    })();
+    el = docContainer;
   } else {
     const div = document.createElement('div');
     div.style.padding = '16px';
