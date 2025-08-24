@@ -77,6 +77,39 @@ function setConn(ok) {
   connectionStatus.classList.toggle('bad', !ok);
 }
 
+function getAssetUrl(item) {
+  if (!item || typeof item !== 'object') return '';
+
+  // Prioritize common top-level URL fields
+  let url = item.media_url || item.database_url || item.file_url || item.url || item.public_url || item.signed_url || item.path;
+  if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
+    return url;
+  }
+
+  // Check for a 'file' object, which is a common pattern
+  if (item.file && typeof item.file === 'object') {
+    url = item.file.url || item.file.path || item.file.public_url;
+    if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
+      return url;
+    }
+  }
+
+  // Last resort: check the thumbnail field if it's a string url
+  if (typeof item.thumbnail === 'string' && (item.thumbnail.startsWith('http') || item.thumbnail.startsWith('blob:'))) {
+    return item.thumbnail;
+  }
+
+  // Fallback for any other string properties that look like URLs
+  for (const key in item) {
+    const value = item[key];
+    if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('blob:'))) {
+      return value;
+    }
+  }
+
+  return ''; // Always return a string
+}
+
 /* ===== API ===== */
 async function fetchJSON(url, opts) {
   const r = await fetch(url, opts);
@@ -149,7 +182,7 @@ function populateDatalistsFromMemory() {
 function detectType(item) {
   const t = (item.file_type || '').toLowerCase();
   if (t) return t;
-  const u = (item.media_url || item.database_url || item.file_url || item.url || '').toLowerCase();
+  const u = getAssetUrl(item).toLowerCase();
   if (/\.(mp3|m4a|aac|wav|ogg|flac)(\?|$)/.test(u)) return 'audio';
   if (/\.(mp4|mov|mkv|webm)(\?|$)/.test(u)) return 'video';
   if (/\.(png|jpg|jpeg|gif|webp|avif)(\?|$)/.test(u)) return 'image';
@@ -322,8 +355,7 @@ async function renderPdfInModal(url, container) {
 
   } catch (error) {
     console.error('Error rendering PDF:', error);
-    // A common issue is a CORS problem. Let's suggest that.
-    if (error.message.includes('CORS')) {
+    if (error.message && error.message.includes('CORS')) {
        container.innerHTML = 'Error loading PDF: A Cross-Origin (CORS) issue is preventing the file from being loaded. The server hosting the PDF must allow requests from this website.';
     } else {
        container.textContent = 'Error loading PDF file. It may be corrupt or in an unsupported format.';
@@ -364,8 +396,11 @@ async function renderAudioWaveThumb(url) {
 }
 
 async function createThumbnail(item) {
-  const mediaUrl = item.media_url || item.database_url || item.file_url || item.url || '';
-  const turl = item.thumbnail || '';
+  const mediaUrl = getAssetUrl(item);
+  let turl = item.thumbnail || '';
+  if (turl && typeof turl !== 'string') {
+    turl = getAssetUrl(turl);
+  }
   const type = detectType(item);
 
   // Prefer server-provided thumbnail (no CORS/canvas needed)
@@ -709,7 +744,7 @@ function openMediaModal(asset) {
   mediaDescription.textContent = asset.description || '';
   modalTitle.textContent = asset.title || 'Player';
 
-  const url = asset.media_url || asset.database_url || asset.file_url || asset.url || '';
+  const url = getAssetUrl(asset);
   if (!url) { show('error', 'No media URL on this asset'); mediaModal.style.display = 'block'; return; }
 
   const type = (asset.file_type || detectType(asset) || '').toLowerCase();
@@ -785,7 +820,7 @@ function openMediaModal(asset) {
     const pdfContainer = document.createElement('div');
     pdfContainer.style.width = '100%';
     pdfContainer.style.height = '100%';
-    pdfContainer.style.background = '#333'; // A background for while it loads
+    pdfContainer.style.background = '#333';
     renderPdfInModal(url, pdfContainer);
     el = pdfContainer;
   } else if (type.includes('doc')) {
@@ -811,18 +846,9 @@ function openMediaModal(asset) {
             const arrayBuffer = await response.arrayBuffer();
             const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
             docContainer.innerHTML = result.value;
-            const messages = result.messages;
-            if (messages && messages.length > 0) {
-                console.warn('Mammoth.js messages:', messages);
-                // Optionally display important messages to the user
-            }
         } catch (error) {
             console.error('Error rendering DOCX:', error);
-            if (error.message.includes('CORS') || error.message.includes('fetch')) {
-               docContainer.innerHTML = 'Error loading DOCX: A Cross-Origin (CORS) issue is preventing the file from being loaded. The server hosting the file must allow requests from this website.';
-            } else {
-               docContainer.innerHTML = 'Error loading DOCX file. It may be corrupt or in an unsupported format.';
-            }
+            docContainer.innerHTML = 'Error loading DOCX file. It may be corrupt or have network issues.';
         }
     })();
     el = docContainer;
