@@ -10,6 +10,7 @@ window.addEventListener('load', () => {
 const SEARCH_API_PRIMARY = 'https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/search-media';
 const SEARCH_API_SECONDARY = '';
 const XANO_PROXY_BASE = 'https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/xano-proxy';
+const MEDIA_PROXY = '/.netlify/functions/fetch-media?url=';
 const ASSIGNMENTS_REFRESH_MS = 30000;
 
 /* ===== State ===== */
@@ -75,6 +76,13 @@ function setConn(ok) {
   connGood = !!ok;
   connectionStatus.textContent = ok ? 'Connected' : 'Connection Error';
   connectionStatus.classList.toggle('bad', !ok);
+}
+
+function proxiedUrl(url) {
+  if (!url || typeof url !== 'string' || url.startsWith('blob:')) {
+    return url;
+  }
+  return MEDIA_PROXY + encodeURIComponent(url);
 }
 
 function getAssetUrl(item) {
@@ -396,11 +404,14 @@ async function renderAudioWaveThumb(url) {
 }
 
 async function createThumbnail(item) {
-  const mediaUrl = getAssetUrl(item);
-  let turl = item.thumbnail || '';
-  if (turl && typeof turl !== 'string') {
-    turl = getAssetUrl(turl);
+  const rawMediaUrl = getAssetUrl(item);
+  const mediaUrl = proxiedUrl(rawMediaUrl);
+
+  let rawTurl = item.thumbnail || '';
+  if (rawTurl && typeof rawTurl !== 'string') {
+    rawTurl = getAssetUrl(rawTurl);
   }
+  const turl = proxiedUrl(rawTurl);
   const type = detectType(item);
 
   // Prefer server-provided thumbnail (no CORS/canvas needed)
@@ -744,7 +755,8 @@ function openMediaModal(asset) {
   mediaDescription.textContent = asset.description || '';
   modalTitle.textContent = asset.title || 'Player';
 
-  const url = getAssetUrl(asset);
+  const rawUrl = getAssetUrl(asset);
+  const url = proxiedUrl(rawUrl);
   if (!url) { show('error', 'No media URL on this asset'); mediaModal.style.display = 'block'; return; }
 
   const type = (asset.file_type || detectType(asset) || '').toLowerCase();
