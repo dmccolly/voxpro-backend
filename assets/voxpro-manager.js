@@ -271,7 +271,7 @@ async function pdfPageThumb(url) {
   const pdfjs = await loadPdfJs();
   if (!pdfjs) return null;
   try {
-    const pdf = await pdfjs.getDocument(url).promise;
+    const pdf = await pdfjs.getDocument(proxiedUrl(url)).promise;
     const page = await pdf.getPage(1);
     const v = page.getViewport({ scale: .5 });
     const c = document.createElement('canvas');
@@ -432,7 +432,7 @@ async function createThumbnail(item) {
   }
 
   if (type.includes('pdf') && mediaUrl) {
-    const data = await pdfPageThumb(mediaUrl);
+    const data = await pdfPageThumb(rawMediaUrl); // use raw url for thumb
     return data ? `<img src="${data}">` : '<div class="icon">📄</div>';
   }
 

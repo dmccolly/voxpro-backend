@@ -1,5 +1,4 @@
 /voxpro-manager
   Content-Security-Policy: default-src 'self' https: blob: data:; img-src * data: blob:; media-src * data: blob:; connect-src *; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; frame-src *;
-  Cache-Control: no-store
-  X-Content-Type-Options: nosniff
-
+    Cache-Control: no-store
+      X-Content-Type-Options: nosniff
