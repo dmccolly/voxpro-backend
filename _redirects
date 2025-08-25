@@ -1,1 +1,5 @@
-/voxpro-manager   /voxpro-manager.html   200
+# Direct requests to the manager to the complete HTML application
+/voxpro-manager   /templates/voxpro-manager.html   200
+
+# Fallback for netlify functions
+/api/*  /.netlify/functions/:splat  200
