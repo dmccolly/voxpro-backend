@@ -1,448 +1,559 @@
-// Worker (pdf.js)
-window.addEventListener('load', () => {
-  if (window.pdfjsLib) {
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  }
-});
+// Enhanced VoxPro Manager JavaScript
+// Fixes modal loading issues and improves error handling
 
-/* ===== Config ===== */
-const SEARCH_API_PRIMARY = 'https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/search-media';
-const SEARCH_API_SECONDARY = '';
-const XANO_PROXY_BASE = 'https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/xano-proxy';
-const MEDIA_PROXY = '/.netlify/functions/fetch-media?url=';
-const ASSIGNMENTS_REFRESH_MS = 30000;
-
-/* ===== State ===== */
-let unifiedResults = [];
+// Global variables
 let assignments = [];
-let selectedUnified = null;
-let playing = null;
-let connGood = false;
-let searchEndpointChosen = null;
-let activeMediaEl = null;
+let selectedKey = null;
+let isInitialized = false;
+let modalInstance = null;
+let modalContent = null;
+let debugMode = true; // Set to false for production
 
-/* ===== DOM ===== */
-const keyButtons = [...document.querySelectorAll('.key[data-key]')];
-const stopButton = document.getElementById('stopButton');
-const assignmentsList = document.getElementById('assignmentsList');
-const assignmentsListManager = document.getElementById('assignmentsListManager');
-const connectionStatus = document.getElementById('connectionStatus');
-const searchInput = document.getElementById('searchInput');
-const mediaBrowser = document.getElementById('mediaBrowser');
-const selectedMedia = document.getElementById('selectedMedia');
-const keySelect = document.getElementById('keySelect');
-const titleInput = document.getElementById('titleInput');
-const descriptionInput = document.getElementById('descriptionInput');
-const stationInput = document.getElementById('stationInput');
-const tagsInput = document.getElementById('tagsInput');
-const submittedByInput = document.getElementById('submittedByInput');
-const assignButton = document.getElementById('assignButton');
-const alertBox = document.getElementById('alert');
-const currentInfo = document.getElementById('currentInfo');
-const currentTitle = document.getElementById('currentTitle');
-const currentMeta = document.getElementById('currentMeta');
-const mediaModal = document.getElementById('mediaModal');
-const modalClose = document.getElementById('modalClose');
-const modalTitle = document.getElementById('modalTitle');
-const mediaPlayer = document.getElementById('mediaPlayer');
-const mediaDescription = document.getElementById('mediaDescription');
-const sheet = document.getElementById('sheet');
-const sheetHeader = document.getElementById('sheetHeader');
-const sheetResize = document.getElementById('sheetResize');
-const tapOverlay = document.getElementById('tapOverlay');
-const tapPlayBtn = document.getElementById('tapPlayBtn');
-const titleOptions = document.getElementById('titleOptions');
-const stationOptions = document.getElementById('stationOptions');
-
-/* ===== Utils ===== */
-const esc = (s) => (s ?? '').toString().replace(/[&<>"']/g, (c) => ({
-  '&': '&amp;',
-  '<': '&lt;',
-  '>': '&gt;',
-  '"': '&quot;',
-  "'": '&#39;',
-}[c]));
-
-function show(type, msg) {
-  alertBox.className = 'alert ' + (type || '');
-  alertBox.textContent = msg;
-  alertBox.style.display = 'block';
-  clearTimeout(show._t);
-  show._t = setTimeout(() => { alertBox.style.display = 'none'; }, type === 'error' ? 6000 : 3000);
-}
-
-function setConn(ok) {
-  connGood = !!ok;
-  connectionStatus.textContent = ok ? 'Connected' : 'Connection Error';
-  connectionStatus.classList.toggle('bad', !ok);
-}
-
-function proxiedUrl(url) {
-  if (!url || typeof url !== 'string' || url.startsWith('blob:')) {
-    console.log('proxiedUrl: URL not processed:', url);
-    return url;
+// Debug logging helper
+function log(message, data = null) {
+  if (debugMode) {
+    console.log(`[VoxPro] ${message}`, data || '');
   }
-  const proxied = MEDIA_PROXY + encodeURIComponent(url);
-  console.log('proxiedUrl: Original:', url);
-  console.log('proxiedUrl: Proxied:', proxied);
-  return proxied;
 }
 
-function getAssetUrl(item) {
-  if (!item || typeof item !== 'object') {
-    console.log('getAssetUrl: Invalid item:', item);
-    return '';
+// Error display function
+function show(type, message) {
+  const alertEl = document.getElementById('alert');
+  if (!alertEl) {
+    log('Alert element not found', { type, message });
+    return;
   }
-
-  // Debug what fields are available
-  console.log('getAssetUrl: Asset fields:', Object.keys(item));
   
-  // Prioritize common top-level URL fields
-  let url = item.media_url || item.database_url || item.file_url || item.url || item.public_url || item.signed_url || item.path;
-  console.log('getAssetUrl: First attempt URL:', url);
+  alertEl.innerHTML = message;
+  alertEl.className = `alert alert-${type}`;
+  alertEl.style.display = 'block';
   
-  if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
-    return url;
+  // Auto-hide non-error alerts after 3 seconds
+  if (type !== 'danger') {
+    setTimeout(() => {
+      alertEl.style.display = 'none';
+    }, 3000);
   }
-
-  // Try additional fields that might contain the URL
-  url = item.download_url || item.source_url || item.stream_url;
-  console.log('getAssetUrl: Second attempt URL:', url);
-  
-  if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
-    return url;
-  }
-
-  // Check for a 'file' object, which is a common pattern
-  if (item.file && typeof item.file === 'object') {
-    console.log('getAssetUrl: Checking file object:', item.file);
-    url = item.file.url || item.file.path || item.file.public_url;
-    console.log('getAssetUrl: File object URL:', url);
-    
-    if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
-      return url;
-    }
-  }
-
-  // Last resort: check the thumbnail field if it's a string url
-  if (typeof item.thumbnail === 'string' && (item.thumbnail.startsWith('http') || item.thumbnail.startsWith('blob:'))) {
-    console.log('getAssetUrl: Using thumbnail as fallback:', item.thumbnail);
-    return item.thumbnail;
-  }
-
-  // Fallback for any other string properties that look like URLs
-  for (const key in item) {
-    const value = item[key];
-    if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('blob:'))) {
-      console.log('getAssetUrl: Found URL in field:', key, value);
-      return value;
-    }
-  }
-
-  console.log('getAssetUrl: No URL found in asset:', item);
-  return ''; // Always return a string
 }
 
-/* ===== API ===== */
-async function fetchJSON(url, opts) {
-  const r = await fetch(url, opts);
-  if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
-  return r.json();
-}
-
-async function xano(endpoint, opts = {}) {
+// Initialize the application
+async function init() {
+  if (isInitialized) {
+    log('Already initialized, skipping');
+    return;
+  }
+  
+  log('Initializing VoxPro Manager');
+  
   try {
-    const url = `${XANO_PROXY_BASE}/${endpoint}`;
-    console.log(`%c[XANO Request] -> ${opts.method || 'GET'} ${url}`, 'color: #00A4CC');
-    if (opts.body) {
-      try {
-        console.log('%c[XANO Request Body]', 'color: #00A4CC', JSON.parse(opts.body));
-      } catch {
-        console.log('%c[XANO Request Body (non-JSON)]', 'color: #00A4CC', opts.body);
-      }
+    // Ensure the modal element exists
+    if (!document.getElementById('playerModal')) {
+      log('Creating modal element');
+      createModalElement();
     }
-
-    const r = await fetch(url, {
-      headers: { 'Content-Type': 'application/json' },
-      ...opts
+    
+    // Initialize Bootstrap modal
+    const modalEl = document.getElementById('playerModal');
+    modalInstance = new bootstrap.Modal(modalEl, {
+      backdrop: 'static',
+      keyboard: true
     });
-
-    const responseText = await r.text();
-    if (!r.ok) {
-        console.error(`%c[XANO Response Error] ${r.status} ${r.statusText} for ${url}`, 'color: #FF5555', responseText);
-        throw new Error(`${r.status} ${r.statusText}`);
+    
+    // Set up modal content reference
+    modalContent = document.getElementById('modal-content');
+    if (!modalContent) {
+      log('Modal content element not found');
+      throw new Error('Modal content element not found');
     }
-
-    const j = JSON.parse(responseText);
-    console.log(`%c[XANO Response] <- ${url}`, 'color: #00CC66', j);
-
-    setConn(true);
-    return j;
-  } catch (err) {
-    console.error('Xano error:', err);
-    setConn(false);
-    show('error', 'Xano: ' + err.message);
-    return null;
+    
+    // Set up event listeners
+    setupEventListeners();
+    
+    // Load assignments
+    await loadAssignments();
+    
+    isInitialized = true;
+    log('Initialization complete');
+    
+  } catch (error) {
+    console.error('Initialization failed:', error);
+    show('danger', `Initialization failed: ${error.message}`);
   }
 }
 
-/* ===== Memory (datalists) ===== */
-const LS_TITLES = 'voxpro_titles';
-const LS_STATIONS = 'voxpro_stations';
-
-const readSet = (k) => {
-  try { return new Set(JSON.parse(localStorage.getItem(k) || '[]')); }
-  catch { return new Set(); }
-};
-const writeSet = (k, s) => localStorage.setItem(k, JSON.stringify([...s].slice(0, 300)));
-
-function addMemory() {
-  const t = (titleInput.value || '').trim();
-  const s = (stationInput.value || '').trim();
-  if (t) { const set = readSet(LS_TITLES); set.delete(t); set.add(t); writeSet(LS_TITLES, set); }
-  if (s) { const set = readSet(LS_STATIONS); set.delete(s); set.add(s); writeSet(LS_STATIONS, set); }
-  populateDatalistsFromMemory();
+// Create modal element if it doesn't exist
+function createModalElement() {
+  const modalHTML = `
+    <div class="modal fade" id="playerModal" tabindex="-1" aria-labelledby="playerModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="playerModalLabel">Media Player</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div id="modal-content" class="d-flex justify-content-center align-items-center">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  const modalContainer = document.createElement('div');
+  modalContainer.innerHTML = modalHTML;
+  document.body.appendChild(modalContainer.firstElementChild);
 }
 
-function populateDatalistsFromMemory() {
-  const titles = [...readSet(LS_TITLES)];
-  const stations = [...readSet(LS_STATIONS)];
-  titleOptions.innerHTML = titles.slice(-200).reverse().map(v => `<option value="${esc(v)}">`).join('');
-  stationOptions.innerHTML = stations.slice(-200).reverse().map(v => `<option value="${esc(v)}">`).join('');
+// Set up event listeners
+function setupEventListeners() {
+  log('Setting up event listeners');
+  
+  // Key press listeners
+  document.addEventListener('keydown', handleKeyPress);
+  
+  // Modal events
+  const playerModal = document.getElementById('playerModal');
+  if (playerModal) {
+    playerModal.addEventListener('hidden.bs.modal', () => {
+      // Clear content when modal is closed
+      if (modalContent) {
+        modalContent.innerHTML = '';
+      }
+    });
+  }
 }
 
-/* ===== Type detect & thumbnails ===== */
-function detectType(item) {
-  const t = (item.file_type || '').toLowerCase();
-  if (t) return t;
-  const u = getAssetUrl(item).toLowerCase();
-  if (/\.(mp3|m4a|aac|wav|ogg|flac)(\?|$)/.test(u)) return 'audio';
-  if (/\.(mp4|mov|mkv|webm)(\?|$)/.test(u)) return 'video';
-  if (/\.(png|jpg|jpeg|gif|webp|avif)(\?|$)/.test(u)) return 'image';
-  if (/\.pdf(\?|$)/.test(u)) return 'pdf';
-  if (/\.(doc|docx)(\?|$)/.test(u)) return 'doc';
-  if (/\.(xls|xlsx|csv)(\?|$)/.test(u)) return 'sheet';
-  return '';
+// Handle key press events
+function handleKeyPress(event) {
+  // Only handle number keys 1-5
+  if (event.key >= '1' && event.key <= '5') {
+    log(`Key pressed: ${event.key}`);
+    playKey(event.key);
+  }
 }
 
-async function createVideoThumb(url) {
-  return new Promise((res) => {
-    try {
-      const v = document.createElement('video');
-      v.muted = true;
-      v.preload = 'metadata';
-      v.src = url + (url.includes('#') ? '' : '#t=0.2');
-      v.playsInline = true;
-      v.onloadeddata = () => {
-        try {
-          const c = document.createElement('canvas');
-          c.width = 128; c.height = 128;
-          const g = c.getContext('2d');
-          const r = Math.min(128 / v.videoWidth, 128 / v.videoHeight);
-          const w = v.videoWidth * r, h = v.videoHeight * r;
-          g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, 128, 128);
-          g.drawImage(v, (128 - w) / 2, (128 - h) / 2, w, h);
-          res(c.toDataURL('image/png'));
-        } catch { res(null); }
-      };
-      v.onerror = () => res(null);
-    } catch { res(null); }
+// Load assignments from Xano API
+async function loadAssignments() {
+  log('Loading key assignments');
+  
+  try {
+    const response = await fetch('/.netlify/functions/xano-proxy?endpoint=/key_assignments');
+    
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    log('Assignments loaded:', data);
+    
+    assignments = data;
+    displayAssignments();
+    
+    return data;
+  } catch (error) {
+    console.error('Failed to load assignments:', error);
+    show('danger', `Failed to load assignments: ${error.message}`);
+    return [];
+  }
+}
+
+// Display assignments in the UI
+function displayAssignments() {
+  log('Displaying assignments');
+  
+  const container = document.getElementById('assignments');
+  if (!container) {
+    log('Assignments container not found');
+    return;
+  }
+  
+  container.innerHTML = '';
+  
+  assignments.forEach(assignment => {
+    const card = document.createElement('div');
+    card.className = 'card mb-3';
+    card.innerHTML = `
+      <div class="card-body">
+        <h5 class="card-title">Key ${assignment.key_number}</h5>
+        <p class="card-text">${assignment.title || 'No title'}</p>
+        <p class="card-text text-muted">${assignment.media_type || 'Unknown'}</p>
+      </div>
+    `;
+    container.appendChild(card);
   });
 }
 
-let _pdfReady = null;
-function loadPdfJs() {
-  if (_pdfReady) return _pdfReady;
-  _pdfReady = new Promise((res, rej) => {
-    function go() {
-      try {
-        if (!window.pdfjsLib) throw new Error('pdf.js missing');
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        res(window.pdfjsLib);
-      } catch (e) { rej(e); }
-    }
-    if (window.pdfjsLib) return go();
-    const t = setInterval(() => { if (window.pdfjsLib) { clearInterval(t); go(); } }, 200);
-    setTimeout(() => { if (!window.pdfjsLib) rej(new Error('pdf.js not loaded')); }, 5000);
-  }).catch(() => null);
-  return _pdfReady;
-}
-
-let _mammothReady = null;
-function loadMammothJs() {
-  if (_mammothReady) return _mammothReady;
-  _mammothReady = new Promise((res, rej) => {
-    if (window.mammoth) return res(window.mammoth);
-
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.10.0/mammoth.browser.js';
-    script.onload = () => {
-        if(window.mammoth) {
-            res(window.mammoth);
-        } else {
-            rej(new Error('mammoth.js loaded but global not found'));
-        }
-    };
-    script.onerror = () => rej(new Error('Failed to load mammoth.js'));
-    document.head.appendChild(script);
-
-    setTimeout(() => { if (!window.mammoth) rej(new Error('mammoth.js not loaded')); }, 5000);
-  }).catch(() => null);
-  return _mammothReady;
-}
-
-async function pdfPageThumb(url) {
-  const pdfjs = await loadPdfJs();
-  if (!pdfjs) return null;
-  try {
-    const pdf = await pdfjs.getDocument(proxiedUrl(url)).promise;
-    const page = await pdf.getPage(1);
-    const v = page.getViewport({ scale: .5 });
-    const c = document.createElement('canvas');
-    const g = c.getContext('2d');
-    c.width = 128; c.height = 128;
-    const s = Math.min(c.width / v.width, c.height / v.height);
-    const v2 = page.getViewport({ scale: s });
-    const off = document.createElement('canvas');
-    off.width = v2.width; off.height = v2.height;
-    await page.render({ canvasContext: off.getContext('2d'), viewport: v2 }).promise;
-    g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, c.width, c.height);
-    g.drawImage(off, (c.width - off.width) / 2, (c.height - off.height) / 2);
-    return c.toDataURL('image/png');
-  } catch { return null; }
-}
-
-async function renderPdfInModal(url, container) {
-  const pdfjs = await loadPdfJs();
-  if (!pdfjs) {
-    container.textContent = 'Failed to load PDF viewer.';
+// Play media for a specific key
+function playKey(keyNum) {
+  log('playKey called for key:', keyNum);
+  
+  const asn = assignments.find(a => Number(a.key_number) === Number(keyNum));
+  
+  if (!asn) { 
+    show('warning', 'No assignment for that key'); 
+    log('No assignment for key', keyNum);
     return;
   }
-
-  container.innerHTML = '<div>Loading PDF...</div>';
-  container.style.overflow = 'auto';
-  container.style.height = '100%';
-  container.style.textAlign = 'center';
-
+  
+  log('Found assignment:', asn);
+  
   try {
-    const pdf = await pdfjs.getDocument({ url, CMapReaderFactory: null, CMapPacked: true }).promise;
-    let currentPageNum = 1;
-    const numPages = pdf.numPages;
-
-    const canvas = document.createElement('canvas');
-    const controls = document.createElement('div');
-    controls.style.padding = '10px';
-    const prevButton = document.createElement('button');
-    prevButton.textContent = 'Prev';
-    const nextButton = document.createElement('button');
-    nextButton.textContent = 'Next';
-    const pageNumSpan = document.createElement('span');
-    pageNumSpan.style.margin = '0 10px';
-
-    controls.appendChild(prevButton);
-    controls.appendChild(pageNumSpan);
-    controls.appendChild(nextButton);
-
-    container.innerHTML = '';
-    container.appendChild(controls);
-    container.appendChild(canvas);
-
-    const renderPage = async (num) => {
-      try {
-        const page = await pdf.getPage(num);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const context = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-
-        const renderContext = {
-          canvasContext: context,
-          viewport: viewport
-        };
-        await page.render(renderContext).promise;
-        pageNumSpan.textContent = `Page ${num} of ${numPages}`;
-        prevButton.disabled = num <= 1;
-        nextButton.disabled = num >= numPages;
-      } catch(e) {
-        console.error('Error rendering page', e);
-        container.textContent = 'Error rendering PDF page.';
+    // Show the modal first, then load content
+    if (modalInstance) {
+      modalInstance.show();
+      
+      // Set initial loading state
+      if (modalContent) {
+        modalContent.innerHTML = `
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        `;
       }
-    };
-
-    prevButton.addEventListener('click', () => {
-      if (currentPageNum > 1) {
-        currentPageNum--;
-        renderPage(currentPageNum);
-      }
-    });
-
-    nextButton.addEventListener('click', () => {
-      if (currentPageNum < numPages) {
-        currentPageNum++;
-        renderPage(currentPageNum);
-      }
-    });
-
-    renderPage(currentPageNum);
-
-  } catch (error) {
-    console.error('Error rendering PDF:', error);
-    if (error.message && error.message.includes('CORS')) {
-       container.innerHTML = 'Error loading PDF: A Cross-Origin (CORS) issue is preventing the file from being loaded. The server hosting the PDF must allow requests from this website.';
+      
+      // Load the content based on media type
+      setTimeout(() => {
+        loadMediaContent(asn);
+      }, 100);
     } else {
-       container.textContent = 'Error loading PDF file. It may be corrupt or in an unsupported format.';
+      log('Modal instance not available');
+      show('danger', 'Player not initialized properly');
     }
+  } catch (error) {
+    console.error('Error playing key:', error);
+    show('danger', `Error playing media: ${error.message}`);
   }
 }
 
-const audioWaveThumbCache = new Map();
-async function renderAudioWaveThumb(url) {
-  if (audioWaveThumbCache.has(url)) return audioWaveThumbCache.get(url);
+// Load media content based on type
+async function loadMediaContent(assignment) {
+  log('Loading media content for assignment:', assignment);
+  
+  if (!modalContent) {
+    log('Modal content element not found');
+    return;
+  }
+  
   try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    const ctx = new AC();
-    const resp = await fetch(url, { mode: 'cors' });
-    if (!resp.ok) throw new Error('audio fetch failed');
-    const buf = await resp.arrayBuffer();
-    const audio = await ctx.decodeAudioData(buf);
-    const ch = audio.getChannelData(0);
-    const c = document.createElement('canvas'); c.width = 128; c.height = 128;
-    const g = c.getContext('2d');
-    g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, 128, 128);
-    g.strokeStyle = '#00ff88'; g.lineWidth = 1; g.beginPath();
-    const samples = 1000, step = Math.max(1, Math.floor(ch.length / samples));
-    for (let x = 0; x < 128; x++) {
-      const start = Math.min(ch.length - 1, Math.floor((x / 128) * samples) * step);
-      const end = Math.min(ch.length - 1, start + step);
-      let min = 1, max = -1;
-      for (let i = start; i < end; i++) { const v = ch[i]; if (v < min) min = v; if (v > max) max = v; }
-      const y1 = 64 + min * 60, y2 = 64 + max * 60;
-      g.moveTo(x, y1); g.lineTo(x, y2);
+    const mediaUrl = assignment.media_url;
+    if (!mediaUrl) {
+      throw new Error('Media URL is empty');
     }
-    g.stroke();
-    const data = c.toDataURL('image/png');
-    audioWaveThumbCache.set(url, data);
-    return data;
-  } catch { return null; }
+    
+    // Determine media type
+    const mediaType = determineMediaType(assignment);
+    log('Determined media type:', mediaType);
+    
+    // Create proxy URL for the media
+    const proxyUrl = `/.netlify/functions/fetch-media?url=${encodeURIComponent(mediaUrl)}`;
+    log('Proxy URL:', proxyUrl);
+    
+    // Load the appropriate media element
+    switch (mediaType) {
+      case 'image':
+        loadImage(proxyUrl, assignment.title);
+        break;
+      case 'video':
+        loadVideo(proxyUrl, assignment.title);
+        break;
+      case 'audio':
+        loadAudio(proxyUrl, assignment.title);
+        break;
+      default:
+        // Unknown media type, show error
+        modalContent.innerHTML = `
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle"></i>
+            Unknown media type for ${assignment.title || 'this media'}
+          </div>
+        `;
+    }
+  } catch (error) {
+    console.error('Error loading media:', error);
+    modalContent.innerHTML = `
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle"></i>
+        Error loading media: ${error.message}
+      </div>
+    `;
+  }
 }
 
-async function createThumbnail(item) {
-  const rawMediaUrl = getAssetUrl(item);
-  const mediaUrl = proxiedUrl(rawMediaUrl);
-
-  let rawTurl = item.thumbnail || '';
-  if (rawTurl && typeof rawTurl !== 'string') {
-    rawTurl = getAssetUrl(rawTurl);
+// Determine media type from assignment
+function determineMediaType(assignment) {
+  // First try the explicit media_type from the assignment
+  if (assignment.media_type) {
+    const type = assignment.media_type.toLowerCase();
+    if (type.includes('image')) return 'image';
+    if (type.includes('video')) return 'video';
+    if (type.includes('audio')) return 'audio';
   }
-  const turl = proxiedUrl(rawTurl);
-  const type = detectType(item);
+  
+  // If not specified, try to determine from the URL
+  const url = assignment.media_url || '';
+  const ext = url.split('.').pop().toLowerCase();
+  
+  // Check file extension
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+    return 'image';
+  } else if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) {
+    return 'video';
+  } else if (['mp3', 'wav', 'ogg', 'aac', 'm4a'].includes(ext)) {
+    return 'audio';
+  }
+  
+  // Default to video as fallback
+  return 'video';
+}
 
-  // Prefer server-provided thumbnail (no CORS/canvas needed)
-  if (turl) {
-    return `<img src="${esc(turl)}" onload="this.style.opacity=1" onerror="this.style.display='none'" style="opacity:0;transition:opacity .3s">`;
+// Load an image
+function loadImage(url, title) {
+  log('Loading image:', url);
+  
+  const img = new Image();
+  
+  // Show loading spinner until image loads
+  modalContent.innerHTML = `
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  `;
+  
+  img.onload = () => {
+    log('Image loaded successfully');
+    modalContent.innerHTML = '';
+    modalContent.appendChild(img);
+    
+    // Add title if provided
+    if (title) {
+      const titleEl = document.createElement('div');
+      titleEl.className = 'text-center mt-2';
+      titleEl.textContent = title;
+      modalContent.appendChild(titleEl);
+    }
+  };
+  
+  img.onerror = (error) => {
+    console.error('Image failed to load:', error);
+    modalContent.innerHTML = `
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle"></i>
+        Failed to load image. Please try again.
+      </div>
+    `;
+  };
+  
+  // Set image properties
+  img.src = url;
+  img.alt = title || 'Media content';
+  img.className = 'img-fluid';
+  img.style.maxHeight = '70vh';
+}
+
+// Load a video
+function loadVideo(url, title) {
+  log('Loading video:', url);
+  
+  // Create video element
+  const video = document.createElement('video');
+  video.controls = true;
+  video.autoplay = true;
+  video.className = 'w-100';
+  video.style.maxHeight = '70vh';
+  
+  // Add title element if provided
+  let titleEl = null;
+  if (title) {
+    titleEl = document.createElement('div');
+    titleEl.className = 'text-center mt-2';
+    titleEl.textContent = title;
+  }
+  
+  // Show loading state
+  modalContent.innerHTML = `
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  `;
+  
+  // Video event handlers
+  video.onloadeddata = () => {
+    log('Video loaded successfully');
+    modalContent.innerHTML = '';
+    modalContent.appendChild(video);
+    
+    if (titleEl) {
+      modalContent.appendChild(titleEl);
+    }
+  };
+  
+  video.onerror = (error) => {
+    console.error('Video failed to load:', error);
+    modalContent.innerHTML = `
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle"></i>
+        Failed to load video. Please try again.
+      </div>
+    `;
+  };
+  
+  // Set source and load
+  const source = document.createElement('source');
+  source.src = url;
+  source.type = 'video/mp4'; // Default type
+  video.appendChild(source);
+  
+  // Trigger load
+  video.load();
+}
+
+// Load audio
+function loadAudio(url, title) {
+  log('Loading audio:', url);
+  
+  // Create audio element
+  const audio = document.createElement('audio');
+  audio.controls = true;
+  audio.autoplay = true;
+  audio.className = 'w-100';
+  
+  // Create player container with visualization
+  const playerContainer = document.createElement('div');
+  playerContainer.className = 'audio-player-container';
+  playerContainer.innerHTML = `
+    <div class="audio-player-visualization">
+      <div class="visualization-bar"></div>
+      <div class="visualization-bar"></div>
+      <div class="visualization-bar"></div>
+      <div class="visualization-bar"></div>
+      <div class="visualization-bar"></div>
+    </div>
+  `;
+  
+  // Add title element if provided
+  let titleEl = null;
+  if (title) {
+    titleEl = document.createElement('div');
+    titleEl.className = 'text-center mt-2 audio-title';
+    titleEl.textContent = title;
+  }
+  
+  // Show loading state
+  modalContent.innerHTML = `
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  `;
+  
+  // Audio event handlers
+  audio.onloadeddata = () => {
+    log('Audio loaded successfully');
+    modalContent.innerHTML = '';
+    
+    // Add elements to container
+    playerContainer.insertBefore(audio, playerContainer.firstChild);
+    modalContent.appendChild(playerContainer);
+    
+    if (titleEl) {
+      modalContent.appendChild(titleEl);
+    }
+    
+    // Simple animation for visualization bars
+    animateVisualization(playerContainer);
+  };
+  
+  audio.onerror = (error) => {
+    console.error('Audio failed to load:', error);
+    modalContent.innerHTML = `
+      <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle"></i>
+        Failed to load audio. Please try again.
+      </div>
+    `;
+  };
+  
+  // Set source and load
+  const source = document.createElement('source');
+  source.src = url;
+  source.type = 'audio/mpeg'; // Default type
+  audio.appendChild(source);
+  
+  // Trigger load
+  audio.load();
+}
+
+// Animate audio visualization
+function animateVisualization(container) {
+  const bars = container.querySelectorAll('.visualization-bar');
+  
+  // Simple random animation
+  setInterval(() => {
+    bars.forEach(bar => {
+      const height = 20 + Math.random() * 60;
+      bar.style.height = `${height}%`;
+    });
+  }, 200);
+}
+
+// Test functions for debugging
+window.testModalWithImage = function() {
+  if (modalInstance && modalContent) {
+    modalInstance.show();
+    modalContent.innerHTML = `<div class="spinner-border text-primary" role="status"></div>`;
+    setTimeout(() => {
+      loadImage('https://picsum.photos/800/600', 'Test Image');
+    }, 100);
+  } else {
+    console.error('Modal not initialized');
+  }
+};
+
+window.testModalWithVideo = function() {
+  if (modalInstance && modalContent) {
+    modalInstance.show();
+    modalContent.innerHTML = `<div class="spinner-border text-primary" role="status"></div>`;
+    setTimeout(() => {
+      loadVideo('https://storage.googleapis.com/webfundamentals-assets/videos/chrome.mp4', 'Test Video');
+    }, 100);
+  } else {
+    console.error('Modal not initialized');
+  }
+};
+
+window.testModalWithAudio = function() {
+  if (modalInstance && modalContent) {
+    modalInstance.show();
+    modalContent.innerHTML = `<div class="spinner-border text-primary" role="status"></div>`;
+    setTimeout(() => {
+      loadAudio('https://file-examples.com/storage/fe9278ad7f642dbd39ac5c9/2017/11/file_example_MP3_700KB.mp3', 'Test Audio');
+    }, 100);
+  } else {
+    console.error('Modal not initialized');
+  }
+};
+
+window.checkModalState = function() {
+  console.log({
+    isInitialized,
+    modalInstance: !!modalInstance,
+    modalContent: !!modalContent,
+    assignments
+  });
+};
+
+// Initialize on document load
+document.addEventListener('DOMContentLoaded', init);
+
+// Expose functions for external use
+window.voxpro = {
+  init,
+  playKey,
+  loadAssignments
+};ity .3s">`;
   }
 
   if (type.includes('image') && mediaUrl) {

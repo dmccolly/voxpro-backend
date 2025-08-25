@@ -1,9 +1,15 @@
-# Media routing
-/media/* /media/:splat 200
+# Enhanced _redirects file for VoxPro Manager
+# Ensures proper routing for the application
 
-# API proxy (if needed for development)
-/api/* https://your-xano-instance.xano.io/api/:splat 200
+# Redirect root to main application
+/                           /voxpro-manager               302
 
-# SPA fallback - must be last
-/* /index.html 200
+# Serve the voxpro-manager HTML file for this path
+/voxpro-manager             /templates/voxpro-manager.html   200
+
+# API proxy paths remain as is
+/api/*                      /.netlify/functions/:splat     200
+
+# Fallback for SPA routing if needed
+/*                          /index.html                    200
 

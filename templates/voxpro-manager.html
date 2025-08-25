@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VoxPro Manager</title>
+  
+  <!-- Preconnect to external resources -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Font Awesome -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary-color: #3498db;
+      --secondary-color: #2c3e50;
+      --accent-color: #e74c3c;
+      --light-color: #ecf0f1;
+      --dark-color: #2c3e50;
+    }
+    
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #f8f9fa;
+      color: var(--dark-color);
+    }
+    
+    .navbar {
+      background-color: var(--secondary-color);
+    }
+    
+    .navbar-brand {
+      font-weight: 700;
+      color: white;
+    }
+    
+    .key-card {
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .key-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card-header {
+      background-color: var(--primary-color);
+      color: white;
+      font-weight: 500;
+      border-top-left-radius: 8px !important;
+      border-top-right-radius: 8px !important;
+    }
+    
+    .btn-primary {
+      background-color: var(--primary-color);
+      border-color: var(--primary-color);
+    }
+    
+    .btn-primary:hover {
+      background-color: #2980b9;
+      border-color: #2980b9;
+    }
+    
+    #alert {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      min-width: 300px;
+      display: none;
+    }
+    
+    /* Audio Player Visualization */
+    .audio-player-container {
+      width: 100%;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    audio {
+      width: 100%;
+      margin-bottom: 20px;
+    }
+    
+    .audio-player-visualization {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      height: 60px;
+      margin-top: 10px;
+    }
+    
+    .visualization-bar {
+      width: 18%;
+      background: linear-gradient(to top, #3498db, #9b59b6);
+      height: 30%;
+      border-radius: 3px;
+      transition: height 0.2s ease;
+    }
+    
+    .audio-title {
+      margin-top: 15px;
+      font-weight: 500;
+      color: var(--dark-color);
+    }
+    
+    /* Modal tweaks */
+    .modal-content {
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    
+    .modal-header {
+      background-color: var(--primary-color);
+      color: white;
+    }
+    
+    .modal-body {
+      padding: 20px;
+      min-height: 300px;
+    }
+    
+    #modal-content {
+      min-height: 250px;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark mb-4">
+    <div class="container">
+      <a class="navbar-brand" href="#">
+        <i class="fas fa-broadcast-tower me-2"></i>
+        VoxPro Manager
+      </a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item">
+            <a class="nav-link active" href="#">
+              <i class="fas fa-home me-1"></i> Home
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">
+              <i class="fas fa-cog me-1"></i> Settings
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">
+              <i class="fas fa-question-circle me-1"></i> Help
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="container">
+    <!-- Alert -->
+    <div id="alert" class="alert alert-info" role="alert"></div>
+    
+    <!-- Header -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <h1 class="display-5">
+          <i class="fas fa-volume-up me-2"></i>
+          Media Control Center
+        </h1>
+        <p class="lead text-muted">Press keys 1-5 to play assigned media</p>
+      </div>
+    </div>
+    
+    <!-- Instructions Panel -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">
+              <i class="fas fa-info-circle me-2"></i>
+              Quick Instructions
+            </h5>
+            <p class="card-text">
+              Press number keys <strong>1</strong> through <strong>5</strong> on your keyboard to play the assigned media.
+              Media will open in a player modal window. Click outside the modal or press ESC to close.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Key Assignments -->
+    <div class="row mb-5">
+      <div class="col-12">
+        <h3>
+          <i class="fas fa-keyboard me-2"></i>
+          Current Key Assignments
+        </h3>
+        <div id="assignments" class="row mt-3">
+          <!-- Assignments will be loaded here dynamically -->
+          <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading assignments...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Debug Panel (hidden in production) -->
+    <div class="row mb-4 debug-panel" style="display: none;">
+      <div class="col-12">
+        <div class="card border-warning">
+          <div class="card-header bg-warning text-dark">
+            <i class="fas fa-bug me-2"></i>
+            Debug Tools
+          </div>
+          <div class="card-body">
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-primary" onclick="window.testModalWithImage()">
+                Test Image
+              </button>
+              <button class="btn btn-sm btn-outline-primary" onclick="window.testModalWithVideo()">
+                Test Video
+              </button>
+              <button class="btn btn-sm btn-outline-primary" onclick="window.testModalWithAudio()">
+                Test Audio
+              </button>
+              <button class="btn btn-sm btn-outline-secondary" onclick="window.checkModalState()">
+                Check State
+              </button>
+              <button class="btn btn-sm btn-outline-success" onclick="window.voxpro.loadAssignments()">
+                Reload Assignments
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JavaScript (with Popper.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Custom JavaScript -->
+  <script src="/assets/voxpro-manager.js"></script>
+  
+  <!-- Debug Mode Toggle -->
+  <script>
+    // Check if debug mode is enabled (set by voxpro-manager.js)
+    document.addEventListener('DOMContentLoaded', function() {
+      setTimeout(() => {
+        if (window.debugMode === true) {
+          document.querySelector('.debug-panel').style.display = 'block';
+        }
+      }, 1000);
+    });
+  </script>
+</body>
+</html>
+

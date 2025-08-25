@@ -1,41 +1,71 @@
-# This section controls the build settings for your site.
+# Enhanced netlify.toml for VoxPro Manager
+# This configuration includes proper CSP settings and function configuration
+
 [build]
-  # Publish the main directory
   publish = "."
-
-  # This gives Netlify a safe, empty command to run so it doesn't fail.
   command = "echo 'No build command required'"
+  functions = "netlify/functions"
 
-# This section tells Netlify where to find your serverless functions.
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
+# Redirects and rewrites
+[[redirects]]
+  from = "/"
+  to = "/voxpro-manager"
+  status = 302
 
-# Configure headers for better security and caching
+[[redirects]]
+  from = "/voxpro-manager"
+  to = "/templates/voxpro-manager.html"
+  status = 200
+
+# CSP and security headers
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
-    Cache-Control = "public, max-age=300"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    # Enhanced CSP that allows media loading and inline scripts
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https://*.netlify.app https://*.netlify.com https://*.xano.io https:; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; frame-src 'self'"
 
-# Specific headers for media files
-[[headers]]
-  for = "*.mp3"
-  [headers.values]
-    Cache-Control = "public, max-age=604800"
-    Access-Control-Allow-Origin = "*"
-
+# Special headers for media files
 [[headers]]
   for = "*.mp4"
   [headers.values]
-    Cache-Control = "public, max-age=604800"
+    Content-Type = "video/mp4"
+    Accept-Ranges = "bytes"
+    Cache-Control = "public, max-age=86400"
     Access-Control-Allow-Origin = "*"
 
-# Headers for the voxpro-manager
 [[headers]]
-  for = "/voxpro-manager"
+  for = "*.mp3"
   [headers.values]
-    Cache-Control = "no-store"
-    X-Content-Type-Options = "nosniff"
-    Content-Security-Policy = "default-src 'self' https: blob: data:; img-src * data: blob:; media-src * data: blob:; connect-src *; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; frame-src *;"
+    Content-Type = "audio/mpeg"
+    Accept-Ranges = "bytes"
+    Cache-Control = "public, max-age=86400"
+    Access-Control-Allow-Origin = "*"
+
+[[headers]]
+  for = "*.jpg"
+  [headers.values]
+    Content-Type = "image/jpeg"
+    Cache-Control = "public, max-age=86400"
+    Access-Control-Allow-Origin = "*"
+
+[[headers]]
+  for = "*.png"
+  [headers.values]
+    Content-Type = "image/png"
+    Cache-Control = "public, max-age=86400"
+    Access-Control-Allow-Origin = "*"
+
+# Function settings
+[functions]
+  node_bundler = "esbuild"
+  included_files = ["assets/**", "templates/**"]
+  external_node_modules = ["axios"]
+
+# Environment variable setup
+[build.environment]
+  NODE_VERSION = "16"
