@@ -1,6 +1,110 @@
-<!doctype html>
-<html><head><meta charset="utf-8"><title>VoxPro — Netlify test</title></head>
-<body style="font:16px system-ui;background:#111;color:#0f8;padding:24px">
-  <h1>✅ Netlify is serving voxpro-manager.html</h1>
-  <p>If you see this at /voxpro-manager, we’re good.</p>
-</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxPro Manager</title>
+    <link rel="stylesheet" href="/assets/voxpro-manager.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Left Panel: Player Controls -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">VoxPro Media Player</div>
+                <div id="connectionStatus" class="status">Connected</div>
+            </div>
+            
+            <div class="grid-keys">
+                <button class="key" data-key="1">KEY 1</button>
+                <button class="key" data-key="2">KEY 2</button>
+                <button class="key" data-key="3">KEY 3</button>
+                <button class="key" data-key="4">KEY 4</button>
+                <button class="key" data-key="5">KEY 5</button>
+            </div>
+
+            <button id="stopButton" class="stop">STOP</button>
+
+            <h3 class="section-title">Current Key Assignments</h3>
+            <div id="assignmentsList" class="list"></div>
+
+            <div id="currentInfo" class="current" style="display: none;">
+                <div class="h" id="currentTitle">Now Playing</div>
+                <div id="currentMeta"></div>
+            </div>
+        </div>
+
+        <!-- Right Panel: Media Management -->
+        <div class="panel">
+            <div class="panel-header">
+                <div class="panel-title">VoxPro Manager</div>
+                <div>Search Webflow + Xano (with Xano fallback)</div>
+            </div>
+
+            <h3 class="section-title">Search Media (title, description, station, tags)</h3>
+            <input type="text" id="searchInput" class="input" placeholder="Type to search... or leave empty for recent">
+            
+            <div id="mediaBrowser" class="list"></div>
+
+            <div id="selectedMedia">Select a media item from the list above</div>
+
+            <h3 class="section-title">Assign to Key</h3>
+            <label class="label">Select Key Slot</label>
+            <select id="keySelect" class="select">
+                <option value="">Choose a key...</option>
+                <option value="1">Key 1</option>
+                <option value="2">Key 2</option>
+                <option value="3">Key 3</option>
+                <option value="4">Key 4</option>
+                <option value="5">Key 5</option>
+            </select>
+
+            <label class="label" for="titleInput">Title</label>
+            <input type="text" id="titleInput" class="input" list="titleOptions">
+            <datalist id="titleOptions"></datalist>
+
+            <label class="label" for="stationInput">Station</label>
+            <input type="text" id="stationInput" class="input" list="stationOptions">
+            <datalist id="stationOptions"></datalist>
+
+            <label class="label" for="descriptionInput">Description</label>
+            <textarea id="descriptionInput" class="textarea"></textarea>
+
+            <label class="label" for="tagsInput">Tags</label>
+            <input type="text" id="tagsInput" class="input">
+
+            <label class="label" for="submittedByInput">Submitted By</label>
+            <input type="text" id="submittedByInput" class="input">
+
+            <div id="alert" class="alert"></div>
+            <button id="assignButton" class="btn">Assign to Selected Key</button>
+
+            <h3 class="section-title">Manage Assignments</h3>
+            <div id="assignmentsListManager" class="list"></div>
+        </div>
+    </div>
+
+    <!-- Modal Player -->
+    <div id="mediaModal" class="modal">
+        <div id="sheet" class="sheet">
+            <div id="sheetHeader" class="sheet-h">
+                <div id="modalTitle">Player</div>
+                <button id="modalClose" class="sheet-x">×</button>
+            </div>
+            <div class="sheet-body">
+                <div id="mediaPlayer" class="media">
+                    <div id="tapOverlay" class="tap-overlay" style="display: none;">
+                        <button id="tapPlayBtn" class="btn">Tap to Play</button>
+                    </div>
+                </div>
+                <div id="mediaDescription" class="desc"></div>
+            </div>
+            <div id="sheetResize" class="sheet-resize"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="/assets/voxpro-manager.js"></script>
+</body>
+</html>
