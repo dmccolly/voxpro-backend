@@ -33,8 +33,17 @@ exports.handler = async (event, context) => {
   console.log(`Fetching media from: ${targetUrl}`);
 
   try {
+    // Add request options with a longer timeout and user agent
+    const requestOptions = {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      },
+      timeout: 30000, // 30 seconds timeout
+      redirect: 'follow'
+    };
+    
     // Fetch the media
-    const response = await fetch(targetUrl);
+    const response = await fetch(targetUrl, requestOptions);
 
     if (!response.ok) {
       console.error(`Error fetching media: ${response.status} ${response.statusText}`);
@@ -42,7 +51,8 @@ exports.handler = async (event, context) => {
         statusCode: response.status,
         headers,
         body: JSON.stringify({ 
-          error: `Error fetching media: ${response.status} ${response.statusText}`
+          error: `Error fetching media: ${response.status} ${response.statusText}`,
+          url: targetUrl
         })
       };
     }
@@ -54,16 +64,34 @@ exports.handler = async (event, context) => {
     // Add additional headers
     headers['Accept-Ranges'] = 'bytes';
     
-    // Get the buffer
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    // For certain content types, allow the browser to handle them directly
+    const directTypes = ['image/', 'audio/', 'video/', 'application/pdf'];
+    const shouldProxy = !directTypes.some(type => contentType.includes(type));
+    
+    if (shouldProxy) {
+      console.log(`Proxying content type: ${contentType}`);
+      // Get the buffer
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
 
-    return {
-      statusCode: 200,
-      headers,
-      body: buffer.toString('base64'),
-      isBase64Encoded: true
-    };
+      return {
+        statusCode: 200,
+        headers,
+        body: buffer.toString('base64'),
+        isBase64Encoded: true
+      };
+    } else {
+      console.log(`Redirecting to original URL for content type: ${contentType}`);
+      // Redirect to the original URL for media types the browser can handle
+      return {
+        statusCode: 302,
+        headers: {
+          ...headers,
+          'Location': targetUrl
+        },
+        body: ''
+      };
+    }
   } catch (error) {
     console.error('Error in fetch-media function:', error);
     
@@ -71,7 +99,8 @@ exports.handler = async (event, context) => {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        error: `Error fetching media: ${error.message}`
+        error: `Error fetching media: ${error.message}`,
+        url: targetUrl
       })
     };
   }
