@@ -1,46 +1,69 @@
-const fetch = require('node-fetch');
+// Complete function: fetches a remote media URL and streams it back with CORS,
+// including Range support for video/audio scrubbing.
+//
+// Usage from the browser:
+//   https://<your-functions-site>/.netlify/functions/fetch-media?url=<encoded absolute URL>
 
-exports.handler = async (event, context) => {
-  const targetUrl = event.queryStringParameters.url;
-
-  if (!targetUrl) {
-    return {
-      statusCode: 400,
-      body: 'Error: url query parameter is required',
-    };
-  }
-
+export async function handler(event) {
   try {
-    const response = await fetch(targetUrl);
-
-    if (!response.ok) {
-      return {
-        statusCode: response.status,
-        body: `Error: Failed to fetch media. Status: ${response.status}`,
-      };
+    const url = (event.queryStringParameters && event.queryStringParameters.url) || '';
+    if (!url || !/^https?:\/\//i.test(url)) {
+      return resp(400, 'Missing or invalid ?url');
     }
 
-    const contentType = response.headers.get('content-type');
-    const contentLength = response.headers.get('content-length');
-
-    const buffer = await response.buffer();
-
-    return {
-      statusCode: 200,
-      headers: {
-        'Content-Type': contentType,
-        'Content-Length': contentLength,
-        'Access-Control-Allow-Origin': '*', // Allow any origin to access this
-      },
-      body: buffer.toString('base64'),
-      isBase64Encoded: true,
+    const headersOut = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Range, Content-Type, Authorization',
+      'Vary': 'Origin, Range',
+      // You may tweak caching here:
+      'Cache-Control': 'public, max-age=300'
     };
 
-  } catch (error) {
-    console.error('Fetch media error:', error);
+    if (event.httpMethod === 'OPTIONS') {
+      return { statusCode: 204, headers: headersOut, body: '' };
+    }
+
+    // Forward Range header if present (important for video)
+    const fHeaders = {};
+    const range = event.headers && (event.headers.Range || event.headers.range);
+    if (range) fHeaders['Range'] = range;
+
+    const upstream = await fetch(url, { headers: fHeaders });
+
+    // Copy through relevant headers
+    const pass = [
+      'content-type', 'content-length', 'accept-ranges',
+      'content-range', 'last-modified', 'etag', 'date'
+    ];
+    for (const k of pass) {
+      const v = upstream.headers.get(k);
+      if (v) headersOut[k] = v;
+    }
+
+    // If upstream didn’t declare Accept-Ranges, add it for better player UX
+    if (!headersOut['accept-ranges']) headersOut['accept-ranges'] = 'bytes';
+
+    // Stream body back
+    const buf = await upstream.arrayBuffer();
     return {
-      statusCode: 500,
-      body: `Error: Could not fetch media. ${error.message}`,
+      statusCode: upstream.status,
+      headers: headersOut,
+      body: Buffer.from(buf).toString('base64'),
+      isBase64Encoded: true
     };
+  } catch (e) {
+    return resp(502, 'fetch-media error: ' + (e && e.message ? e.message : String(e)));
   }
-};
+}
+
+function resp(code, text) {
+  return {
+    statusCode: code,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Content-Type': 'text/plain; charset=utf-8'
+    },
+    body: text
+  };
+}

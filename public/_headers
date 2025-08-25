@@ -1,0 +1,4 @@
+/* 
+  Content-Security-Policy: default-src 'self' https: blob: data:; img-src * data: blob:; media-src * data: blob:; connect-src *; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; worker-src 'self' blob: https://cdnjs.cloudflare.com; frame-src *;
+  Cache-Control: no-store
+  X-Content-Type-Options: nosniff
