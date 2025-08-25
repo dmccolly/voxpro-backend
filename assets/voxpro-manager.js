@@ -80,23 +80,46 @@ function setConn(ok) {
 
 function proxiedUrl(url) {
   if (!url || typeof url !== 'string' || url.startsWith('blob:')) {
+    console.log('proxiedUrl: URL not processed:', url);
     return url;
   }
-  return MEDIA_PROXY + encodeURIComponent(url);
+  const proxied = MEDIA_PROXY + encodeURIComponent(url);
+  console.log('proxiedUrl: Original:', url);
+  console.log('proxiedUrl: Proxied:', proxied);
+  return proxied;
 }
 
 function getAssetUrl(item) {
-  if (!item || typeof item !== 'object') return '';
+  if (!item || typeof item !== 'object') {
+    console.log('getAssetUrl: Invalid item:', item);
+    return '';
+  }
 
+  // Debug what fields are available
+  console.log('getAssetUrl: Asset fields:', Object.keys(item));
+  
   // Prioritize common top-level URL fields
   let url = item.media_url || item.database_url || item.file_url || item.url || item.public_url || item.signed_url || item.path;
+  console.log('getAssetUrl: First attempt URL:', url);
+  
+  if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
+    return url;
+  }
+
+  // Try additional fields that might contain the URL
+  url = item.download_url || item.source_url || item.stream_url;
+  console.log('getAssetUrl: Second attempt URL:', url);
+  
   if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
     return url;
   }
 
   // Check for a 'file' object, which is a common pattern
   if (item.file && typeof item.file === 'object') {
+    console.log('getAssetUrl: Checking file object:', item.file);
     url = item.file.url || item.file.path || item.file.public_url;
+    console.log('getAssetUrl: File object URL:', url);
+    
     if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
       return url;
     }
@@ -104,6 +127,7 @@ function getAssetUrl(item) {
 
   // Last resort: check the thumbnail field if it's a string url
   if (typeof item.thumbnail === 'string' && (item.thumbnail.startsWith('http') || item.thumbnail.startsWith('blob:'))) {
+    console.log('getAssetUrl: Using thumbnail as fallback:', item.thumbnail);
     return item.thumbnail;
   }
 
@@ -111,10 +135,12 @@ function getAssetUrl(item) {
   for (const key in item) {
     const value = item[key];
     if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('blob:'))) {
+      console.log('getAssetUrl: Found URL in field:', key, value);
       return value;
     }
   }
 
+  console.log('getAssetUrl: No URL found in asset:', item);
   return ''; // Always return a string
 }
 
@@ -736,16 +762,24 @@ async function ensurePlayable(el) {
   try {
     await el.play();
     tapOverlay.style.display = 'none';
-  } catch {
+  } catch (err) {
+    console.error('Media autoplay error:', err);
     tapOverlay.style.display = 'flex';
     tapOverlay.style.zIndex = '2';
     tapPlayBtn.onclick = async () => {
-      try { await el.play(); tapOverlay.style.display = 'none'; } catch {}
+      try { 
+        console.log('User clicked play button, attempting to play media');
+        await el.play(); 
+        tapOverlay.style.display = 'none'; 
+      } catch (err) {
+        console.error('Play failed even after user interaction:', err);
+      }
     };
   }
 }
 
 function openMediaModal(asset) {
+  console.log('Opening media modal for asset:', asset);
   mediaPlayer.innerHTML = '';
   mediaPlayer.style.position = 'relative';
   tapOverlay.style.display = 'none';
@@ -756,13 +790,23 @@ function openMediaModal(asset) {
   modalTitle.textContent = asset.title || 'Player';
 
   const rawUrl = getAssetUrl(asset);
+  console.log('Raw media URL:', rawUrl);
   const url = proxiedUrl(rawUrl);
-  if (!url) { show('error', 'No media URL on this asset'); mediaModal.style.display = 'block'; return; }
+  console.log('Proxied media URL:', url);
+  
+  if (!url) { 
+    show('error', 'No media URL found on this asset'); 
+    console.error('No media URL found on asset:', asset);
+    mediaModal.style.display = 'block'; 
+    return; 
+  }
 
   const type = (asset.file_type || detectType(asset) || '').toLowerCase();
+  console.log('Detected media type:', type);
   let el = null;
 
   if (type.includes('audio')) {
+    console.log('Creating audio player');
     const wrap = document.createElement('div');
     wrap.style.display = 'grid';
     wrap.style.gridTemplateRows = '1fr auto';
@@ -774,10 +818,31 @@ function openMediaModal(asset) {
     canvas.style.background = '#0b0b0b';
 
     const audio = document.createElement('audio');
-    audio.controls = true; audio.autoplay = false; audio.style.width = '100%'; audio.playsInline = true;
-    const src = document.createElement('source'); src.src = url; audio.appendChild(src);
+    audio.controls = true; 
+    audio.autoplay = false; 
+    audio.style.width = '100%'; 
+    audio.playsInline = true;
+    audio.crossOrigin = 'anonymous'; // Try with crossOrigin
+    
+    // Add error handling for audio
+    audio.addEventListener('error', (e) => {
+      console.error('Audio error:', e);
+      console.error('Audio error code:', audio.error ? audio.error.code : 'unknown');
+      console.error('Audio error message:', audio.error ? audio.error.message : 'unknown');
+      show('error', `Audio playback error: ${audio.error ? audio.error.message : 'Unknown error'}`);
+    });
+    
+    // Add debugging for successful load
+    audio.addEventListener('loadeddata', () => {
+      console.log('Audio loaded successfully');
+    });
+    
+    const src = document.createElement('source'); 
+    src.src = url; 
+    audio.appendChild(src);
 
-    wrap.appendChild(canvas); wrap.appendChild(audio);
+    wrap.appendChild(canvas); 
+    wrap.appendChild(audio);
     mediaPlayer.prepend(wrap);
     activeMediaEl = audio;
 
@@ -805,7 +870,9 @@ function openMediaModal(asset) {
           g.stroke();
         })();
       }
-    } catch {}
+    } catch (err) {
+      console.error('Oscilloscope setup error:', err);
+    }
 
     mediaModal.style.display = 'block';
     ensurePlayable(audio);
@@ -813,9 +880,31 @@ function openMediaModal(asset) {
   }
 
   if (type.includes('video')) {
+    console.log('Creating video player');
     el = document.createElement('video');
-    el.controls = true; el.autoplay = false; el.style.maxWidth = '100%'; el.style.maxHeight = '100%'; el.playsInline = true;
-    const s = document.createElement('source'); s.src = url + '#t=0.1'; el.appendChild(s);
+    el.controls = true; 
+    el.autoplay = false; 
+    el.style.maxWidth = '100%'; 
+    el.style.maxHeight = '100%'; 
+    el.playsInline = true;
+    el.crossOrigin = 'anonymous'; // Try with crossOrigin
+    
+    // Add error handling for video
+    el.addEventListener('error', (e) => {
+      console.error('Video error:', e);
+      console.error('Video error code:', el.error ? el.error.code : 'unknown');
+      console.error('Video error message:', el.error ? el.error.message : 'unknown');
+      show('error', `Video playback error: ${el.error ? el.error.message : 'Unknown error'}`);
+    });
+    
+    // Add debugging for successful load
+    el.addEventListener('loadeddata', () => {
+      console.log('Video loaded successfully');
+    });
+    
+    const s = document.createElement('source'); 
+    s.src = url + '#t=0.1'; 
+    el.appendChild(s);
     mediaPlayer.prepend(el);
     activeMediaEl = el;
     mediaModal.style.display = 'block';
@@ -824,11 +913,26 @@ function openMediaModal(asset) {
   }
 
   if (type.includes('image')) {
+    console.log('Creating image viewer');
     el = document.createElement('img');
     el.alt = asset.title || '';
     el.src = url;
-    el.style.maxWidth = '100%'; el.style.maxHeight = '100%';
+    el.style.maxWidth = '100%'; 
+    el.style.maxHeight = '100%';
+    
+    // Add error handling for image
+    el.addEventListener('error', (e) => {
+      console.error('Image error:', e);
+      show('error', 'Image failed to load');
+    });
+    
+    // Add debugging for successful load
+    el.addEventListener('load', () => {
+      console.log('Image loaded successfully');
+    });
+    
   } else if (type.includes('pdf')) {
+    console.log('Creating PDF viewer');
     const pdfContainer = document.createElement('div');
     pdfContainer.style.width = '100%';
     pdfContainer.style.height = '100%';
@@ -836,6 +940,7 @@ function openMediaModal(asset) {
     renderPdfInModal(url, pdfContainer);
     el = pdfContainer;
   } else if (type.includes('doc')) {
+    console.log('Creating document viewer');
     const docContainer = document.createElement('div');
     docContainer.style.width = '100%';
     docContainer.style.height = '100%';
@@ -865,6 +970,7 @@ function openMediaModal(asset) {
     })();
     el = docContainer;
   } else {
+    console.log('No specific viewer available for this type');
     const div = document.createElement('div');
     div.style.padding = '16px';
     div.textContent = 'Preview not available';
@@ -882,9 +988,16 @@ function closeMediaModal() {
 }
 
 function playKey(keyNum) {
+  console.log('playKey called for key:', keyNum);
   const asn = assignments.find(a => Number(a.key_number) === Number(keyNum));
-  if (!asn) { show('error', 'No assignment for that key'); return; }
+  if (!asn) { 
+    show('error', 'No assignment for that key'); 
+    console.error('No assignment found for key:', keyNum);
+    return; 
+  }
+  
   const asset = asn.asset || {};
+  console.log('Found asset for key:', asset);
   playing = { key: keyNum, asset };
   reflectPlaying();
   openMediaModal(asset);
@@ -953,10 +1066,12 @@ function stopPlayback() {
 
 /* ===== Init & Events ===== */
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('DOM loaded, initializing VoxPro Manager...');
   populateDatalistsFromMemory();
   await loadAssignments();
   await unifiedSearch('');
   setInterval(loadAssignments, ASSIGNMENTS_REFRESH_MS);
+  console.log('VoxPro Manager initialized successfully');
 });
 
 searchInput.addEventListener('input', () => unifiedSearch(searchInput.value));
@@ -971,3 +1086,48 @@ window.addEventListener('keydown', (e) => {
   else if (k === ' ') { e.preventDefault(); stopPlayback(); }
   else if (k === 'Escape') { closeMediaModal(); }
 });
+
+// Add test function for manual testing
+window.testModal = function(url, type) {
+  console.log('Manual test: opening modal with URL:', url, 'type:', type);
+  openMediaModal({
+    title: 'Test Media',
+    description: 'This is a test media item.',
+    file_type: type || 'video',
+    media_url: url
+  });
+};
+
+// Direct CORS test function
+window.testFetch = async function(url) {
+  console.log('Testing direct fetch for URL:', url);
+  try {
+    const response = await fetch(url, { mode: 'cors' });
+    console.log('Fetch response:', response);
+    console.log('Response headers:', response.headers);
+    console.log('Response status:', response.status);
+    if (response.ok) {
+      console.log('Direct fetch succeeded');
+    } else {
+      console.error('Direct fetch failed with status:', response.status);
+    }
+  } catch (err) {
+    console.error('Direct fetch error:', err);
+  }
+  
+  console.log('Testing proxied fetch for URL:', url);
+  try {
+    const proxiedUrl = MEDIA_PROXY + encodeURIComponent(url);
+    const response = await fetch(proxiedUrl);
+    console.log('Proxied fetch response:', response);
+    console.log('Response headers:', response.headers);
+    console.log('Response status:', response.status);
+    if (response.ok) {
+      console.log('Proxied fetch succeeded');
+    } else {
+      console.error('Proxied fetch failed with status:', response.status);
+    }
+  } catch (err) {
+    console.error('Proxied fetch error:', err);
+  }
+};
