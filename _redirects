@@ -1,5 +1,9 @@
-# Direct requests to the manager to the complete HTML application
-/voxpro-manager   /templates/voxpro-manager.html   200
+# Media routing
+/media/* /media/:splat 200
 
-# Fallback for netlify functions
-/api/*  /.netlify/functions/:splat  200
+# API proxy (if needed for development)
+/api/* https://your-xano-instance.xano.io/api/:splat 200
+
+# SPA fallback - must be last
+/* /index.html 200
+
