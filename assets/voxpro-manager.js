@@ -7,9 +7,9 @@ window.addEventListener('load', () => {
 });
 
 /* ===== Config ===== */
-const SEARCH_API_PRIMARY = 'https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/search-media';
+const SEARCH_API_PRIMARY = '/.netlify/functions/search-media';
 const SEARCH_API_SECONDARY = '';
-const XANO_PROXY_BASE = 'https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/xano-proxy';
+const XANO_PROXY_BASE = '/.netlify/functions/xano-proxy';
 const MEDIA_PROXY = '/.netlify/functions/fetch-media?url=';
 const ASSIGNMENTS_REFRESH_MS = 30000;
 
