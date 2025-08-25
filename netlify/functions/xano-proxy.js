@@ -45,6 +45,7 @@ exports.handler = async (event, context) => {
     const xanoUrl = `${XANO_API_BASE}/${endpoint}`;
     
     console.log(`Proxying ${event.httpMethod} to: ${xanoUrl}`);
+    console.log(`Full event:`, JSON.stringify(event, null, 2));
 
     // Prepare fetch options
     const fetchOptions = {
@@ -87,6 +88,8 @@ exports.handler = async (event, context) => {
     // Make the request to Xano
     const response = await fetch(finalUrl, fetchOptions);
     const responseText = await response.text();
+    
+    console.log(`Response from Xano: ${responseText}`);
     
     let responseData;
     try {
