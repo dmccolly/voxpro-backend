@@ -31,6 +31,7 @@ exports.handler = async (event, context) => {
   }
 
   console.log(`Fetching media from: ${targetUrl}`);
+  console.log(`Full event:`, JSON.stringify(event, null, 2));
 
   try {
     // Fetch the media with node-fetch
@@ -42,6 +43,9 @@ exports.handler = async (event, context) => {
         'Accept': 'image/*, video/*, audio/*, application/octet-stream'
       }
     });
+
+    console.log(`Fetch response status: ${response.status}`);
+    console.log(`Fetch response headers:`, response.headers.raw());
 
     // Check for errors
     if (!response.ok) {
@@ -57,6 +61,7 @@ exports.handler = async (event, context) => {
 
     // Get content type from response or determine from URL
     let contentType = response.headers.get('content-type') || 'application/octet-stream';
+    console.log(`Original content type: ${contentType}`);
     
     // If content type is missing or generic, try to determine from URL
     if (contentType === 'application/octet-stream' || contentType === 'binary/octet-stream') {
@@ -109,16 +114,3 @@ exports.handler = async (event, context) => {
       body: buffer.toString('base64'),
       isBase64Encoded: true
     };
-  } catch (error) {
-    console.error('Error in fetch-media function:', error);
-    
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        error: `Error fetching media: ${error.message}`,
-        details: error.toString()
-      })
-    };
-  }
-};
