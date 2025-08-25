@@ -5,11 +5,10 @@
 /                           /voxpro-manager               302
 
 # Serve the voxpro-manager HTML file for this path
-/voxpro-manager             /templates/voxpro-manager.html   200
+/voxpro-manager             /voxpro-manager.html          200
 
 # API proxy paths remain as is
 /api/*                      /.netlify/functions/:splat     200
 
 # Fallback for SPA routing if needed
 /*                          /index.html                    200
-
