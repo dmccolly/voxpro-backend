@@ -1,14 +1,3 @@
-# Enhanced _redirects file for VoxPro Manager
-# Ensures proper routing for the application
-
-# Redirect root to main application
-/                           /voxpro-manager               302
-
-# Serve the voxpro-manager HTML file for this path
-/voxpro-manager             /voxpro-manager.html          200
-
-# API proxy paths remain as is
-/api/*                      /.netlify/functions/:splat     200
-
-# Fallback for SPA routing if needed
-/*                          /index.html                    200
+/voxpro-manager    /templates/voxpro-manager.html    200
+/assets/*         /assets/:splat                   200
+/*               /index.html                       200
