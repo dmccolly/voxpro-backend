@@ -1,7 +1,5 @@
 // Enhanced fetch-media.js - Improved error handling and CORS support
-// Place this file in /netlify/functions/fetch-media.js
-
-const axios = require('axios');
+const fetch = require('node-fetch');
 
 exports.handler = async (event, context) => {
   // Set up response headers with proper CORS
@@ -21,9 +19,9 @@ exports.handler = async (event, context) => {
   }
 
   // Get the URL parameter
-  const url = event.queryStringParameters.url;
+  const targetUrl = event.queryStringParameters.url;
   
-  if (!url) {
+  if (!targetUrl) {
     console.error('Missing URL parameter');
     return {
       statusCode: 400,
@@ -32,17 +30,13 @@ exports.handler = async (event, context) => {
     };
   }
 
-  console.log(`Fetching media from: ${url}`);
+  console.log(`Fetching media from: ${targetUrl}`);
 
   try {
-    // Fetch the media with axios (set responseType to arraybuffer)
-    const response = await axios({
+    // Fetch the media with node-fetch
+    const response = await fetch(targetUrl, {
       method: 'GET',
-      url: url,
-      responseType: 'arraybuffer',
       timeout: 30000, // 30 second timeout
-      maxContentLength: 100 * 1024 * 1024, // 100MB max size
-      validateStatus: false, // Don't throw error on non-2xx
       headers: {
         'User-Agent': 'VoxPro Media Manager',
         'Accept': 'image/*, video/*, audio/*, application/octet-stream'
@@ -50,7 +44,7 @@ exports.handler = async (event, context) => {
     });
 
     // Check for errors
-    if (response.status !== 200) {
+    if (!response.ok) {
       console.error(`Error fetching media: ${response.status} ${response.statusText}`);
       return {
         statusCode: response.status,
@@ -61,12 +55,12 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Determine content type from response or filename
-    let contentType = response.headers['content-type'] || 'application/octet-stream';
+    // Get content type from response or determine from URL
+    let contentType = response.headers.get('content-type') || 'application/octet-stream';
     
     // If content type is missing or generic, try to determine from URL
     if (contentType === 'application/octet-stream' || contentType === 'binary/octet-stream') {
-      const fileExtension = url.split('.').pop().toLowerCase();
+      const fileExtension = targetUrl.split('.').pop().toLowerCase();
       
       const contentTypeMap = {
         // Images
@@ -104,16 +98,15 @@ exports.handler = async (event, context) => {
     headers['Accept-Ranges'] = 'bytes';
     headers['Cache-Control'] = 'public, max-age=86400';
     
-    // Convert buffer to base64 for response
-    const base64 = Buffer.from(response.data, 'binary').toString('base64');
-    const body = Buffer.from(base64, 'base64');
+    // Get the buffer
+    const buffer = await response.buffer();
 
-    console.log(`Successfully fetched media: ${contentType}, size: ${body.length} bytes`);
+    console.log(`Successfully fetched media: ${contentType}, size: ${buffer.length} bytes`);
 
     return {
       statusCode: 200,
       headers,
-      body: body.toString('base64'),
+      body: buffer.toString('base64'),
       isBase64Encoded: true
     };
   } catch (error) {
