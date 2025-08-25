@@ -4,109 +4,668 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VoxPro Manager</title>
-    <link rel="stylesheet" href="/assets/voxpro-manager.css">
-    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #3498db;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark);
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        h1, h2, h3 {
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .header h1 {
+            margin-bottom: 0;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+        }
+        
+        .status-indicator {
+            margin-right: 10px;
+        }
+        
+        .connected {
+            color: var(--success);
+        }
+        
+        .disconnected {
+            color: var(--danger);
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .panel-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .key-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+        }
+        
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .key {
+            background: var(--light);
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            padding: 15px 10px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .key:hover {
+            background: #ddd;
+        }
+        
+        .key.playing {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+        
+        .list-container {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        
+        .list-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+        }
+        
+        .list-item:last-child {
+            border-bottom: none;
+        }
+        
+        .list-item.empty {
+            color: #999;
+            font-style: italic;
+            justify-content: center;
+        }
+        
+        .list-item.assignment {
+            cursor: pointer;
+        }
+        
+        .list-item.assignment:hover {
+            background: #f9f9f9;
+        }
+        
+        .key-name {
+            font-weight: bold;
+            margin-right: 10px;
+            background: var(--primary);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            min-width: 30px;
+            text-align: center;
+        }
+        
+        .search-container {
+            margin-bottom: 15px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .media-browser {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+        
+        .media-item {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            padding: 10px;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+        
+        .media-item:hover {
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .media-item.empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: #999;
+            font-style: italic;
+            cursor: default;
+        }
+        
+        .media-item.selected {
+            border-color: var(--accent);
+            background: #f0f7fd;
+        }
+        
+        .thumbnail {
+            height: 80px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        
+        .thumbnail.large {
+            height: 120px;
+        }
+        
+        .type-icon {
+            font-size: 2rem;
+            color: #999;
+        }
+        
+        .title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .description {
+            font-size: 0.9rem;
+            color: #777;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .play-btn {
+            position: absolute;
+            top: 40px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .play-btn:hover {
+            background: var(--accent);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        textarea.form-control {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 15px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn-block {
+            display: block;
+            width: 100%;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .alert {
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .alert-error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: var(--danger);
+        }
+        
+        .alert-success {
+            background: #efe;
+            border: 1px solid #cfc;
+            color: var(--success);
+        }
+        
+        .current-info {
+            padding: 10px;
+            background: var(--light);
+            border-radius: 4px;
+            text-align: center;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        
+        /* Player */
+        .player-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .control-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .control-btn:hover {
+            background: var(--secondary);
+        }
+        
+        .control-btn.stop {
+            background: var(--danger);
+        }
+        
+        .control-btn.stop:hover {
+            background: #c0392b;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            overflow: auto;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            max-width: 800px;
+            width: 90%;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        
+        .modal-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+        }
+        
+        .modal-close:hover {
+            color: var(--danger);
+        }
+        
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .media-player {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+        }
+        
+        .media-description {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        /* Delete button */
+        .delete-btn {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: var(--danger);
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: all 0.2s;
+        }
+        
+        .delete-btn:hover {
+            opacity: 1;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .tab.active {
+            border-bottom-color: var(--accent);
+            color: var(--accent);
+            font-weight: 600;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <!-- Left Panel: Player Controls -->
-        <div class="panel">
-            <div class="panel-header">
-                <div class="panel-title">VoxPro Media Player</div>
-                <div id="connectionStatus" class="status">Connected</div>
-            </div>
-            
-            <div class="grid-keys">
-                <button class="key" data-key="1">KEY 1</button>
-                <button class="key" data-key="2">KEY 2</button>
-                <button class="key" data-key="3">KEY 3</button>
-                <button class="key" data-key="4">KEY 4</button>
-                <button class="key" data-key="5">KEY 5</button>
-            </div>
-
-            <button id="stopButton" class="stop">STOP</button>
-
-            <h3 class="section-title">Current Key Assignments</h3>
-            <div id="assignmentsList" class="list"></div>
-
-            <div id="currentInfo" class="current" style="display: none;">
-                <div class="h" id="currentTitle">Now Playing</div>
-                <div id="currentMeta"></div>
+        <div class="header">
+            <h1>VoxPro Manager</h1>
+            <div class="status">
+                <span class="status-indicator">Status:</span>
+                <span id="connectionStatus" class="disconnected">Disconnected</span>
             </div>
         </div>
-
-        <!-- Right Panel: Media Management -->
+        
+        <div id="alert" class="alert alert-error"></div>
+        
         <div class="panel">
-            <div class="panel-header">
-                <div class="panel-title">VoxPro Manager</div>
-                <div>Search Webflow + Xano (with Xano fallback)</div>
+            <h2 class="panel-title">Player</h2>
+            <div class="key-grid">
+                <div class="key" data-key="F1">F1</div>
+                <div class="key" data-key="F2">F2</div>
+                <div class="key" data-key="F3">F3</div>
+                <div class="key" data-key="F4">F4</div>
+                <div class="key" data-key="F5">F5</div>
+                <div class="key" data-key="F6">F6</div>
+                <div class="key" data-key="F7">F7</div>
+                <div class="key" data-key="F8">F8</div>
+                <div class="key" data-key="F9">F9</div>
+                <div class="key" data-key="F10">F10</div>
+                <div class="key" data-key="F11">F11</div>
+                <div class="key" data-key="F12">F12</div>
             </div>
-
-            <h3 class="section-title">Search Media (title, description, station, tags)</h3>
-            <input type="text" id="searchInput" class="input" placeholder="Type to search... or leave empty for recent">
             
-            <div id="mediaBrowser" class="list"></div>
-
-            <div id="selectedMedia">Select a media item from the list above</div>
-
-            <h3 class="section-title">Assign to Key</h3>
-            <label class="label">Select Key Slot</label>
-            <select id="keySelect" class="select">
-                <option value="">Choose a key...</option>
-                <option value="1">Key 1</option>
-                <option value="2">Key 2</option>
-                <option value="3">Key 3</option>
-                <option value="4">Key 4</option>
-                <option value="5">Key 5</option>
-            </select>
-
-            <label class="label" for="titleInput">Title</label>
-            <input type="text" id="titleInput" class="input" list="titleOptions">
-            <datalist id="titleOptions"></datalist>
-
-            <label class="label" for="stationInput">Station</label>
-            <input type="text" id="stationInput" class="input" list="stationOptions">
-            <datalist id="stationOptions"></datalist>
-
-            <label class="label" for="descriptionInput">Description</label>
-            <textarea id="descriptionInput" class="textarea"></textarea>
-
-            <label class="label" for="tagsInput">Tags</label>
-            <input type="text" id="tagsInput" class="input">
-
-            <label class="label" for="submittedByInput">Submitted By</label>
-            <input type="text" id="submittedByInput" class="input">
-
-            <div id="alert" class="alert"></div>
-            <button id="assignButton" class="btn">Assign to Selected Key</button>
-
-            <h3 class="section-title">Manage Assignments</h3>
-            <div id="assignmentsListManager" class="list"></div>
-        </div>
-    </div>
-
-    <!-- Modal Player -->
-    <div id="mediaModal" class="modal">
-        <div id="sheet" class="sheet">
-            <div id="sheetHeader" class="sheet-h">
-                <div id="modalTitle">Player</div>
-                <button id="modalClose" class="sheet-x">×</button>
+            <div class="player-controls">
+                <button id="stopButton" class="control-btn stop">
+                    <i class="fas fa-stop"></i> Stop
+                </button>
             </div>
-            <div class="sheet-body">
-                <div id="mediaPlayer" class="media">
-                    <div id="tapOverlay" class="tap-overlay" style="display: none;">
-                        <button id="tapPlayBtn" class="btn">Tap to Play</button>
+            
+            <div id="currentInfo" class="current-info"></div>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="assignments">Assignments</div>
+            <div class="tab" data-tab="manager">Manager</div>
+        </div>
+        
+        <div id="assignmentsTab" class="tab-content active">
+            <div class="panel">
+                <h2 class="panel-title">Current Assignments</h2>
+                <div class="list-container">
+                    <div id="assignmentsList"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="managerTab" class="tab-content">
+            <div class="panel">
+                <h2 class="panel-title">Manage Assignments</h2>
+                <div class="two-column">
+                    <div>
+                        <div class="list-container">
+                            <div id="assignmentsListManager"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="search-container">
+                            <input type="text" id="searchInput" class="search-input" placeholder="Search media...">
+                        </div>
+                        
+                        <div id="mediaBrowser" class="media-browser"></div>
+                        
+                        <div id="selectedMedia" class="selected-media" style="margin-top: 20px;"></div>
+                        
+                        <div class="form-group" style="margin-top: 20px;">
+                            <label class="form-label" for="keySelect">Assign to Key:</label>
+                            <select id="keySelect" class="form-control">
+                                <option value="">Select Key</option>
+                                <option value="F1">F1</option>
+                                <option value="F2">F2</option>
+                                <option value="F3">F3</option>
+                                <option value="F4">F4</option>
+                                <option value="F5">F5</option>
+                                <option value="F6">F6</option>
+                                <option value="F7">F7</option>
+                                <option value="F8">F8</option>
+                                <option value="F9">F9</option>
+                                <option value="F10">F10</option>
+                                <option value="F11">F11</option>
+                                <option value="F12">F12</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="titleInput">Title:</label>
+                            <input type="text" id="titleInput" class="form-control">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="descriptionInput">Description:</label>
+                            <textarea id="descriptionInput" class="form-control"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="stationInput">Station:</label>
+                            <input type="text" id="stationInput" class="form-control">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="tagsInput">Tags (comma separated):</label>
+                            <input type="text" id="tagsInput" class="form-control">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label" for="submittedByInput">Submitted By:</label>
+                            <input type="text" id="submittedByInput" class="form-control">
+                        </div>
+                        
+                        <button id="assignButton" class="btn btn-block">Assign to Key</button>
                     </div>
                 </div>
-                <div id="mediaDescription" class="desc"></div>
             </div>
-            <div id="sheetResize" class="sheet-resize"></div>
         </div>
     </div>
-
-    <!-- Scripts -->
+    
+    <!-- Media Player Modal -->
+    <div id="mediaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Media Player</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="mediaPlayer" class="media-player"></div>
+                <div id="mediaDescription" class="media-description"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tab functionality -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabs = document.querySelectorAll('.tab');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+                    
+                    // Remove active class from all tabs and contents
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabContents.forEach(c => c.classList.remove('active'));
+                    
+                    // Add active class to selected tab and content
+                    tab.classList.add('active');
+                    document.getElementById(`${tabId}Tab`).classList.add('active');
+                });
+            });
+        });
+    </script>
+    
+    <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="/assets/voxpro-manager.js" defer></script>
+    
+    <!-- App Logic -->
+    <script src="/assets/voxpro-manager.js"></script>
 </body>
 </html>
