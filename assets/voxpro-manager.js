@@ -105,11 +105,11 @@ function getAssetUrl(item) {
   }
 
   // Debug what fields are available
-  log('getAssetUrl: Asset fields:', Object.keys(item));
+  console.error('getAssetUrl: Asset fields detailed:', JSON.stringify(item, null, 2));
   
   // Prioritize common top-level URL fields
   let url = item.media_url || item.database_url || item.file_url || item.url || item.public_url || item.signed_url || item.path;
-  log('getAssetUrl: First attempt URL:', url);
+  console.error('getAssetUrl: First attempt URL:', url);
   
   if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
     return url;
@@ -117,7 +117,7 @@ function getAssetUrl(item) {
 
   // Try additional fields that might contain the URL
   url = item.download_url || item.source_url || item.stream_url;
-  log('getAssetUrl: Second attempt URL:', url);
+  console.error('getAssetUrl: Second attempt URL:', url);
   
   if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
     return url;
@@ -125,9 +125,9 @@ function getAssetUrl(item) {
 
   // Check for a 'file' object, which is a common pattern
   if (item.file && typeof item.file === 'object') {
-    log('getAssetUrl: Checking file object:', item.file);
+    console.error('getAssetUrl: Checking file object:', JSON.stringify(item.file, null, 2));
     url = item.file.url || item.file.path || item.file.public_url;
-    log('getAssetUrl: File object URL:', url);
+    console.error('getAssetUrl: File object URL:', url);
     
     if (typeof url === 'string' && (url.startsWith('http') || url.startsWith('blob:'))) {
       return url;
@@ -597,6 +597,8 @@ function selectUnifiedAsset(asset) {
 async function loadAssignments() {
   log('Loading assignments from Xano');
   const data = await xano('voxpro_assignments');
+  console.error('Raw assignments data from Xano:', JSON.stringify(data, null, 2));
+  
   if (!data) { assignments = []; forceUpdateUI(); return; }
   assignments = data.sort((a, b) => (a.key_number || 0) - (b.key_number || 0));
 
@@ -604,6 +606,7 @@ async function loadAssignments() {
     if (a.asset_id != null) {
       try {
         const asset = await xano('asset/' + a.asset_id);
+        console.error('Asset data from Xano for ID ' + a.asset_id + ':', JSON.stringify(asset, null, 2));
         a.asset = asset || { id: a.asset_id, title: `Missing Asset ${a.asset_id}`, station: 'Unknown', file_type: 'unknown' };
       } catch {
         a.asset = { id: a.asset_id, title: `Missing Asset ${a.asset_id}`, station: 'Unknown', file_type: 'unknown' };
@@ -790,6 +793,7 @@ async function ensurePlayable(el) {
 
 function openMediaModal(asset) {
   log('Opening media modal for asset:', asset);
+  console.error('Asset object in openMediaModal:', JSON.stringify(asset, null, 2));
   // IMPORTANT FIX: Clear the media player first
   mediaPlayer.innerHTML = '';
   mediaPlayer.style.position = 'relative';
@@ -805,6 +809,8 @@ function openMediaModal(asset) {
 
   // Get media URL
   const rawUrl = getAssetUrl(asset);
+  console.error('Raw URL from getAssetUrl:', rawUrl);
+  
   log('Raw media URL:', rawUrl);
   if (!rawUrl) { 
     show('error', 'No media URL found on this asset'); 
@@ -1019,6 +1025,16 @@ function playKey(keyNum) {
   }
   
   const asset = asn.asset || {};
+  // Add verbose logging for debugging
+  console.error('ASSET OBJECT:', JSON.stringify(asset, null, 2));
+  console.error('ASSET URL FIELDS:', {
+    media_url: asset.media_url,
+    database_url: asset.database_url,
+    file_url: asset.file_url,
+    url: asset.url,
+    thumbnail: asset.thumbnail
+  });
+  
   log('Found asset for key:', asset);
   playing = { key: keyNum, asset };
   reflectPlaying();
