@@ -114,3 +114,16 @@ exports.handler = async (event, context) => {
       body: buffer.toString('base64'),
       isBase64Encoded: true
     };
+  } catch (error) {
+    console.error('Error in fetch-media function:', error);
+    
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: `Error fetching media: ${error.message}`,
+        details: error.toString()
+      })
+    };
+  }
+};
