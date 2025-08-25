@@ -1,8 +1,0 @@
-{
-  "name": "voxpro-backend",
-  "version": "1.0.0",
-  "description": "VoxPro Media Manager Backend",
-  "dependencies": {
-    "node-fetch": "^2.6.7"
-  }
-}
