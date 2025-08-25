@@ -23,6 +23,7 @@ let connGood = false;
 let searchEndpointChosen = null;
 let activeMediaEl = null;
 let debugMode = true; // Set to true for debugging
+let preloadedMedia = {}; // Cache for preloaded media
 
 /* ===== DOM ===== */
 const keyButtons = [...document.querySelectorAll('.key[data-key]')];
@@ -162,10 +163,58 @@ async function loadAssignments() {
     assignments = data.assignments || [];
     debug('Assignments loaded', assignments);
     
+    // Preload media URLs for all assignments
+    for (const assignment of assignments) {
+      preloadMediaUrl(assignment);
+    }
+    
     renderAssignments();
   } catch (error) {
     debug('Error loading assignments', error);
     showAlert('Failed to load assignments');
+  }
+}
+
+// Function to preload and cache media URLs
+function preloadMediaUrl(item) {
+  if (!item) return;
+  
+  const id = item.id || item.key || JSON.stringify(item).substring(0, 50);
+  debug(`Preloading media for item: ${id}`);
+  
+  try {
+    // Get the URL
+    const url = getAssetUrl(item);
+    if (!url) {
+      debug(`No URL found for item: ${id}`);
+      return;
+    }
+    
+    // Cache the URL
+    preloadedMedia[id] = url;
+    debug(`Cached media URL for item ${id}: ${url}`);
+    
+    // For audio/video, we could even preload the metadata
+    const type = item.file_type || '';
+    if (type.includes('audio') || type.includes('video')) {
+      const tempEl = type.includes('audio') 
+        ? document.createElement('audio') 
+        : document.createElement('video');
+      
+      tempEl.preload = 'metadata';
+      tempEl.src = url;
+      
+      tempEl.addEventListener('loadedmetadata', () => {
+        debug(`Preloaded metadata for ${id}: duration=${tempEl.duration}s`);
+        preloadedMedia[id + '_duration'] = tempEl.duration;
+      });
+      
+      tempEl.addEventListener('error', (e) => {
+        debug(`Error preloading ${id}: ${e.message}`);
+      });
+    }
+  } catch (error) {
+    debug(`Error in preloadMediaUrl for ${id}:`, error);
   }
 }
 
@@ -278,13 +327,21 @@ function renderMediaResults() {
     description.className = 'description';
     description.textContent = item.description || '';
     
+    // Preload this item's media URL
+    preloadMediaUrl(item);
+    
     mediaItem.appendChild(thumbnail);
     thumbnail.appendChild(typeIcon);
     mediaItem.appendChild(title);
     mediaItem.appendChild(description);
     
-    // Add play button for audio/video
-    if (item.file_type && (item.file_type.includes('audio') || item.file_type.includes('video'))) {
+    // Add play button for audio/video/images
+    const fileType = item.file_type || '';
+    const isPlayable = fileType.includes('audio') || 
+                      fileType.includes('video') || 
+                      fileType.includes('image');
+    
+    if (isPlayable) {
       const playBtn = document.createElement('button');
       playBtn.className = 'play-btn';
       playBtn.innerHTML = '▶';
