@@ -1,10 +1,26 @@
-// Diagnostic search-media.js 
-// Shows exactly what's in the Xano /voxpro endpoint
+// Multi-workspace search-media.js
+// Searches multiple Xano workspaces to find File Manager uploads
 
 const https = require('https');
 const http = require('http');
 
-const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX';
+// Multiple Xano API bases to check
+const XANO_WORKSPACES = [
+    process.env.XANO_API_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX',
+    'https://x8ki-letl-twmt.n7.xano.io/api:YourOtherAPIKey', // Add other potential workspaces
+    'https://xano.com/api:AnotherPossibleKey',
+    // Add more workspace URLs as needed
+];
+
+// Multiple endpoint patterns to try
+const ENDPOINT_PATTERNS = [
+    '/voxpro',
+    '/media',
+    '/uploads', 
+    '/assets',
+    '/files',
+    '/content'
+];
 
 exports.handler = async (event, context) => {
     const headers = {
@@ -19,146 +35,119 @@ exports.handler = async (event, context) => {
     }
 
     const query = event.queryStringParameters?.q || '';
+    console.log('=== MULTI-WORKSPACE SEARCH ===');
+    console.log('Query:', query);
 
-    try {
-        console.log('=== DIAGNOSTIC SEARCH STARTING ===');
-        console.log('Query:', query);
-        console.log('XANO_API_BASE:', XANO_API_BASE);
-        
-        // Get ALL data from the /voxpro endpoint
-        const searchUrl = `${XANO_API_BASE}/voxpro`;
-        console.log('Fetching from:', searchUrl);
+    let allResults = [];
+    let workspaceResults = {};
 
-        const response = await makeRequest(searchUrl);
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-
-        if (response.status !== 200) {
-            return {
-                statusCode: response.status,
-                headers,
-                body: JSON.stringify({ 
-                    error: 'Xano API error',
-                    status: response.status,
-                    response: response.data,
-                    url: searchUrl
-                })
-            };
-        }
-
-        let allData = [];
-        try {
-            allData = JSON.parse(response.data);
-            console.log('Parsed data successfully, count:', allData.length);
-        } catch (parseError) {
-            console.error('Parse error:', parseError);
-            return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ 
-                    error: 'Parse error',
-                    raw_response: response.data.substring(0, 500),
-                    parse_error: parseError.message
-                })
-            };
-        }
-
-        // Show detailed diagnostic info
-        const diagnostics = {
-            total_records: allData.length,
-            api_endpoint: searchUrl,
-            query_used: query,
-            sample_records: allData.slice(0, 3).map(item => ({
-                id: item.id,
-                title: item.title,
-                created_at: item.created_at,
-                file_type: item.file_type,
-                database_url_type: typeof item.database_url,
-                database_url_sample: JSON.stringify(item.database_url).substring(0, 100),
-                all_fields: Object.keys(item)
-            })),
-            recent_records: allData
-                .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
-                .slice(0, 5)
-                .map(item => ({
-                    id: item.id,
-                    title: item.title,
-                    created_at: new Date(item.created_at || 0).toISOString(),
-                    filename_in_title: item.title?.includes('Colorized') || item.title?.includes('Transmitter')
-                }))
-        };
-
-        // Filter results if query provided
-        let filteredResults = allData;
-        if (query && query.trim() !== '') {
-            const searchTerm = query.toLowerCase().trim();
-            filteredResults = allData.filter(item => {
-                const searchableText = [
-                    item.title || '',
-                    item.description || '',
-                    item.station || '',
-                    item.tags || '',
-                    item.category || '',
-                    item.submitted_by || '',
-                    item.notes1 || '',
-                    item.notes2 || ''
-                ].join(' ').toLowerCase();
+    // Try each workspace + endpoint combination
+    for (const workspace of XANO_WORKSPACES) {
+        for (const endpoint of ENDPOINT_PATTERNS) {
+            try {
+                const searchUrl = `${workspace}${endpoint}`;
+                console.log(`Trying: ${searchUrl}`);
                 
-                return searchableText.includes(searchTerm);
-            });
-            
-            console.log(`Filtered results: ${filteredResults.length} of ${allData.length}`);
-        }
-
-        // Transform to VoxPro format
-        const results = filteredResults.map(item => ({
-            id: item.id || `xano:${item.id}`,
-            source: 'xano',
-            title: item.title || 'Untitled',
-            description: item.description || '',
-            station: item.station || '',
-            tags: item.tags || '',
-            thumbnail: item.thumbnail || '',
-            media_url: item.database_url || '',
-            file_type: item.file_type || 'unknown',
-            submitted_by: item.submitted_by || '',
-            created_at: item.created_at || Date.now(),
-            category: item.category || '',
-            priority: item.priority || 'normal',
-            notes: item.notes1 || '',
-            file_size: item.file_size || 0
-        }));
-
-        return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-                results: results,
-                total: results.length,
-                query: query,
-                diagnostics: diagnostics,
-                debug_info: {
-                    endpoint_used: searchUrl,
-                    raw_count: allData.length,
-                    filtered_count: filteredResults.length,
-                    timestamp: new Date().toISOString()
+                const response = await makeRequest(searchUrl);
+                
+                if (response.status === 200) {
+                    console.log(`✅ SUCCESS: ${searchUrl}`);
+                    
+                    let data = [];
+                    try {
+                        data = JSON.parse(response.data);
+                        if (Array.isArray(data) && data.length > 0) {
+                            console.log(`Found ${data.length} records at ${searchUrl}`);
+                            
+                            // Store results by workspace for debugging
+                            const workspaceKey = `${workspace}${endpoint}`;
+                            workspaceResults[workspaceKey] = {
+                                count: data.length,
+                                sample: data.slice(0, 2).map(item => ({
+                                    id: item.id,
+                                    title: item.title,
+                                    created_at: item.created_at
+                                }))
+                            };
+                            
+                            // Filter results if query provided
+                            let filteredData = data;
+                            if (query && query.trim() !== '') {
+                                const searchTerm = query.toLowerCase().trim();
+                                filteredData = data.filter(item => {
+                                    const searchableText = [
+                                        item.title || '',
+                                        item.description || '',
+                                        item.station || '',
+                                        item.tags || '',
+                                        item.category || '',
+                                        item.submitted_by || '',
+                                        item.notes1 || '',
+                                        item.notes2 || ''
+                                    ].join(' ').toLowerCase();
+                                    
+                                    return searchableText.includes(searchTerm);
+                                });
+                            }
+                            
+                            // Transform to VoxPro format and add to results
+                            const transformedResults = filteredData.map(item => ({
+                                id: item.id || `${workspace.split(':')[1]?.substring(0,8)}:${item.id}`,
+                                source: `xano-${workspace.split(':')[1]?.substring(0,8)}`,
+                                title: item.title || 'Untitled',
+                                description: item.description || '',
+                                station: item.station || '',
+                                tags: item.tags || '',
+                                thumbnail: item.thumbnail || '',
+                                media_url: item.database_url || item.media_url || '',
+                                file_type: item.file_type || 'unknown',
+                                submitted_by: item.submitted_by || '',
+                                created_at: item.created_at || Date.now(),
+                                category: item.category || '',
+                                priority: item.priority || 'normal',
+                                notes: item.notes1 || item.notes || '',
+                                file_size: item.file_size || 0,
+                                workspace_source: searchUrl
+                            }));
+                            
+                            allResults = allResults.concat(transformedResults);
+                        }
+                    } catch (parseError) {
+                        console.log(`Parse error for ${searchUrl}:`, parseError.message);
+                    }
+                } else {
+                    console.log(`❌ Failed: ${searchUrl} (${response.status})`);
                 }
-            })
-        };
-
-    } catch (error) {
-        console.error('Diagnostic search error:', error);
-        return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ 
-                error: 'Diagnostic search failed',
-                message: error.message,
-                stack: error.stack,
-                endpoint: `${XANO_API_BASE}/voxpro`
-            })
-        };
+            } catch (error) {
+                console.log(`❌ Error: ${workspace}${endpoint} - ${error.message}`);
+            }
+        }
     }
+
+    // Sort results by creation date (newest first)
+    allResults.sort((a, b) => (b.created_at || 0) - (a.created_at || 0));
+
+    console.log(`=== SEARCH COMPLETE ===`);
+    console.log(`Total results found: ${allResults.length}`);
+    console.log(`Workspaces checked: ${XANO_WORKSPACES.length}`);
+    console.log(`Endpoints per workspace: ${ENDPOINT_PATTERNS.length}`);
+
+    return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+            results: allResults,
+            total: allResults.length,
+            query: query,
+            debug_info: {
+                workspaces_checked: XANO_WORKSPACES.length,
+                endpoints_per_workspace: ENDPOINT_PATTERNS.length,
+                workspace_results: workspaceResults,
+                successful_endpoints: Object.keys(workspaceResults),
+                timestamp: new Date().toISOString()
+            }
+        })
+    };
 };
 
 function makeRequest(url) {
@@ -174,9 +163,9 @@ function makeRequest(url) {
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'User-Agent': 'VoxPro-Diagnostic/1.0'
+                'User-Agent': 'VoxPro-MultiSearch/1.0'
             },
-            timeout: 15000
+            timeout: 10000
         };
 
         const req = client.request(options, (res) => {
