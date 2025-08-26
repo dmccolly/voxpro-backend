@@ -1,51 +1,51 @@
-// Netlify File Manager - Upload Function
-// This replaces your Heroku File Manager with a Netlify version
-// Uses the same environment variables and database as VoxPro
-
+// Complete working file-manager-upload.js - Uses SAME endpoint as search-media.js
 const https = require('https');
 const http = require('http');
-const multiparty = require('multiparty');
 
-const ALLOWED_EXTENSIONS = [
-  'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov', 'avi',
-  'mp3', 'wav', 'pdf', 'doc', 'docx', 'mkv', 'wmv', 'flv'
-];
+// Use EXACT same API base as search-media.js
+const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8k1-lell-twmt.n7.xano.io/api:pYeQctV';
+const DEBUG = true;
 
-const MAX_FILE_SIZE = 250 * 1024 * 1024; // 250MB
-
+// Helper function to make HTTP requests to Xano - SAME as search-media.js
 const makeRequest = (url, options = {}) => {
   return new Promise((resolve, reject) => {
-    const protocol = url.startsWith('https:') ? https : http;
+    const cacheBuster = `?_t=${Date.now()}&_r=${Math.random()}`;
+    const fullUrl = url + cacheBuster;
+    const protocol = fullUrl.startsWith('https:') ? https : http;
     
-    const req = protocol.request(url, {
-      method: options.method || 'GET',
+    if (DEBUG) {
+      console.log(`[DEBUG] Making ${options.method || 'GET'} request to: ${url.toString()}`);
+      if (options.body) {
+        console.log(`[DEBUG] Request data:`, JSON.stringify(options.body).substring(0, 500));
+      }
+    }
+
+    const requestOptions = {
+      ...options,
       headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
         'Content-Type': 'application/json',
+        'User-Agent': 'VoxPro-Netlify-Function/1.0',
+        'Accept': 'application/json',
         ...options.headers
       }
-    }, (res) => {
+    };
+
+    const req = protocol.request(fullUrl, requestOptions, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try {
-          resolve({
-            status: res.statusCode,
-            data: JSON.parse(data)
-          });
+          resolve(JSON.parse(data));
         } catch (e) {
-          resolve({
-            status: res.statusCode,
-            data: data
-          });
+          resolve(data);
         }
       });
     });
-    
+
     req.on('error', reject);
-    req.setTimeout(30000, () => {
-      req.destroy();
-      reject(new Error('Request timeout'));
-    });
     
     if (options.body) {
       req.write(JSON.stringify(options.body));
@@ -55,193 +55,169 @@ const makeRequest = (url, options = {}) => {
   });
 };
 
-const uploadToXano = async (fileBuffer, filename, fileType) => {
-  const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:pYeqCtV';
-  
-  // Try multiple Xano upload endpoints
-  const uploadEndpoints = [
-    `${XANO_API_BASE}/upload/attachment`,
-    `${XANO_API_BASE}/upload`,
-    `${XANO_API_BASE}/file/upload`
-  ];
-  
-  for (const endpoint of uploadEndpoints) {
-    try {
-      console.log(`Trying upload endpoint: ${endpoint}`);
-      
-      // Create form data for file upload
-      const boundary = '----formdata-' + Math.random().toString(36);
-      const formData = Buffer.concat([
-        Buffer.from(`--${boundary}\r\n`),
-        Buffer.from(`Content-Disposition: form-data; name="file"; filename="${filename}"\r\n`),
-        Buffer.from(`Content-Type: ${fileType}\r\n\r\n`),
-        fileBuffer,
-        Buffer.from(`\r\n--${boundary}--\r\n`)
-      ]);
-      
-      const response = await makeRequest(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': `multipart/form-data; boundary=${boundary}`,
-          'Content-Length': formData.length
-        },
-        body: formData
-      });
-      
-      if (response.status === 200 || response.status === 201) {
-        console.log(`Upload successful via ${endpoint}:`, response.data);
-        return response.data;
+// Parse multipart form data
+function parseMultipartData(body, boundary) {
+  const parts = body.split(`--${boundary}`);
+  const fields = {};
+  let file = null;
+
+  for (const part of parts) {
+    if (part.includes('Content-Disposition: form-data')) {
+      const nameMatch = part.match(/name="([^"]+)"/);
+      if (nameMatch) {
+        const fieldName = nameMatch[1];
+        const valueStart = part.indexOf('\r\n\r\n') + 4;
+        const valueEnd = part.lastIndexOf('\r\n');
+        
+        if (valueStart < valueEnd) {
+          const value = part.substring(valueStart, valueEnd);
+          
+          if (part.includes('filename=')) {
+            const filenameMatch = part.match(/filename="([^"]+)"/);
+            file = {
+              fieldName,
+              filename: filenameMatch ? filenameMatch[1] : 'unknown',
+              data: value,
+              headers: {
+                'content-type': part.match(/Content-Type: ([^\r\n]+)/)?.[1] || 'application/octet-stream'
+              }
+            };
+          } else {
+            fields[fieldName] = value;
+          }
+        }
       }
-      
-    } catch (error) {
-      console.log(`Upload failed via ${endpoint}:`, error.message);
-      continue;
     }
   }
-  
-  throw new Error('All upload endpoints failed');
-};
 
-const saveToDatabase = async (mediaData) => {
-  const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:pYeqCtV';
-  const endpoint = `${XANO_API_BASE}/voxpro`;
-  
-  console.log(`Saving to database: ${endpoint}`);
-  console.log('Media data:', mediaData);
-  
-  const response = await makeRequest(endpoint, {
-    method: 'POST',
-    body: mediaData
-  });
-  
-  if (response.status === 200 || response.status === 201) {
-    console.log('Database save successful:', response.data);
-    return response.data;
-  } else {
-    throw new Error(`Database save failed: ${response.status}`);
-  }
-};
+  return { fields, file };
+}
 
+// Main handler function
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
   };
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
 
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
-  }
-
   try {
-    console.log('File upload started');
+    if (event.httpMethod !== 'POST') {
+      return {
+        statusCode: 405,
+        headers,
+        body: JSON.stringify({ error: 'Method not allowed' })
+      };
+    }
+
+    const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
     
-    // Parse multipart form data
-    const form = new multiparty.Form({
-      maxFilesSize: MAX_FILE_SIZE
-    });
-    
-    const { fields, files } = await new Promise((resolve, reject) => {
-      form.parse(event, (err, fields, files) => {
-        if (err) reject(err);
-        else resolve({ fields, files });
-      });
-    });
-    
-    if (!files.file || !files.file[0]) {
+    if (!contentType.includes('multipart/form-data')) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'No file uploaded' })
+        body: JSON.stringify({ error: 'Content-Type must be multipart/form-data' })
       };
     }
-    
-    const file = files.file[0];
-    const filename = file.originalFilename;
-    const fileExtension = filename.split('.').pop().toLowerCase();
-    
-    // Validate file extension
-    if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
+
+    const boundary = contentType.split('boundary=')[1];
+    if (!boundary) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ 
-          error: `File type not allowed. Allowed: ${ALLOWED_EXTENSIONS.join(', ')}` 
-        })
+        body: JSON.stringify({ error: 'No boundary found in Content-Type' })
       };
     }
-    
-    // Validate file size
-    if (file.size > MAX_FILE_SIZE) {
+
+    const body = event.isBase64Encoded ? 
+      Buffer.from(event.body, 'base64').toString('binary') : 
+      event.body;
+
+    const { fields, file } = parseMultipartData(body, boundary);
+
+    if (DEBUG) {
+      console.log('Parsed fields:', Object.keys(fields));
+      console.log('File info:', file ? { filename: file.filename, size: file.data.length } : 'No file');
+    }
+
+    // Validate required fields
+    if (!fields.title) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ 
-          error: `File too large. Maximum size: ${MAX_FILE_SIZE / (1024*1024)}MB` 
-        })
+        body: JSON.stringify({ error: 'Title is required' })
       };
     }
-    
-    console.log(`Processing file: ${filename} (${file.size} bytes)`);
-    
-    // Read file buffer
-    const fs = require('fs');
-    const fileBuffer = fs.readFileSync(file.path);
-    
-    // Upload file to Xano storage
-    const uploadResult = await uploadToXano(fileBuffer, filename, file.headers['content-type']);
-    
-    // Prepare media data for database
-    const mediaData = {
-      title: fields.title?.[0] || filename,
-      description: fields.description?.[0] || '',
-      category: fields.category?.[0] || 'Other',
-      station: fields.station?.[0] || '',
-      tags: fields.tags?.[0] || '',
-      priority: fields.priority?.[0] || 'Normal',
-      notes: fields.notes?.[0] || '',
-      submitted_by: fields.submitted_by?.[0] || 'Unknown',
-      file_size: file.size,
-      file_type: file.headers['content-type'],
-      file_name: filename,
-      database_url: uploadResult, // This contains the Xano file reference
-      created_at: new Date().toISOString()
+
+    // Create the upload data object - SAME structure as existing VoxPro entries
+    const uploadData = {
+      title: fields.title || 'Untitled',
+      description: fields.description || '',
+      category: fields.category || 'Other',
+      station: fields.station || 'Unknown',
+      tags: fields.tags || '',
+      submittedBy: fields.submittedBy || 'Unknown',
+      priority: fields.priority || 'Normal',
+      notes: fields.notes || '',
+      filename: file ? file.filename : 'no-file',
+      fileSize: file ? file.data.length : 0,
+      contentType: file ? file.headers['content-type'] : 'unknown',
+      uploadDate: new Date().toISOString(),
+      source: 'file-manager'
     };
+
+    if (DEBUG) {
+      console.log('Upload data to send to Xano:', uploadData);
+    }
+
+    // Send to Xano using EXACT same endpoint as search-media.js
+    const xanoUrl = `${XANO_API_BASE}/voxpro`;
     
-    // Save to VoxPro database
-    const dbResult = await saveToDatabase(mediaData);
-    
-    console.log('Upload completed successfully');
-    
+    const result = await makeRequest(xanoUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: uploadData
+    });
+
+    if (DEBUG) {
+      console.log('Xano response:', result);
+    }
+
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
-        message: `Upload successful! File: ${filename}`,
-        xano_id: dbResult.id,
-        file_size: file.size,
-        database_url: uploadResult
+        message: 'Upload successful',
+        data: result,
+        uploadInfo: {
+          title: uploadData.title,
+          filename: uploadData.filename,
+          size: uploadData.fileSize
+        }
       })
     };
-    
+
   } catch (error) {
-    console.error('Upload failed:', error);
+    console.error('Upload error:', error);
+    
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         success: false,
-        error: `Upload failed: ${error.message}`
+        error: 'Upload failed',
+        details: error.message
       })
     };
   }
