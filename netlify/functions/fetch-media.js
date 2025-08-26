@@ -1,4 +1,4 @@
-// Enhanced fetch-media.js - Complete file
+// Complete fetch-media.js file for Netlify function
 const fetch = require('node-fetch');
 
 exports.handler = async (event, context) => {
