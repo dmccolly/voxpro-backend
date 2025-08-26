@@ -8,10 +8,10 @@ window.addEventListener('load', () => {
 
 /* ===== Config ===== */
 // Use relative paths instead of hard-coded domain
-const SEARCH_API_PRIMARY = '/.netlify/functions/search-media';
+const SEARCH_API_PRIMARY = '/api/search-media';
 const SEARCH_API_SECONDARY = '';
-const XANO_PROXY_BASE = '/.netlify/functions/xano-proxy';
-const MEDIA_PROXY = '/.netlify/functions/fetch-media?url=';
+const XANO_API_BASE = '/api/xano-proxy';
+const MEDIA_PROXY = '/media-proxy/';
 const ASSIGNMENTS_REFRESH_MS = 30000;
 
 /* ===== State ===== */
@@ -23,42 +23,129 @@ let connGood = false;
 let searchEndpointChosen = null;
 let activeMediaEl = null;
 let debugMode = true; // Set to true for debugging
+let mediaCache = {}; // Cache for processed media URLs
+let audioObjects = {}; // Cache for audio objects
 
 /* ===== DOM ===== */
-const keyButtons = [...document.querySelectorAll('.key[data-key]')];
-const stopButton = document.getElementById('stopButton');
-const assignmentsList = document.getElementById('assignmentsList');
-const assignmentsListManager = document.getElementById('assignmentsListManager');
-const connectionStatus = document.getElementById('connectionStatus');
-const searchInput = document.getElementById('searchInput');
-const mediaBrowser = document.getElementById('mediaBrowser');
-const selectedMedia = document.getElementById('selectedMedia');
-const keySelect = document.getElementById('keySelect');
-const titleInput = document.getElementById('titleInput');
-const descriptionInput = document.getElementById('descriptionInput');
-const stationInput = document.getElementById('stationInput');
-const tagsInput = document.getElementById('tagsInput');
-const submittedByInput = document.getElementById('submittedByInput');
-const assignButton = document.getElementById('assignButton');
-const alertBox = document.getElementById('alert');
-const currentInfo = document.getElementById('currentInfo');
-const mediaModal = document.getElementById('mediaModal');
-const modalClose = document.querySelector('.modal-close');
-const mediaPlayer = document.getElementById('mediaPlayer');
-const mediaDescription = document.getElementById('mediaDescription');
-const modalTitle = document.querySelector('.modal-title');
+let keyButtons = [];
+let stopButton;
+let assignmentsList;
+let assignmentsListManager;
+let connectionStatus;
+let searchInput;
+let mediaBrowser;
+let selectedMedia;
+let keySelect;
+let titleInput;
+let descriptionInput;
+let stationInput;
+let tagsInput;
+let submittedByInput;
+let assignButton;
+let alertBox;
+let currentInfo;
+let mediaModal;
+let modalClose;
+let mediaPlayer;
+let mediaDescription;
+let modalTitle;
 
 /* ===== Event Listeners ===== */
-document.addEventListener('DOMContentLoaded', init);
-searchInput.addEventListener('input', debounce(handleSearch, 500));
-keyButtons.forEach(btn => btn.addEventListener('click', handleKeyPress));
-stopButton.addEventListener('click', handleStop);
-mediaBrowser.addEventListener('click', handleMediaClick);
-assignButton.addEventListener('click', handleAssign);
-modalClose.addEventListener('click', () => mediaModal.style.display = 'none');
-window.addEventListener('click', e => {
-  if (e.target === mediaModal) mediaModal.style.display = 'none';
-});
+function initializeDOMElements() {
+  keyButtons = [...document.querySelectorAll('.key[data-key]')];
+  stopButton = document.getElementById('stopButton');
+  assignmentsList = document.getElementById('assignmentsList');
+  assignmentsListManager = document.getElementById('assignmentsListManager');
+  connectionStatus = document.getElementById('connectionStatus');
+  searchInput = document.getElementById('searchInput');
+  mediaBrowser = document.getElementById('mediaBrowser');
+  selectedMedia = document.getElementById('selectedMedia');
+  keySelect = document.getElementById('keySelect');
+  titleInput = document.getElementById('titleInput');
+  descriptionInput = document.getElementById('descriptionInput');
+  stationInput = document.getElementById('stationInput');
+  tagsInput = document.getElementById('tagsInput');
+  submittedByInput = document.getElementById('submittedByInput');
+  assignButton = document.getElementById('assignButton');
+  alertBox = document.getElementById('alert');
+  currentInfo = document.getElementById('currentInfo');
+  mediaModal = document.getElementById('mediaModal');
+  modalClose = document.querySelector('.modal-close');
+  mediaPlayer = document.getElementById('mediaPlayer');
+  mediaDescription = document.getElementById('mediaDescription');
+  modalTitle = document.querySelector('.modal-title');
+}
+
+function attachEventListeners() {
+  if (searchInput) searchInput.addEventListener('input', debounce(handleSearch, 500));
+  
+  if (keyButtons.length > 0) {
+    keyButtons.forEach(btn => {
+      // Remove any existing listeners by cloning and replacing
+      const newBtn = btn.cloneNode(true);
+      if (btn.parentNode) {
+        btn.parentNode.replaceChild(newBtn, btn);
+      }
+      newBtn.addEventListener('click', handleKeyPress);
+    });
+    
+    // Update reference to new buttons
+    keyButtons = [...document.querySelectorAll('.key[data-key]')];
+  }
+  
+  if (stopButton) {
+    // Clone and replace to remove existing listeners
+    const newStopBtn = stopButton.cloneNode(true);
+    if (stopButton.parentNode) {
+      stopButton.parentNode.replaceChild(newStopBtn, stopButton);
+    }
+    newStopBtn.addEventListener('click', handleStop);
+    stopButton = newStopBtn;
+  }
+  
+  if (mediaBrowser) {
+    // Clone and replace to remove existing listeners
+    const newMediaBrowser = mediaBrowser.cloneNode(true);
+    if (mediaBrowser.parentNode) {
+      mediaBrowser.parentNode.replaceChild(newMediaBrowser, mediaBrowser);
+    }
+    newMediaBrowser.addEventListener('click', handleMediaClick);
+    mediaBrowser = newMediaBrowser;
+  }
+  
+  if (assignButton) {
+    // Clone and replace to remove existing listeners
+    const newAssignBtn = assignButton.cloneNode(true);
+    if (assignButton.parentNode) {
+      assignButton.parentNode.replaceChild(newAssignBtn, assignButton);
+    }
+    newAssignBtn.addEventListener('click', handleAssign);
+    assignButton = newAssignBtn;
+  }
+  
+  if (modalClose) {
+    // Clone and replace to remove existing listeners
+    const newModalClose = modalClose.cloneNode(true);
+    if (modalClose.parentNode) {
+      modalClose.parentNode.replaceChild(newModalClose, modalClose);
+    }
+    newModalClose.addEventListener('click', () => {
+      if (mediaModal) mediaModal.style.display = 'none';
+      stopCurrentAudio();
+    });
+    modalClose = newModalClose;
+  }
+  
+  window.removeEventListener('click', handleWindowClick);
+  window.addEventListener('click', handleWindowClick);
+}
+
+function handleWindowClick(e) {
+  if (mediaModal && e.target === mediaModal) {
+    mediaModal.style.display = 'none';
+    stopCurrentAudio();
+  }
+}
 
 /* ===== Utility Functions ===== */
 function debug(...args) {
@@ -78,6 +165,8 @@ function debounce(func, wait) {
 }
 
 function showAlert(message, type = 'error') {
+  if (!alertBox) return;
+  
   alertBox.textContent = message;
   alertBox.className = `alert alert-${type}`;
   alertBox.style.display = 'block';
@@ -88,8 +177,10 @@ function showAlert(message, type = 'error') {
 
 function updateConnectionStatus(isConnected) {
   connGood = isConnected;
-  connectionStatus.className = isConnected ? 'connected' : 'disconnected';
-  connectionStatus.textContent = isConnected ? 'Connected' : 'Disconnected';
+  if (connectionStatus) {
+    connectionStatus.className = isConnected ? 'connected' : 'disconnected';
+    connectionStatus.textContent = isConnected ? 'Connected' : 'Disconnected';
+  }
 }
 
 function formatTime(seconds) {
@@ -102,6 +193,13 @@ function formatTime(seconds) {
 /* ===== Core Functions ===== */
 async function init() {
   debug('Initializing VoxPro Manager');
+  
+  // Initialize DOM elements
+  initializeDOMElements();
+  
+  // Attach event listeners
+  attachEventListeners();
+  
   updateConnectionStatus(false);
   await checkConnectionAndLoadAssignments();
   setInterval(checkConnectionAndLoadAssignments, ASSIGNMENTS_REFRESH_MS);
@@ -117,7 +215,7 @@ async function init() {
     openMediaModal(testAsset);
   };
   
-  // Debug - try loading a test modal
+  // Debug - try loading a test modal with delay to ensure DOM is ready
   setTimeout(() => {
     debug('Loading test modal...');
     window.testModal();
@@ -126,105 +224,147 @@ async function init() {
 
 async function checkConnectionAndLoadAssignments() {
   try {
-    const response = await fetch(`${XANO_PROXY_BASE}/auth/ping`);
+    debug('Checking connection to Xano API...');
+    const response = await fetch(`${XANO_API_BASE}/auth/ping`);
+    if (!response.ok) throw new Error(`API returned status ${response.status}`);
+    
     const data = await response.json();
+    debug('Connection established', data);
+    
     updateConnectionStatus(true);
     searchEndpointChosen = SEARCH_API_PRIMARY;
-    debug('Connection established', data);
     await loadAssignments();
   } catch (error) {
-    debug('Primary endpoint failed, trying secondary...');
+    debug('Primary endpoint failed, trying secondary...', error);
     try {
       if (SEARCH_API_SECONDARY) {
         const response = await fetch(`${SEARCH_API_SECONDARY}/auth/ping`);
+        if (!response.ok) throw new Error(`Secondary API returned status ${response.status}`);
+        
         const data = await response.json();
+        debug('Secondary connection established', data);
+        
         updateConnectionStatus(true);
         searchEndpointChosen = SEARCH_API_SECONDARY;
-        debug('Secondary connection established', data);
         await loadAssignments();
       } else {
         updateConnectionStatus(false);
+        showAlert('Unable to connect to API. Using cached data if available.');
+        
+        // Try to use cached assignments if available
+        if (assignments.length > 0) {
+          debug('Using cached assignments');
+          renderAssignments();
+        } else {
+          debug('No cached assignments available');
+        }
       }
     } catch (e) {
       debug('Connection error', e);
       updateConnectionStatus(false);
       
-      // If can't connect, use test data
-      useTestAssignments();
+      // Try to use cached assignments if available
+      if (assignments.length > 0) {
+        debug('Using cached assignments');
+        renderAssignments();
+      } else {
+        debug('No cached assignments available');
+      }
     }
   }
 }
 
-// Function to use test assignments when server is unavailable
-function useTestAssignments() {
-  debug('Using test assignments');
-  assignments = [
-    {
-      id: 1,
-      key: 'F1',
-      title: 'Test Audio',
-      description: 'This is a test audio file',
-      file_type: 'audio/mp3',
-      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/11/file_example_MP3_700KB.mp3',
-      station: 'Test Station',
-      tags: ['test', 'audio'],
-      submitted_by: 'System'
-    },
-    {
-      id: 2,
-      key: 'F2',
-      title: 'Test Video',
-      description: 'This is a test video file',
-      file_type: 'video/mp4',
-      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/04/file_example_MP4_480_1_5MG.mp4',
-      station: 'Test Station',
-      tags: ['test', 'video'],
-      submitted_by: 'System'
-    },
-    {
-      id: 3,
-      key: 'F3',
-      title: 'Test Image',
-      description: 'This is a test image file',
-      file_type: 'image/jpeg',
-      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/10/file_example_JPG_500kB.jpg',
-      station: 'Test Station',
-      tags: ['test', 'image'],
-      submitted_by: 'System'
-    }
-  ];
-  
-  renderAssignments();
-}
-
 async function loadAssignments() {
   if (!connGood) {
-    useTestAssignments();
+    debug('Not connected, using cached assignments if available');
+    if (assignments.length > 0) {
+      renderAssignments();
+    }
     return;
   }
   
   try {
     debug('Loading assignments...');
-    const response = await fetch(`${XANO_PROXY_BASE}/assignments/get`);
+    const response = await fetch(`${XANO_API_BASE}/assignments/get`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load assignments: ${response.status} ${response.statusText}`);
+    }
+    
     const data = await response.json();
+    debug('Assignments response:', data);
+    
     assignments = data.assignments || [];
     debug('Assignments loaded', assignments);
     
-    // If no assignments from server, use test data
-    if (!assignments || assignments.length === 0) {
-      useTestAssignments();
-      return;
+    // Process and cache media URLs for all assignments
+    for (const assignment of assignments) {
+      cacheMediaUrl(assignment);
     }
     
     renderAssignments();
   } catch (error) {
     debug('Error loading assignments', error);
-    showAlert('Failed to load assignments');
-    useTestAssignments();
+    showAlert('Failed to load assignments. Using cached data if available.');
+    
+    // Try to use cached assignments if available
+    if (assignments.length > 0) {
+      debug('Using cached assignments');
+      renderAssignments();
+    }
+  }
+}
+
+// Cache media URL for faster access later
+function cacheMediaUrl(item) {
+  if (!item) return null;
+  
+  const id = item.id || item.key || JSON.stringify(item).substring(0, 20);
+  debug(`Caching media URL for item: ${id}`);
+  
+  try {
+    // First try to get the URL
+    const url = getAssetUrl(item);
+    if (!url) {
+      debug(`No URL found for item: ${id}`);
+      return null;
+    }
+    
+    // Cache the direct URL (not proxied)
+    mediaCache[id] = url;
+    debug(`Cached media URL for ${id}: ${url}`);
+    
+    // Preload audio if it's an audio file
+    if (item.file_type && item.file_type.includes('audio')) {
+      const audio = new Audio();
+      audio.preload = 'metadata';
+      audio.src = url;
+      audio.volume = 0.7;
+      
+      audio.addEventListener('canplaythrough', () => {
+        debug(`Audio preloaded for ${id}`);
+      });
+      
+      audio.addEventListener('error', (e) => {
+        debug(`Error preloading audio for ${id}:`, e);
+      });
+      
+      audioObjects[id] = audio;
+    }
+    
+    return url;
+  } catch (error) {
+    debug(`Error caching media URL for ${id}:`, error);
+    return null;
   }
 }
 
 function renderAssignments() {
+  if (!assignmentsList || !assignmentsListManager) {
+    debug('Assignment lists not found in DOM');
+    return;
+  }
+
   assignmentsList.innerHTML = '';
   assignmentsListManager.innerHTML = '';
 
@@ -274,11 +414,15 @@ function renderAssignments() {
 }
 
 async function handleSearch() {
+  if (!searchInput || !mediaBrowser) {
+    debug('Search input or media browser not found in DOM');
+    return;
+  }
+  
   const query = searchInput.value.trim();
   
   if (!connGood) {
-    showAlert('Not connected to database - using test data');
-    useTestSearchResults(query);
+    showAlert('Not connected to database');
     return;
   }
   
@@ -290,66 +434,36 @@ async function handleSearch() {
   try {
     debug('Searching for:', query);
     const searchEndpoint = searchEndpointChosen || SEARCH_API_PRIMARY;
-    const response = await fetch(`${XANO_PROXY_BASE}/media/search?q=${encodeURIComponent(query)}`);
+    const response = await fetch(`${XANO_API_BASE}/media/search?q=${encodeURIComponent(query)}`);
+    
+    if (!response.ok) {
+      throw new Error(`Search failed: ${response.status} ${response.statusText}`);
+    }
+    
     const data = await response.json();
+    debug('Search response:', data);
     
     unifiedResults = data.results || [];
     debug('Search results:', unifiedResults);
     
-    // If no results, use test data
-    if (!unifiedResults || unifiedResults.length === 0) {
-      useTestSearchResults(query);
-      return;
+    // Cache media URLs for search results
+    for (const item of unifiedResults) {
+      cacheMediaUrl(item);
     }
     
     renderMediaResults();
   } catch (error) {
     debug('Search error', error);
-    showAlert('Search failed - using test data');
-    useTestSearchResults(query);
+    showAlert('Search failed');
   }
 }
 
-// Function to use test search results when server is unavailable
-function useTestSearchResults(query) {
-  debug('Using test search results for:', query);
-  unifiedResults = [
-    {
-      id: 1,
-      title: 'Test Audio',
-      description: 'This is a test audio file',
-      file_type: 'audio/mp3',
-      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/11/file_example_MP3_700KB.mp3',
-      station: 'Test Station',
-      tags: ['test', 'audio'],
-      submitted_by: 'System'
-    },
-    {
-      id: 2,
-      title: 'Test Video',
-      description: 'This is a test video file',
-      file_type: 'video/mp4',
-      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/04/file_example_MP4_480_1_5MG.mp4',
-      station: 'Test Station',
-      tags: ['test', 'video'],
-      submitted_by: 'System'
-    },
-    {
-      id: 3,
-      title: 'Test Image',
-      description: 'This is a test image file',
-      file_type: 'image/jpeg',
-      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/10/file_example_JPG_500kB.jpg',
-      station: 'Test Station',
-      tags: ['test', 'image'],
-      submitted_by: 'System'
-    }
-  ];
-  
-  renderMediaResults();
-}
-
 function renderMediaResults() {
+  if (!mediaBrowser) {
+    debug('Media browser not found in DOM');
+    return;
+  }
+  
   mediaBrowser.innerHTML = '';
   
   if (unifiedResults.length === 0) {
@@ -423,8 +537,16 @@ function getAssetUrl(item) {
 
   // Log all available fields for debugging
   debug('Asset fields:', Object.keys(item));
+  debug('Asset raw data:', JSON.stringify(item, null, 2));
   
-  // Try common URL fields
+  // Check if this item has a cached URL
+  const id = item.id || item.key || JSON.stringify(item).substring(0, 20);
+  if (mediaCache[id]) {
+    debug(`Using cached URL for ${id}: ${mediaCache[id]}`);
+    return mediaCache[id];
+  }
+  
+  // First check if there's a direct URL field
   const urlFields = ['media_url', 'database_url', 'file_url', 'url', 'public_url', 'thumbnail'];
   
   for (const field of urlFields) {
@@ -434,13 +556,83 @@ function getAssetUrl(item) {
     }
   }
   
-  // Manual URL extraction
+  // Check for nested URL objects (Xano often returns nested objects)
+  if (item.file && typeof item.file === 'object') {
+    debug('Found file object:', item.file);
+    
+    // Check if file object has URL
+    if (item.file.url && typeof item.file.url === 'string' && item.file.url.startsWith('http')) {
+      debug('Found URL in file.url:', item.file.url);
+      return item.file.url;
+    }
+    
+    // Check common URL fields in file object
+    for (const field of urlFields) {
+      if (item.file[field] && typeof item.file[field] === 'string' && item.file[field].startsWith('http')) {
+        debug(`Found URL in file.${field}:`, item.file[field]);
+        return item.file[field];
+      }
+    }
+  }
+  
+  // Check for media object
+  if (item.media && typeof item.media === 'object') {
+    debug('Found media object:', item.media);
+    
+    // Check if media object has URL
+    if (item.media.url && typeof item.media.url === 'string' && item.media.url.startsWith('http')) {
+      debug('Found URL in media.url:', item.media.url);
+      return item.media.url;
+    }
+    
+    // Check common URL fields in media object
+    for (const field of urlFields) {
+      if (item.media[field] && typeof item.media[field] === 'string' && item.media[field].startsWith('http')) {
+        debug(`Found URL in media.${field}:`, item.media[field]);
+        return item.media[field];
+      }
+    }
+  }
+  
+  // Try to find any string field that looks like a URL
   for (const key in item) {
     const value = item[key];
-    if (typeof value === 'string' && value.startsWith('http')) {
-      debug(`Found URL in field ${key}:`, value);
-      return value;
+    
+    // Check if it's a string URL
+    if (typeof value === 'string') {
+      if (value.startsWith('http')) {
+        debug(`Found URL in field ${key}:`, value);
+        return value;
+      }
+      
+      // Sometimes URLs are stored without the protocol
+      if (value.startsWith('//') || value.match(/^(www\.)/)) {
+        const fixedUrl = value.startsWith('//') ? `https:${value}` : `https://${value}`;
+        debug(`Found and fixed URL in field ${key}:`, fixedUrl);
+        return fixedUrl;
+      }
     }
+    
+    // Handle nested objects (one level deep)
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      for (const nestedKey in value) {
+        const nestedValue = value[nestedKey];
+        if (typeof nestedValue === 'string' && nestedValue.startsWith('http')) {
+          debug(`Found URL in nested field ${key}.${nestedKey}:`, nestedValue);
+          return nestedValue;
+        }
+      }
+    }
+  }
+  
+  // Last resort: check if we can find a URL pattern in JSON fields
+  const jsonString = JSON.stringify(item);
+  const urlRegex = /(https?:\/\/[^\s"]+)/g;
+  const matches = jsonString.match(urlRegex);
+  
+  if (matches && matches.length > 0) {
+    debug('Found URL using regex:', matches[0]);
+    return matches[0];
   }
   
   debug('No valid URL found in asset:', item);
@@ -448,7 +640,12 @@ function getAssetUrl(item) {
 }
 
 function openMediaModal(asset) {
-  console.log('Opening modal for asset:', asset);
+  debug('Opening modal for asset:', asset);
+  
+  if (!mediaPlayer || !mediaModal || !mediaDescription || !modalTitle) {
+    debug('Media modal elements not found in DOM');
+    return;
+  }
   
   // Clear the media player first
   mediaPlayer.innerHTML = '';
@@ -460,139 +657,213 @@ function openMediaModal(asset) {
   // Show modal first
   mediaModal.style.display = 'block';
   
-  // Get the URL directly from the asset - DO NOT USE ANY PROXY
+  // Get media URL - first check cache, then get from asset
   let url = '';
-  if (asset.media_url) url = asset.media_url;
-  else if (asset.url) url = asset.url;
-  else if (asset.file_url) url = asset.file_url;
-  else {
-    // Try to find any field that looks like a URL
-    for (const key in asset) {
-      const value = asset[key];
-      if (typeof value === 'string' && value.startsWith('http')) {
-        url = value;
-        console.log(`Found URL in field ${key}:`, url);
-        break;
-      }
+  const id = asset.id || asset.key || JSON.stringify(asset).substring(0, 20);
+  
+  if (mediaCache[id]) {
+    url = mediaCache[id];
+    debug('Using cached URL:', url);
+  } else {
+    url = getAssetUrl(asset);
+    debug('Got URL from asset:', url);
+    
+    // Cache the URL for future use
+    if (url) {
+      mediaCache[id] = url;
     }
   }
   
-  console.log('Media URL found:', url);
-  
   if (!url) {
-    mediaPlayer.innerHTML = `
-      <div style="padding:20px;text-align:center;">
-        <h3 style="color:red;">No Media URL Found</h3>
-        <p>Unable to find a valid URL in this asset.</p>
-        <p>Asset data:</p>
-        <pre style="text-align:left;background:#f5f5f5;padding:10px;overflow:auto;max-height:200px;">
-        ${JSON.stringify(asset, null, 2)}
-        </pre>
-      </div>`;
+    mediaPlayer.innerHTML = '<div style="padding:20px;color:red">No media URL found. Check console for details.</div>';
+    console.error('Failed to find URL in asset:', asset);
     return;
   }
-  
-  // DO NOT use any proxy - use the URL directly
-  // This avoids CORS and fetch issues
   
   // Create appropriate element based on type
   let el;
   const type = asset.file_type || '';
   
-  // Display a basic link that will open in a new tab
-  // This is the most reliable approach when fetch is failing
-  el = document.createElement('div');
-  el.style.padding = '20px';
-  el.style.textAlign = 'center';
-  
-  // First add a direct link
-  const linkContainer = document.createElement('div');
-  linkContainer.innerHTML = `
-    <div style="margin-bottom:20px;">
-      <a href="${url}" target="_blank" style="display:inline-block;padding:10px 20px;background:#3498db;color:white;text-decoration:none;border-radius:5px;font-weight:bold;">
-        Open Media in New Tab
-      </a>
-      <p style="margin-top:10px;color:#666;">Click the button above to view the media in a new tab</p>
-    </div>
+  // For all media types, create a direct link as fallback
+  const directLinkContainer = document.createElement('div');
+  directLinkContainer.style.marginBottom = '15px';
+  directLinkContainer.style.textAlign = 'center';
+  directLinkContainer.innerHTML = `
+    <a href="${url}" target="_blank" style="display:inline-block;padding:10px 15px;background:#3498db;color:white;text-decoration:none;border-radius:5px;margin-bottom:10px;">
+      Open Media in New Tab
+    </a>
+    <p style="margin:5px 0;color:#666;font-size:0.8rem;">If the media doesn't play correctly below, click the button above.</p>
   `;
-  el.appendChild(linkContainer);
-  
-  // Then try to add an appropriate embedded player as well
-  let embedEl = null;
+  mediaPlayer.appendChild(directLinkContainer);
   
   if (type.includes('audio') || url.match(/\.(mp3|wav|aac|m4a|ogg)$/i)) {
-    embedEl = document.createElement('audio');
-    embedEl.controls = true;
-    embedEl.autoplay = false;
-    embedEl.src = url;
-    embedEl.style.width = '100%';
-    embedEl.style.marginTop = '20px';
+    el = document.createElement('audio');
+    el.controls = true;
+    el.autoplay = false;
+    el.crossOrigin = 'anonymous';
+    el.style.width = '100%';
+    el.style.marginTop = '20px';
     
-    el.appendChild(document.createElement('hr'));
+    // Use cached audio if available
+    if (audioObjects[id]) {
+      debug(`Using cached audio for ${id}`);
+      el = audioObjects[id];
+      el.currentTime = 0;
+    } else {
+      el.src = url;
+    }
     
-    const playerTitle = document.createElement('h4');
-    playerTitle.textContent = 'Audio Player (if available)';
-    playerTitle.style.marginTop = '20px';
-    el.appendChild(playerTitle);
-    
-    el.appendChild(embedEl);
+    // Add waveform visualization if Web Audio API is available
+    try {
+      const visualizer = document.createElement('div');
+      visualizer.style.width = '100%';
+      visualizer.style.height = '60px';
+      visualizer.style.marginTop = '10px';
+      visualizer.style.backgroundColor = '#f0f0f0';
+      visualizer.style.borderRadius = '4px';
+      mediaPlayer.appendChild(visualizer);
+    } catch (error) {
+      debug('Error creating audio visualizer:', error);
+    }
   } 
   else if (type.includes('video') || url.match(/\.(mp4|webm|mov|avi|wmv)$/i)) {
-    embedEl = document.createElement('video');
-    embedEl.controls = true;
-    embedEl.autoplay = false;
-    embedEl.src = url;
-    embedEl.style.maxWidth = '100%';
-    embedEl.style.maxHeight = '400px';
-    
-    el.appendChild(document.createElement('hr'));
-    
-    const playerTitle = document.createElement('h4');
-    playerTitle.textContent = 'Video Player (if available)';
-    playerTitle.style.marginTop = '20px';
-    el.appendChild(playerTitle);
-    
-    el.appendChild(embedEl);
+    el = document.createElement('video');
+    el.controls = true;
+    el.autoplay = false;
+    el.crossOrigin = 'anonymous';
+    el.src = url;
+    el.style.maxWidth = '100%';
+    el.style.maxHeight = '400px';
+    el.style.display = 'block';
+    el.style.margin = '20px auto';
+    el.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+    el.style.borderRadius = '4px';
   }
   else if (type.includes('image') || url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
-    // For images, embed directly as well
-    embedEl = document.createElement('img');
-    embedEl.src = url;
-    embedEl.alt = asset.title || '';
-    embedEl.style.maxWidth = '100%';
-    embedEl.style.maxHeight = '400px';
-    embedEl.style.display = 'block';
-    embedEl.style.margin = '20px auto';
-    
-    el.appendChild(document.createElement('hr'));
-    
-    const imageTitle = document.createElement('h4');
-    imageTitle.textContent = 'Image Preview';
-    imageTitle.style.marginTop = '20px';
-    el.appendChild(imageTitle);
-    
-    el.appendChild(embedEl);
+    el = document.createElement('img');
+    el.crossOrigin = 'anonymous';
+    el.src = url;
+    el.alt = asset.title || '';
+    el.style.maxWidth = '100%';
+    el.style.maxHeight = '400px';
+    el.style.display = 'block';
+    el.style.margin = '20px auto';
+    el.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+    el.style.borderRadius = '4px';
+  }
+  else if (type.includes('pdf') || url.match(/\.(pdf)$/i)) {
+    el = document.createElement('iframe');
+    el.src = url;
+    el.style.width = '100%';
+    el.style.height = '500px';
+    el.style.border = 'none';
+    el.style.borderRadius = '4px';
+    el.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+  }
+  else {
+    el = document.createElement('div');
+    el.innerHTML = `
+      <div style="padding:20px;text-align:center;background:#f5f5f5;border-radius:4px;margin-top:20px;">
+        <p style="margin-bottom:15px;">This file type may not be viewable in the browser.</p>
+        <p>File type: ${type || 'Unknown'}</p>
+      </div>
+    `;
+  }
+  
+  // Add error handling
+  if (el.tagName !== 'DIV') {
+    el.addEventListener('error', (e) => {
+      debug('Media error:', e);
+      
+      // Create a more helpful error message
+      const errorDiv = document.createElement('div');
+      errorDiv.style.padding = '20px';
+      errorDiv.style.color = 'red';
+      errorDiv.style.backgroundColor = '#fee';
+      errorDiv.style.borderRadius = '4px';
+      errorDiv.style.marginTop = '15px';
+      errorDiv.innerHTML = `
+        <h3>Error loading media</h3>
+        <p><strong>Message:</strong> ${e.message || 'Unknown error'}</p>
+        <p><strong>URL:</strong> ${url}</p>
+        <p>This could be due to:</p>
+        <ul style="margin-left: 20px; text-align: left;">
+          <li>CORS restrictions</li>
+          <li>The file not being accessible</li>
+          <li>The URL format being incorrect</li>
+        </ul>
+        <p>Please use the direct link above to open the media in a new tab.</p>
+      `;
+      
+      // Replace the media element with the error message
+      if (el.parentNode) {
+        el.parentNode.replaceChild(errorDiv, el);
+      } else {
+        mediaPlayer.appendChild(errorDiv);
+      }
+    });
   }
   
   // Add to player
   mediaPlayer.appendChild(el);
   
-  // If we have an embedded element, add error handling
-  if (embedEl && embedEl.tagName !== 'DIV') {
-    embedEl.addEventListener('error', (e) => {
-      console.error('Media error:', e);
-      
-      const errorMsg = document.createElement('div');
-      errorMsg.style.color = 'red';
-      errorMsg.style.marginTop = '10px';
-      errorMsg.textContent = 'Failed to load embedded media. Please use the direct link above.';
-      
-      embedEl.parentNode.replaceChild(errorMsg, embedEl);
-    });
-  }
-  
   // Store the media element for later control
-  activeMediaEl = embedEl;
+  activeMediaEl = el;
+  
+  // For audio/video, add explicit play button for better mobile experience
+  if (type.includes('audio') || type.includes('video') || 
+      url.match(/\.(mp3|wav|aac|m4a|ogg|mp4|webm|mov|avi|wmv)$/i)) {
+    
+    const playButtonContainer = document.createElement('div');
+    playButtonContainer.style.textAlign = 'center';
+    playButtonContainer.style.marginTop = '10px';
+    
+    const playButton = document.createElement('button');
+    playButton.innerHTML = '▶️ Play';
+    playButton.style.padding = '8px 16px';
+    playButton.style.backgroundColor = '#4CAF50';
+    playButton.style.color = 'white';
+    playButton.style.border = 'none';
+    playButton.style.borderRadius = '4px';
+    playButton.style.cursor = 'pointer';
+    playButton.style.fontSize = '14px';
+    playButton.style.margin = '0 5px';
+    
+    const pauseButton = document.createElement('button');
+    pauseButton.innerHTML = '⏸️ Pause';
+    pauseButton.style.padding = '8px 16px';
+    pauseButton.style.backgroundColor = '#f44336';
+    pauseButton.style.color = 'white';
+    pauseButton.style.border = 'none';
+    pauseButton.style.borderRadius = '4px';
+    pauseButton.style.cursor = 'pointer';
+    pauseButton.style.fontSize = '14px';
+    pauseButton.style.margin = '0 5px';
+    
+    playButton.addEventListener('click', () => {
+      if (el && typeof el.play === 'function') {
+        el.play().catch(e => {
+          debug('Error playing media:', e);
+          // Show error in case of autoplay restrictions
+          const errorMessage = document.createElement('div');
+          errorMessage.style.color = 'red';
+          errorMessage.style.margin = '10px 0';
+          errorMessage.textContent = `Playback error: ${e.message}. Try using the direct link above.`;
+          playButtonContainer.appendChild(errorMessage);
+        });
+      }
+    });
+    
+    pauseButton.addEventListener('click', () => {
+      if (el && typeof el.pause === 'function') {
+        el.pause();
+      }
+    });
+    
+    playButtonContainer.appendChild(playButton);
+    playButtonContainer.appendChild(pauseButton);
+    mediaPlayer.appendChild(playButtonContainer);
+  }
 }
 
 function handleMediaClick(e) {
@@ -604,6 +875,12 @@ function handleMediaClick(e) {
   
   selectedUnified = unifiedResults[index];
   debug('Selected media:', selectedUnified);
+  
+  if (!titleInput || !descriptionInput || !stationInput || 
+      !tagsInput || !submittedByInput || !selectedMedia) {
+    debug('Form elements not found in DOM');
+    return;
+  }
   
   // Update form
   titleInput.value = selectedUnified.title || '';
@@ -658,6 +935,11 @@ async function handleAssign() {
     return;
   }
   
+  if (!keySelect) {
+    debug('Key select not found in DOM');
+    return;
+  }
+  
   const key = keySelect.value;
   if (!key) {
     showAlert('No key selected');
@@ -667,8 +949,19 @@ async function handleAssign() {
   try {
     debug('Assigning to key:', key);
     
-    // Get the media URL
-    const mediaUrl = getAssetUrl(selectedUnified);
+    // Get the media URL - use cached URL if available
+    const id = selectedUnified.id || JSON.stringify(selectedUnified).substring(0, 20);
+    let mediaUrl = mediaCache[id];
+    
+    if (!mediaUrl) {
+      mediaUrl = getAssetUrl(selectedUnified);
+      
+      if (mediaUrl) {
+        // Cache for future use
+        mediaCache[id] = mediaUrl;
+      }
+    }
+    
     if (!mediaUrl) {
       showAlert('No media URL found');
       return;
@@ -677,66 +970,60 @@ async function handleAssign() {
     const assignData = {
       key,
       media_id: selectedUnified.id,
-      title: titleInput.value,
-      description: descriptionInput.value,
-      file_type: selectedUnified.file_type,
+      title: titleInput?.value || selectedUnified.title || '',
+      description: descriptionInput?.value || selectedUnified.description || '',
+      file_type: selectedUnified.file_type || '',
       media_url: mediaUrl,
-      station: stationInput.value,
-      tags: tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag),
-      submitted_by: submittedByInput.value
+      station: stationInput?.value || selectedUnified.station || '',
+      tags: tagsInput?.value ? tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag) : (selectedUnified.tags || []),
+      submitted_by: submittedByInput?.value || selectedUnified.submitted_by || ''
     };
     
     debug('Assignment data:', assignData);
     
-    let success = false;
+    const response = await fetch(`${XANO_API_BASE}/assignments/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(assignData)
+    });
     
-    // Only try server if connected
-    if (connGood) {
-      try {
-        const response = await fetch(`${XANO_PROXY_BASE}/assignments/create`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(assignData)
-        });
-        
-        const data = await response.json();
-        debug('Assignment created on server:', data);
-        success = data.success;
-      } catch (error) {
-        debug('Error creating assignment on server:', error);
-        success = false;
-      }
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
     
-    // If server failed or not connected, update local assignments
-    if (!success) {
-      debug('Updating assignments locally');
+    const data = await response.json();
+    debug('Assignment created:', data);
+    
+    if (data.success) {
+      showAlert('Assignment created successfully', 'success');
       
-      // Remove any existing assignment with this key
+      // Add to local assignments immediately
       const existingIndex = assignments.findIndex(a => a.key === key);
       if (existingIndex !== -1) {
-        assignments.splice(existingIndex, 1);
+        assignments[existingIndex] = {
+          ...assignData,
+          id: data.id || assignData.id
+        };
+      } else {
+        assignments.push({
+          ...assignData,
+          id: data.id || assignData.id
+        });
       }
       
-      // Add the new assignment
-      assignments.push(assignData);
-      
-      success = true;
-    }
-    
-    if (success) {
-      showAlert('Assignment created successfully', 'success');
+      // Cache the media URL
+      cacheMediaUrl(assignData);
       
       // Re-render assignments
       renderAssignments();
     } else {
-      showAlert('Failed to create assignment');
+      showAlert(data.message || 'Failed to create assignment');
     }
   } catch (error) {
     debug('Error creating assignment', error);
-    showAlert('Failed to create assignment');
+    showAlert(`Failed to create assignment: ${error.message}`);
   }
 }
 
@@ -750,52 +1037,38 @@ async function deleteAssignment(key) {
   try {
     debug('Deleting assignment for key:', key);
     
-    let success = false;
+    const response = await fetch(`${XANO_API_BASE}/assignments/delete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ key })
+    });
     
-    // Only try server if connected
-    if (connGood) {
-      try {
-        const response = await fetch(`${XANO_PROXY_BASE}/assignments/delete`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ key })
-        });
-        
-        const data = await response.json();
-        debug('Assignment deleted on server:', data);
-        success = data.success;
-      } catch (error) {
-        debug('Error deleting assignment on server:', error);
-        success = false;
-      }
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status} ${response.statusText}`);
     }
     
-    // If server failed or not connected, update local assignments
-    if (!success) {
-      debug('Updating assignments locally');
-      
-      // Remove the assignment from local array
-      const existingIndex = assignments.findIndex(a => a.key === key);
-      if (existingIndex !== -1) {
-        assignments.splice(existingIndex, 1);
-      }
-      
-      success = true;
-    }
+    const data = await response.json();
+    debug('Assignment deleted:', data);
     
-    if (success) {
+    if (data.success) {
       showAlert('Assignment deleted successfully', 'success');
+      
+      // Remove from local assignments immediately
+      const index = assignments.findIndex(a => a.key === key);
+      if (index !== -1) {
+        assignments.splice(index, 1);
+      }
       
       // Re-render assignments
       renderAssignments();
     } else {
-      showAlert('Failed to delete assignment');
+      showAlert(data.message || 'Failed to delete assignment');
     }
   } catch (error) {
     debug('Error deleting assignment', error);
-    showAlert('Failed to delete assignment');
+    showAlert(`Failed to delete assignment: ${error.message}`);
   }
 }
 
@@ -827,34 +1100,49 @@ function handleKeyPress(e) {
   e.target.classList.add('playing');
   
   // Update current info
-  currentInfo.textContent = assignment.title || 'Unknown';
+  if (currentInfo) {
+    currentInfo.textContent = assignment.title || 'Unknown';
+  }
   
   // Play the media
   openMediaModal(assignment);
+}
+
+function stopCurrentAudio() {
+  if (activeMediaEl) {
+    if (typeof activeMediaEl.pause === 'function') {
+      activeMediaEl.pause();
+      if (typeof activeMediaEl.currentTime !== 'undefined') {
+        activeMediaEl.currentTime = 0;
+      }
+    }
+    activeMediaEl = null;
+  }
 }
 
 function handleStop() {
   if (!playing) return;
   
   debug('Stopping playback');
+  
   const playingButton = keyButtons.find(btn => btn.getAttribute('data-key') === playing);
   if (playingButton) {
     playingButton.classList.remove('playing');
   }
   
   playing = null;
-  currentInfo.textContent = '';
+  
+  if (currentInfo) {
+    currentInfo.textContent = '';
+  }
   
   // Close modal
-  mediaModal.style.display = 'none';
+  if (mediaModal) {
+    mediaModal.style.display = 'none';
+  }
   
   // Stop any active media
-  if (activeMediaEl) {
-    if (typeof activeMediaEl.pause === 'function') {
-      activeMediaEl.pause();
-    }
-    activeMediaEl = null;
-  }
+  stopCurrentAudio();
 }
 
 // Make testing functions available in global scope
@@ -866,7 +1154,7 @@ window.voxProDebug = {
   },
   testConnection: async () => {
     try {
-      const response = await fetch(`${XANO_PROXY_BASE}/auth/ping`);
+      const response = await fetch(`${XANO_API_BASE}/auth/ping`);
       const data = await response.json();
       debug('Connection test result:', data);
       return data;
@@ -883,167 +1171,57 @@ window.voxProDebug = {
       file_type: 'video/mp4'
     };
     openMediaModal(testAsset);
+  },
+  dumpCache: () => {
+    debug('Media URL cache:', mediaCache);
+    debug('Audio objects cache:', Object.keys(audioObjects));
+    return { mediaCache, audioObjectKeys: Object.keys(audioObjects) };
+  },
+  clearCache: () => {
+    mediaCache = {};
+    
+    // Stop and clear audio objects
+    Object.values(audioObjects).forEach(audio => {
+      if (audio && typeof audio.pause === 'function') {
+        audio.pause();
+        audio.src = '';
+      }
+    });
+    audioObjects = {};
+    
+    debug('Cache cleared');
+  },
+  fixHandlers: () => {
+    attachEventListeners();
+    debug('Event handlers fixed');
+  },
+  showXanoAPI: () => {
+    debug('Xano API Base:', XANO_API_BASE);
+    debug('Media Proxy:', MEDIA_PROXY);
+    return { XANO_API_BASE, MEDIA_PROXY };
   }
 };
 
-// Fix event handlers when the page loads
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('Applying direct fixes for key handlers and assignments');
+// Add visual debug panel
+function addDebugPanel() {
+  const debugPanel = document.createElement('div');
+  debugPanel.id = 'debugPanel';
+  debugPanel.style.position = 'fixed';
+  debugPanel.style.bottom = '10px';
+  debugPanel.style.right = '10px';
+  debugPanel.style.width = '300px';
+  debugPanel.style.maxHeight = '400px';
+  debugPanel.style.overflowY = 'auto';
+  debugPanel.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+  debugPanel.style.color = '#4CAF50';
+  debugPanel.style.padding = '10px';
+  debugPanel.style.borderRadius = '5px';
+  debugPanel.style.fontFamily = 'monospace';
+  debugPanel.style.fontSize = '12px';
+  debugPanel.style.zIndex = '9999';
+  debugPanel.style.display = 'none';
   
-  // Direct fix for key buttons
-  const keyButtons = document.querySelectorAll('.key[data-key]');
-  keyButtons.forEach(btn => {
-    // Remove existing event listeners
-    const newBtn = btn.cloneNode(true);
-    if (btn.parentNode) {
-      btn.parentNode.replaceChild(newBtn, btn);
-    }
-    
-    // Add new simplified handler
-    newBtn.addEventListener('click', function() {
-      const key = this.getAttribute('data-key');
-      console.log('Key pressed:', key);
-      
-      // Check if we're already playing this key
-      if (this.classList.contains('playing')) {
-        // Stop playback
-        this.classList.remove('playing');
-        
-        // Update info
-        const currentInfo = document.getElementById('currentInfo');
-        if (currentInfo) currentInfo.textContent = '';
-        
-        // Close modal
-        const mediaModal = document.getElementById('mediaModal');
-        if (mediaModal) mediaModal.style.display = 'none';
-        
-        console.log('Stopped playback for key:', key);
-        return;
-      }
-      
-      // Stop any currently playing keys
-      document.querySelectorAll('.key.playing').forEach(playingBtn => {
-        playingBtn.classList.remove('playing');
-      });
-      
-      // Mark this key as playing
-      this.classList.add('playing');
-      
-      // Find the assignment for this key
-      // If assignments aren't loaded yet, use a test assignment
-      let assignment = null;
-      
-      if (window.assignments && Array.isArray(window.assignments)) {
-        assignment = window.assignments.find(a => a.key === key);
-      }
-      
-      // If no assignment found, create a test one
-      if (!assignment) {
-        console.log('No assignment found for key, using test data');
-        
-        // Create a test assignment based on the key
-        const testAssignments = {
-          'F1': {
-            title: 'Test Audio',
-            description: 'This is a test audio file',
-            file_type: 'audio/mp3',
-            media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/11/file_example_MP3_700KB.mp3'
-          },
-          'F2': {
-            title: 'Test Video',
-            description: 'This is a test video file',
-            file_type: 'video/mp4',
-            media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/04/file_example_MP4_480_1_5MG.mp4'
-          },
-          'F3': {
-            title: 'Test Image',
-            description: 'This is a test image file',
-            file_type: 'image/jpeg',
-            media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/10/file_example_JPG_500kB.jpg'
-          }
-        };
-        
-        assignment = testAssignments[key] || {
-          title: `Test Media for ${key}`,
-          description: 'Test media item',
-          file_type: 'audio/mp3',
-          media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/11/file_example_MP3_700KB.mp3'
-        };
-        
-        // Add the key to the assignment
-        assignment.key = key;
-      }
-      
-      // Update current info
-      const currentInfo = document.getElementById('currentInfo');
-      if (currentInfo) currentInfo.textContent = assignment.title || key;
-      
-      // Open the media modal with this assignment
-      if (typeof openMediaModal === 'function') {
-        openMediaModal(assignment);
-      } else {
-        alert('Media player function not available');
-      }
-    });
-  });
-  
-  // Fix stop button
-  const stopButton = document.getElementById('stopButton');
-  if (stopButton) {
-    const newStopBtn = stopButton.cloneNode(true);
-    if (stopButton.parentNode) {
-      stopButton.parentNode.replaceChild(newStopBtn, stopButton);
-    }
-    
-    newStopBtn.addEventListener('click', function() {
-      console.log('Stop button pressed');
-      
-      // Remove playing class from all keys
-      document.querySelectorAll('.key.playing').forEach(btn => {
-        btn.classList.remove('playing');
-      });
-      
-      // Clear current info
-      const currentInfo = document.getElementById('currentInfo');
-      if (currentInfo) currentInfo.textContent = '';
-      
-      // Close modal
-      const mediaModal = document.getElementById('mediaModal');
-      if (mediaModal) mediaModal.style.display = 'none';
-      
-      // Stop any active media
-      if (activeMediaEl) {
-        if (typeof activeMediaEl.pause === 'function') {
-          activeMediaEl.pause();
-        }
-        activeMediaEl = null;
-      }
-    });
-  }
-  
-  // Fix the modal close button
-  const modalClose = document.querySelector('.modal-close');
-  if (modalClose) {
-    const newModalClose = modalClose.cloneNode(true);
-    if (modalClose.parentNode) {
-      modalClose.parentNode.replaceChild(newModalClose, modalClose);
-    }
-    
-    newModalClose.addEventListener('click', function() {
-      const mediaModal = document.getElementById('mediaModal');
-      if (mediaModal) {
-        mediaModal.style.display = 'none';
-      }
-      
-      // Stop any active media
-      if (activeMediaEl) {
-        if (typeof activeMediaEl.pause === 'function') {
-          activeMediaEl.pause();
-        }
-        activeMediaEl = null;
-      }
-    });
-  }
-  
-  console.log('Direct fixes applied');
-});
+  const panelHeader = document.createElement('div');
+  panelHeader.innerHTML = '<strong>VoxPro Debug</strong>';
+  panelHeader.style.marginBottom = '10px';
+  panelHeader.style.
