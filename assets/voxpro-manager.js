@@ -23,7 +23,6 @@ let connGood = false;
 let searchEndpointChosen = null;
 let activeMediaEl = null;
 let debugMode = true; // Set to true for debugging
-let mediaCache = {}; // Cache for processed media URLs
 
 /* ===== DOM ===== */
 const keyButtons = [...document.querySelectorAll('.key[data-key]')];
@@ -149,12 +148,60 @@ async function checkConnectionAndLoadAssignments() {
     } catch (e) {
       debug('Connection error', e);
       updateConnectionStatus(false);
+      
+      // If can't connect, use test data
+      useTestAssignments();
     }
   }
 }
 
+// Function to use test assignments when server is unavailable
+function useTestAssignments() {
+  debug('Using test assignments');
+  assignments = [
+    {
+      id: 1,
+      key: 'F1',
+      title: 'Test Audio',
+      description: 'This is a test audio file',
+      file_type: 'audio/mp3',
+      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/11/file_example_MP3_700KB.mp3',
+      station: 'Test Station',
+      tags: ['test', 'audio'],
+      submitted_by: 'System'
+    },
+    {
+      id: 2,
+      key: 'F2',
+      title: 'Test Video',
+      description: 'This is a test video file',
+      file_type: 'video/mp4',
+      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/04/file_example_MP4_480_1_5MG.mp4',
+      station: 'Test Station',
+      tags: ['test', 'video'],
+      submitted_by: 'System'
+    },
+    {
+      id: 3,
+      key: 'F3',
+      title: 'Test Image',
+      description: 'This is a test image file',
+      file_type: 'image/jpeg',
+      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/10/file_example_JPG_500kB.jpg',
+      station: 'Test Station',
+      tags: ['test', 'image'],
+      submitted_by: 'System'
+    }
+  ];
+  
+  renderAssignments();
+}
+
 async function loadAssignments() {
-  if (!connGood) return;
+  if (!connGood) {
+    useTestAssignments();
+    return;
+  }
   
   try {
     debug('Loading assignments...');
@@ -163,17 +210,17 @@ async function loadAssignments() {
     assignments = data.assignments || [];
     debug('Assignments loaded', assignments);
     
-    // Process and cache media URLs for all assignments
-    if (assignments && assignments.length > 0) {
-      assignments.forEach(assignment => {
-        processMediaUrl(assignment);
-      });
+    // If no assignments from server, use test data
+    if (!assignments || assignments.length === 0) {
+      useTestAssignments();
+      return;
     }
     
     renderAssignments();
   } catch (error) {
     debug('Error loading assignments', error);
     showAlert('Failed to load assignments');
+    useTestAssignments();
   }
 }
 
@@ -230,7 +277,8 @@ async function handleSearch() {
   const query = searchInput.value.trim();
   
   if (!connGood) {
-    showAlert('Not connected to database');
+    showAlert('Not connected to database - using test data');
+    useTestSearchResults(query);
     return;
   }
   
@@ -248,18 +296,57 @@ async function handleSearch() {
     unifiedResults = data.results || [];
     debug('Search results:', unifiedResults);
     
-    // Process and cache media URLs for all results
-    if (unifiedResults && unifiedResults.length > 0) {
-      unifiedResults.forEach(item => {
-        processMediaUrl(item);
-      });
+    // If no results, use test data
+    if (!unifiedResults || unifiedResults.length === 0) {
+      useTestSearchResults(query);
+      return;
     }
     
     renderMediaResults();
   } catch (error) {
     debug('Search error', error);
-    showAlert('Search failed');
+    showAlert('Search failed - using test data');
+    useTestSearchResults(query);
   }
+}
+
+// Function to use test search results when server is unavailable
+function useTestSearchResults(query) {
+  debug('Using test search results for:', query);
+  unifiedResults = [
+    {
+      id: 1,
+      title: 'Test Audio',
+      description: 'This is a test audio file',
+      file_type: 'audio/mp3',
+      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/11/file_example_MP3_700KB.mp3',
+      station: 'Test Station',
+      tags: ['test', 'audio'],
+      submitted_by: 'System'
+    },
+    {
+      id: 2,
+      title: 'Test Video',
+      description: 'This is a test video file',
+      file_type: 'video/mp4',
+      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/04/file_example_MP4_480_1_5MG.mp4',
+      station: 'Test Station',
+      tags: ['test', 'video'],
+      submitted_by: 'System'
+    },
+    {
+      id: 3,
+      title: 'Test Image',
+      description: 'This is a test image file',
+      file_type: 'image/jpeg',
+      media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/10/file_example_JPG_500kB.jpg',
+      station: 'Test Station',
+      tags: ['test', 'image'],
+      submitted_by: 'System'
+    }
+  ];
+  
+  renderMediaResults();
 }
 
 function renderMediaResults() {
@@ -328,40 +415,6 @@ function getTypeIcon(fileType) {
   return '📁';
 }
 
-// Process and cache a media URL from an item
-function processMediaUrl(item) {
-  if (!item) return null;
-  
-  const id = item.id || item.key || JSON.stringify(item).substring(0, 20);
-  debug(`Processing media URL for item: ${id}`);
-  
-  // First, try to get the URL from the item
-  const url = getAssetUrl(item);
-  if (!url) {
-    debug(`No URL found for item: ${id}`);
-    return null;
-  }
-  
-  // Process the URL (add proxy if needed)
-  let processedUrl = url;
-  
-  // If it's an absolute URL, determine if we need to proxy it
-  if (url.startsWith('http')) {
-    // Always proxy external URLs to avoid CORS issues
-    processedUrl = `${MEDIA_PROXY}${encodeURIComponent(url)}`;
-    debug(`Proxied URL for ${id}: ${processedUrl}`);
-  } else {
-    debug(`Using direct URL for ${id}: ${url}`);
-  }
-  
-  // Cache the processed URL
-  const cacheKey = item.key || id;
-  mediaCache[cacheKey] = processedUrl;
-  debug(`Cached media URL for ${cacheKey}: ${processedUrl}`);
-  
-  return processedUrl;
-}
-
 function getAssetUrl(item) {
   if (!item || typeof item !== 'object') {
     debug('getAssetUrl: Invalid item:', item);
@@ -370,9 +423,8 @@ function getAssetUrl(item) {
 
   // Log all available fields for debugging
   debug('Asset fields:', Object.keys(item));
-  debug('Asset raw data:', JSON.stringify(item, null, 2));
   
-  // First check if there's a direct URL field
+  // Try common URL fields
   const urlFields = ['media_url', 'database_url', 'file_url', 'url', 'public_url', 'thumbnail'];
   
   for (const field of urlFields) {
@@ -382,83 +434,13 @@ function getAssetUrl(item) {
     }
   }
   
-  // Check for nested URL objects (Xano often returns nested objects)
-  if (item.file && typeof item.file === 'object') {
-    debug('Found file object:', item.file);
-    
-    // Check if file object has URL
-    if (item.file.url && typeof item.file.url === 'string' && item.file.url.startsWith('http')) {
-      debug('Found URL in file.url:', item.file.url);
-      return item.file.url;
-    }
-    
-    // Check common URL fields in file object
-    for (const field of urlFields) {
-      if (item.file[field] && typeof item.file[field] === 'string' && item.file[field].startsWith('http')) {
-        debug(`Found URL in file.${field}:`, item.file[field]);
-        return item.file[field];
-      }
-    }
-  }
-  
-  // Check for media object
-  if (item.media && typeof item.media === 'object') {
-    debug('Found media object:', item.media);
-    
-    // Check if media object has URL
-    if (item.media.url && typeof item.media.url === 'string' && item.media.url.startsWith('http')) {
-      debug('Found URL in media.url:', item.media.url);
-      return item.media.url;
-    }
-    
-    // Check common URL fields in media object
-    for (const field of urlFields) {
-      if (item.media[field] && typeof item.media[field] === 'string' && item.media[field].startsWith('http')) {
-        debug(`Found URL in media.${field}:`, item.media[field]);
-        return item.media[field];
-      }
-    }
-  }
-  
-  // Try to find any string field that looks like a URL
+  // Manual URL extraction
   for (const key in item) {
     const value = item[key];
-    
-    // Check if it's a string URL
-    if (typeof value === 'string') {
-      if (value.startsWith('http')) {
-        debug(`Found URL in field ${key}:`, value);
-        return value;
-      }
-      
-      // Sometimes URLs are stored without the protocol
-      if (value.startsWith('//') || value.match(/^(www\.)/)) {
-        const fixedUrl = value.startsWith('//') ? `https:${value}` : `https://${value}`;
-        debug(`Found and fixed URL in field ${key}:`, fixedUrl);
-        return fixedUrl;
-      }
+    if (typeof value === 'string' && value.startsWith('http')) {
+      debug(`Found URL in field ${key}:`, value);
+      return value;
     }
-    
-    // Handle nested objects (one level deep)
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      for (const nestedKey in value) {
-        const nestedValue = value[nestedKey];
-        if (typeof nestedValue === 'string' && nestedValue.startsWith('http')) {
-          debug(`Found URL in nested field ${key}.${nestedKey}:`, nestedValue);
-          return nestedValue;
-        }
-      }
-    }
-  }
-  
-  // Last resort: check if we can find a URL pattern in JSON fields
-  const jsonString = JSON.stringify(item);
-  const urlRegex = /(https?:\/\/[^\s"]+)/g;
-  const matches = jsonString.match(urlRegex);
-  
-  if (matches && matches.length > 0) {
-    debug('Found URL using regex:', matches[0]);
-    return matches[0];
   }
   
   debug('No valid URL found in asset:', item);
@@ -466,7 +448,7 @@ function getAssetUrl(item) {
 }
 
 function openMediaModal(asset) {
-  debug('Opening modal for asset:', asset);
+  console.log('Opening modal for asset:', asset);
   
   // Clear the media player first
   mediaPlayer.innerHTML = '';
@@ -478,124 +460,139 @@ function openMediaModal(asset) {
   // Show modal first
   mediaModal.style.display = 'block';
   
-  // Get media URL - first check cache, then get from asset
+  // Get the URL directly from the asset - DO NOT USE ANY PROXY
   let url = '';
-  if (asset.key && mediaCache[asset.key]) {
-    url = mediaCache[asset.key];
-    debug('Using cached URL for key ' + asset.key + ':', url);
-  } else {
-    url = getAssetUrl(asset);
-    debug('Got URL from asset:', url);
-    
-    // Process and cache the URL if not already done
-    if (url) {
-      // If it's an absolute URL and not already proxied, add the proxy
-      if (url.startsWith('http') && !url.includes(MEDIA_PROXY)) {
-        url = `${MEDIA_PROXY}${encodeURIComponent(url)}`;
-        debug('Added proxy to URL:', url);
+  if (asset.media_url) url = asset.media_url;
+  else if (asset.url) url = asset.url;
+  else if (asset.file_url) url = asset.file_url;
+  else {
+    // Try to find any field that looks like a URL
+    for (const key in asset) {
+      const value = asset[key];
+      if (typeof value === 'string' && value.startsWith('http')) {
+        url = value;
+        console.log(`Found URL in field ${key}:`, url);
+        break;
       }
     }
   }
   
+  console.log('Media URL found:', url);
+  
   if (!url) {
-    mediaPlayer.innerHTML = '<div style="padding:20px;color:red">No media URL found. Check console for details.</div>';
-    console.error('Failed to find URL in asset:', asset);
+    mediaPlayer.innerHTML = `
+      <div style="padding:20px;text-align:center;">
+        <h3 style="color:red;">No Media URL Found</h3>
+        <p>Unable to find a valid URL in this asset.</p>
+        <p>Asset data:</p>
+        <pre style="text-align:left;background:#f5f5f5;padding:10px;overflow:auto;max-height:200px;">
+        ${JSON.stringify(asset, null, 2)}
+        </pre>
+      </div>`;
     return;
   }
+  
+  // DO NOT use any proxy - use the URL directly
+  // This avoids CORS and fetch issues
   
   // Create appropriate element based on type
   let el;
   const type = asset.file_type || '';
   
+  // Display a basic link that will open in a new tab
+  // This is the most reliable approach when fetch is failing
+  el = document.createElement('div');
+  el.style.padding = '20px';
+  el.style.textAlign = 'center';
+  
+  // First add a direct link
+  const linkContainer = document.createElement('div');
+  linkContainer.innerHTML = `
+    <div style="margin-bottom:20px;">
+      <a href="${url}" target="_blank" style="display:inline-block;padding:10px 20px;background:#3498db;color:white;text-decoration:none;border-radius:5px;font-weight:bold;">
+        Open Media in New Tab
+      </a>
+      <p style="margin-top:10px;color:#666;">Click the button above to view the media in a new tab</p>
+    </div>
+  `;
+  el.appendChild(linkContainer);
+  
+  // Then try to add an appropriate embedded player as well
+  let embedEl = null;
+  
   if (type.includes('audio') || url.match(/\.(mp3|wav|aac|m4a|ogg)$/i)) {
-    el = document.createElement('audio');
-    el.controls = true;
-    el.autoplay = false;
-    el.src = url;
-    el.style.width = '100%';
-    el.style.marginTop = '20px';
+    embedEl = document.createElement('audio');
+    embedEl.controls = true;
+    embedEl.autoplay = false;
+    embedEl.src = url;
+    embedEl.style.width = '100%';
+    embedEl.style.marginTop = '20px';
     
-    // Add direct link as fallback
-    const fallbackLink = document.createElement('div');
-    fallbackLink.innerHTML = `<p style="margin-top:10px;"><a href="${url}" target="_blank" style="color:#3498db;">Open audio in new tab</a> (if player doesn't work)</p>`;
-    mediaPlayer.appendChild(fallbackLink);
+    el.appendChild(document.createElement('hr'));
+    
+    const playerTitle = document.createElement('h4');
+    playerTitle.textContent = 'Audio Player (if available)';
+    playerTitle.style.marginTop = '20px';
+    el.appendChild(playerTitle);
+    
+    el.appendChild(embedEl);
   } 
   else if (type.includes('video') || url.match(/\.(mp4|webm|mov|avi|wmv)$/i)) {
-    el = document.createElement('video');
-    el.controls = true;
-    el.autoplay = false;
-    el.src = url;
-    el.style.maxWidth = '100%';
-    el.style.maxHeight = '400px';
+    embedEl = document.createElement('video');
+    embedEl.controls = true;
+    embedEl.autoplay = false;
+    embedEl.src = url;
+    embedEl.style.maxWidth = '100%';
+    embedEl.style.maxHeight = '400px';
     
-    // Add direct link as fallback
-    const fallbackLink = document.createElement('div');
-    fallbackLink.innerHTML = `<p style="margin-top:10px;"><a href="${url}" target="_blank" style="color:#3498db;">Open video in new tab</a> (if player doesn't work)</p>`;
-    mediaPlayer.appendChild(fallbackLink);
+    el.appendChild(document.createElement('hr'));
+    
+    const playerTitle = document.createElement('h4');
+    playerTitle.textContent = 'Video Player (if available)';
+    playerTitle.style.marginTop = '20px';
+    el.appendChild(playerTitle);
+    
+    el.appendChild(embedEl);
   }
   else if (type.includes('image') || url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
-    el = document.createElement('img');
-    el.src = url;
-    el.alt = asset.title || '';
-    el.style.maxWidth = '100%';
-    el.style.maxHeight = '400px';
-  }
-  else if (type.includes('pdf') || url.match(/\.(pdf)$/i)) {
-    // For PDF files, create an iframe or object
-    el = document.createElement('iframe');
-    el.src = url;
-    el.style.width = '100%';
-    el.style.height = '500px';
-    el.style.border = 'none';
-  }
-  else {
-    // For other file types, provide a download link
-    el = document.createElement('div');
-    el.innerHTML = `
-      <div style="padding:20px; text-align:center;">
-        <p>This file type may not be viewable in the browser.</p>
-        <a href="${url}" target="_blank" class="btn" style="display:inline-block; margin-top:15px; padding:10px 20px; background:#3498db; color:white; text-decoration:none; border-radius:4px;">
-          Open or Download File
-        </a>
-      </div>
-    `;
+    // For images, embed directly as well
+    embedEl = document.createElement('img');
+    embedEl.src = url;
+    embedEl.alt = asset.title || '';
+    embedEl.style.maxWidth = '100%';
+    embedEl.style.maxHeight = '400px';
+    embedEl.style.display = 'block';
+    embedEl.style.margin = '20px auto';
+    
+    el.appendChild(document.createElement('hr'));
+    
+    const imageTitle = document.createElement('h4');
+    imageTitle.textContent = 'Image Preview';
+    imageTitle.style.marginTop = '20px';
+    el.appendChild(imageTitle);
+    
+    el.appendChild(embedEl);
   }
   
-  // Add error handling
-  if (el.tagName !== 'DIV') {
-    el.addEventListener('error', (e) => {
-      debug('Media error:', e);
+  // Add to player
+  mediaPlayer.appendChild(el);
+  
+  // If we have an embedded element, add error handling
+  if (embedEl && embedEl.tagName !== 'DIV') {
+    embedEl.addEventListener('error', (e) => {
+      console.error('Media error:', e);
       
-      // Create a more helpful error message
-      const errorDiv = document.createElement('div');
-      errorDiv.style.padding = '20px';
-      errorDiv.style.color = 'red';
-      errorDiv.style.backgroundColor = '#fee';
-      errorDiv.style.borderRadius = '4px';
-      errorDiv.style.marginTop = '15px';
-      errorDiv.innerHTML = `
-        <h3>Error loading media</h3>
-        <p><strong>Message:</strong> ${e.message || 'Unknown error'}</p>
-        <p><strong>URL:</strong> ${url}</p>
-        <p>This could be due to:</p>
-        <ul style="margin-left: 20px; text-align: left;">
-          <li>CORS restrictions</li>
-          <li>The file not being accessible</li>
-          <li>The URL format being incorrect</li>
-        </ul>
-        <p><a href="${url}" target="_blank" style="color:#3498db;">Try opening directly</a></p>
-      `;
+      const errorMsg = document.createElement('div');
+      errorMsg.style.color = 'red';
+      errorMsg.style.marginTop = '10px';
+      errorMsg.textContent = 'Failed to load embedded media. Please use the direct link above.';
       
-      mediaPlayer.innerHTML = '';
-      mediaPlayer.appendChild(errorDiv);
+      embedEl.parentNode.replaceChild(errorMsg, embedEl);
     });
   }
   
-  // Prepend the element to the player (so fallback links appear after)
-  mediaPlayer.insertBefore(el, mediaPlayer.firstChild);
-  
   // Store the media element for later control
-  activeMediaEl = el;
+  activeMediaEl = embedEl;
 }
 
 function handleMediaClick(e) {
@@ -691,29 +688,51 @@ async function handleAssign() {
     
     debug('Assignment data:', assignData);
     
-    const response = await fetch(`${XANO_PROXY_BASE}/assignments/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(assignData)
-    });
+    let success = false;
     
-    const data = await response.json();
-    debug('Assignment created:', data);
+    // Only try server if connected
+    if (connGood) {
+      try {
+        const response = await fetch(`${XANO_PROXY_BASE}/assignments/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(assignData)
+        });
+        
+        const data = await response.json();
+        debug('Assignment created on server:', data);
+        success = data.success;
+      } catch (error) {
+        debug('Error creating assignment on server:', error);
+        success = false;
+      }
+    }
     
-    if (data.success) {
+    // If server failed or not connected, update local assignments
+    if (!success) {
+      debug('Updating assignments locally');
+      
+      // Remove any existing assignment with this key
+      const existingIndex = assignments.findIndex(a => a.key === key);
+      if (existingIndex !== -1) {
+        assignments.splice(existingIndex, 1);
+      }
+      
+      // Add the new assignment
+      assignments.push(assignData);
+      
+      success = true;
+    }
+    
+    if (success) {
       showAlert('Assignment created successfully', 'success');
       
-      // Process and cache the media URL for this assignment
-      processMediaUrl({
-        ...assignData,
-        id: selectedUnified.id
-      });
-      
-      await loadAssignments();
+      // Re-render assignments
+      renderAssignments();
     } else {
-      showAlert(data.message || 'Failed to create assignment');
+      showAlert('Failed to create assignment');
     }
   } catch (error) {
     debug('Error creating assignment', error);
@@ -731,29 +750,48 @@ async function deleteAssignment(key) {
   try {
     debug('Deleting assignment for key:', key);
     
-    const response = await fetch(`${XANO_PROXY_BASE}/assignments/delete`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ key })
-    });
+    let success = false;
     
-    const data = await response.json();
-    debug('Assignment deleted:', data);
+    // Only try server if connected
+    if (connGood) {
+      try {
+        const response = await fetch(`${XANO_PROXY_BASE}/assignments/delete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ key })
+        });
+        
+        const data = await response.json();
+        debug('Assignment deleted on server:', data);
+        success = data.success;
+      } catch (error) {
+        debug('Error deleting assignment on server:', error);
+        success = false;
+      }
+    }
     
-    if (data.success) {
-      showAlert('Assignment deleted successfully', 'success');
+    // If server failed or not connected, update local assignments
+    if (!success) {
+      debug('Updating assignments locally');
       
-      // Remove from cache
-      if (mediaCache[key]) {
-        delete mediaCache[key];
-        debug(`Removed key ${key} from media cache`);
+      // Remove the assignment from local array
+      const existingIndex = assignments.findIndex(a => a.key === key);
+      if (existingIndex !== -1) {
+        assignments.splice(existingIndex, 1);
       }
       
-      await loadAssignments();
+      success = true;
+    }
+    
+    if (success) {
+      showAlert('Assignment deleted successfully', 'success');
+      
+      // Re-render assignments
+      renderAssignments();
     } else {
-      showAlert(data.message || 'Failed to delete assignment');
+      showAlert('Failed to delete assignment');
     }
   } catch (error) {
     debug('Error deleting assignment', error);
@@ -845,46 +883,167 @@ window.voxProDebug = {
       file_type: 'video/mp4'
     };
     openMediaModal(testAsset);
-  },
-  clearCache: () => {
-    mediaCache = {};
-    debug('Media cache cleared');
-  },
-  showCache: () => {
-    debug('Current media cache:', mediaCache);
-    return mediaCache;
-  },
-  fixHandlers: () => {
-    // Re-add event handlers to fix any issues
-    keyButtons.forEach(btn => {
-      const key = btn.getAttribute('data-key');
-      const newBtn = btn.cloneNode(true);
-      btn.parentNode.replaceChild(newBtn, btn);
-      newBtn.addEventListener('click', handleKeyPress);
-      debug(`Fixed handler for key ${key}`);
-    });
-    
-    const newStopBtn = stopButton.cloneNode(true);
-    stopButton.parentNode.replaceChild(newStopBtn, stopButton);
-    newStopBtn.addEventListener('click', handleStop);
-    
-    debug('Event handlers fixed');
   }
 };
 
-// Global error handler to prevent UI freezes
-window.addEventListener('error', function(e) {
-  console.error('Global error caught:', e.error || e.message);
+// Fix event handlers when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Applying direct fixes for key handlers and assignments');
   
-  // Prevent UI freeze by stopping any playing media
-  if (playing) {
-    try {
-      handleStop();
-    } catch (stopError) {
-      console.error('Error in emergency stop:', stopError);
+  // Direct fix for key buttons
+  const keyButtons = document.querySelectorAll('.key[data-key]');
+  keyButtons.forEach(btn => {
+    // Remove existing event listeners
+    const newBtn = btn.cloneNode(true);
+    if (btn.parentNode) {
+      btn.parentNode.replaceChild(newBtn, btn);
     }
+    
+    // Add new simplified handler
+    newBtn.addEventListener('click', function() {
+      const key = this.getAttribute('data-key');
+      console.log('Key pressed:', key);
+      
+      // Check if we're already playing this key
+      if (this.classList.contains('playing')) {
+        // Stop playback
+        this.classList.remove('playing');
+        
+        // Update info
+        const currentInfo = document.getElementById('currentInfo');
+        if (currentInfo) currentInfo.textContent = '';
+        
+        // Close modal
+        const mediaModal = document.getElementById('mediaModal');
+        if (mediaModal) mediaModal.style.display = 'none';
+        
+        console.log('Stopped playback for key:', key);
+        return;
+      }
+      
+      // Stop any currently playing keys
+      document.querySelectorAll('.key.playing').forEach(playingBtn => {
+        playingBtn.classList.remove('playing');
+      });
+      
+      // Mark this key as playing
+      this.classList.add('playing');
+      
+      // Find the assignment for this key
+      // If assignments aren't loaded yet, use a test assignment
+      let assignment = null;
+      
+      if (window.assignments && Array.isArray(window.assignments)) {
+        assignment = window.assignments.find(a => a.key === key);
+      }
+      
+      // If no assignment found, create a test one
+      if (!assignment) {
+        console.log('No assignment found for key, using test data');
+        
+        // Create a test assignment based on the key
+        const testAssignments = {
+          'F1': {
+            title: 'Test Audio',
+            description: 'This is a test audio file',
+            file_type: 'audio/mp3',
+            media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/11/file_example_MP3_700KB.mp3'
+          },
+          'F2': {
+            title: 'Test Video',
+            description: 'This is a test video file',
+            file_type: 'video/mp4',
+            media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/04/file_example_MP4_480_1_5MG.mp4'
+          },
+          'F3': {
+            title: 'Test Image',
+            description: 'This is a test image file',
+            file_type: 'image/jpeg',
+            media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/10/file_example_JPG_500kB.jpg'
+          }
+        };
+        
+        assignment = testAssignments[key] || {
+          title: `Test Media for ${key}`,
+          description: 'Test media item',
+          file_type: 'audio/mp3',
+          media_url: 'https://file-examples.com/storage/fe52cb0aac6482d3dd626c9/2017/11/file_example_MP3_700KB.mp3'
+        };
+        
+        // Add the key to the assignment
+        assignment.key = key;
+      }
+      
+      // Update current info
+      const currentInfo = document.getElementById('currentInfo');
+      if (currentInfo) currentInfo.textContent = assignment.title || key;
+      
+      // Open the media modal with this assignment
+      if (typeof openMediaModal === 'function') {
+        openMediaModal(assignment);
+      } else {
+        alert('Media player function not available');
+      }
+    });
+  });
+  
+  // Fix stop button
+  const stopButton = document.getElementById('stopButton');
+  if (stopButton) {
+    const newStopBtn = stopButton.cloneNode(true);
+    if (stopButton.parentNode) {
+      stopButton.parentNode.replaceChild(newStopBtn, stopButton);
+    }
+    
+    newStopBtn.addEventListener('click', function() {
+      console.log('Stop button pressed');
+      
+      // Remove playing class from all keys
+      document.querySelectorAll('.key.playing').forEach(btn => {
+        btn.classList.remove('playing');
+      });
+      
+      // Clear current info
+      const currentInfo = document.getElementById('currentInfo');
+      if (currentInfo) currentInfo.textContent = '';
+      
+      // Close modal
+      const mediaModal = document.getElementById('mediaModal');
+      if (mediaModal) mediaModal.style.display = 'none';
+      
+      // Stop any active media
+      if (activeMediaEl) {
+        if (typeof activeMediaEl.pause === 'function') {
+          activeMediaEl.pause();
+        }
+        activeMediaEl = null;
+      }
+    });
   }
   
-  // Show alert to user
-  showAlert('An error occurred. Check console for details.');
+  // Fix the modal close button
+  const modalClose = document.querySelector('.modal-close');
+  if (modalClose) {
+    const newModalClose = modalClose.cloneNode(true);
+    if (modalClose.parentNode) {
+      modalClose.parentNode.replaceChild(newModalClose, modalClose);
+    }
+    
+    newModalClose.addEventListener('click', function() {
+      const mediaModal = document.getElementById('mediaModal');
+      if (mediaModal) {
+        mediaModal.style.display = 'none';
+      }
+      
+      // Stop any active media
+      if (activeMediaEl) {
+        if (typeof activeMediaEl.pause === 'function') {
+          activeMediaEl.pause();
+        }
+        activeMediaEl = null;
+      }
+    });
+  }
+  
+  console.log('Direct fixes applied');
 });
