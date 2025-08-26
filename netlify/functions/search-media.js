@@ -1,14 +1,12 @@
-// Unified search-media.js for VoxPro Manager
-// Searches the unified Xano database where File Manager uploads go
+// Diagnostic search-media.js 
+// Shows exactly what's in the Xano /voxpro endpoint
 
 const https = require('https');
 const http = require('http');
 
-// Get API base from environment variables
 const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX';
 
 exports.handler = async (event, context) => {
-    // Set up CORS headers
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
@@ -16,54 +14,81 @@ exports.handler = async (event, context) => {
         'Content-Type': 'application/json'
     };
 
-    // Handle preflight OPTIONS request
     if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 200,
-            headers,
-            body: ''
-        };
+        return { statusCode: 200, headers, body: '' };
     }
 
-    // Get query parameter
     const query = event.queryStringParameters?.q || '';
 
     try {
-        console.log(`Unified search for: "${query}"`);
+        console.log('=== DIAGNOSTIC SEARCH STARTING ===');
+        console.log('Query:', query);
+        console.log('XANO_API_BASE:', XANO_API_BASE);
         
-        // Search the unified Xano voxpro table
+        // Get ALL data from the /voxpro endpoint
         const searchUrl = `${XANO_API_BASE}/voxpro`;
-        console.log(`Searching unified database: ${searchUrl}`);
+        console.log('Fetching from:', searchUrl);
 
         const response = await makeRequest(searchUrl);
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
 
         if (response.status !== 200) {
-            console.error(`Xano API error: ${response.status}`);
             return {
                 statusCode: response.status,
                 headers,
                 body: JSON.stringify({ 
-                    error: 'Search failed', 
+                    error: 'Xano API error',
                     status: response.status,
-                    message: response.data
+                    response: response.data,
+                    url: searchUrl
                 })
             };
         }
 
-        // Parse response
         let allData = [];
         try {
             allData = JSON.parse(response.data);
+            console.log('Parsed data successfully, count:', allData.length);
         } catch (parseError) {
-            console.error('Failed to parse Xano response:', parseError);
+            console.error('Parse error:', parseError);
             return {
                 statusCode: 500,
                 headers,
-                body: JSON.stringify({ error: 'Invalid response from database' })
+                body: JSON.stringify({ 
+                    error: 'Parse error',
+                    raw_response: response.data.substring(0, 500),
+                    parse_error: parseError.message
+                })
             };
         }
 
-        // Filter results based on query
+        // Show detailed diagnostic info
+        const diagnostics = {
+            total_records: allData.length,
+            api_endpoint: searchUrl,
+            query_used: query,
+            sample_records: allData.slice(0, 3).map(item => ({
+                id: item.id,
+                title: item.title,
+                created_at: item.created_at,
+                file_type: item.file_type,
+                database_url_type: typeof item.database_url,
+                database_url_sample: JSON.stringify(item.database_url).substring(0, 100),
+                all_fields: Object.keys(item)
+            })),
+            recent_records: allData
+                .sort((a, b) => (b.created_at || 0) - (a.created_at || 0))
+                .slice(0, 5)
+                .map(item => ({
+                    id: item.id,
+                    title: item.title,
+                    created_at: new Date(item.created_at || 0).toISOString(),
+                    filename_in_title: item.title?.includes('Colorized') || item.title?.includes('Transmitter')
+                }))
+        };
+
+        // Filter results if query provided
         let filteredResults = allData;
         if (query && query.trim() !== '') {
             const searchTerm = query.toLowerCase().trim();
@@ -74,20 +99,24 @@ exports.handler = async (event, context) => {
                     item.station || '',
                     item.tags || '',
                     item.category || '',
-                    item.submitted_by || ''
+                    item.submitted_by || '',
+                    item.notes1 || '',
+                    item.notes2 || ''
                 ].join(' ').toLowerCase();
                 
                 return searchableText.includes(searchTerm);
             });
+            
+            console.log(`Filtered results: ${filteredResults.length} of ${allData.length}`);
         }
 
-        // Transform results to VoxPro format
+        // Transform to VoxPro format
         const results = filteredResults.map(item => ({
             id: item.id || `xano:${item.id}`,
             source: 'xano',
             title: item.title || 'Untitled',
             description: item.description || '',
-            station: item.station || 'Unknown',
+            station: item.station || '',
             tags: item.tags || '',
             thumbnail: item.thumbnail || '',
             media_url: item.database_url || '',
@@ -100,8 +129,6 @@ exports.handler = async (event, context) => {
             file_size: item.file_size || 0
         }));
 
-        console.log(`Returning ${results.length} unified search results`);
-
         return {
             statusCode: 200,
             headers,
@@ -109,20 +136,26 @@ exports.handler = async (event, context) => {
                 results: results,
                 total: results.length,
                 query: query,
-                source: 'unified-xano',
-                timestamp: new Date().toISOString()
+                diagnostics: diagnostics,
+                debug_info: {
+                    endpoint_used: searchUrl,
+                    raw_count: allData.length,
+                    filtered_count: filteredResults.length,
+                    timestamp: new Date().toISOString()
+                }
             })
         };
 
     } catch (error) {
-        console.error('Unified search error:', error);
+        console.error('Diagnostic search error:', error);
         return {
             statusCode: 500,
             headers,
             body: JSON.stringify({ 
-                error: 'Search failed', 
+                error: 'Diagnostic search failed',
                 message: error.message,
-                source: 'unified-search'
+                stack: error.stack,
+                endpoint: `${XANO_API_BASE}/voxpro`
             })
         };
     }
@@ -141,7 +174,7 @@ function makeRequest(url) {
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'User-Agent': 'VoxPro-Unified-Search/1.0'
+                'User-Agent': 'VoxPro-Diagnostic/1.0'
             },
             timeout: 15000
         };
