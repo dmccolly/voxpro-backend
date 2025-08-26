@@ -1224,4 +1224,198 @@ function addDebugPanel() {
   const panelHeader = document.createElement('div');
   panelHeader.innerHTML = '<strong>VoxPro Debug</strong>';
   panelHeader.style.marginBottom = '10px';
-  panelHeader.style.
+  panelHeader.style.display = 'flex';
+  panelHeader.style.justifyContent = 'space-between';
+  panelHeader.style.alignItems = 'center';
+  
+  const closeButton = document.createElement('span');
+  closeButton.textContent = 'X';
+  closeButton.style.cursor = 'pointer';
+  closeButton.style.color = '#FF5555';
+  closeButton.addEventListener('click', () => {
+    debugPanel.style.display = 'none';
+  });
+  
+  panelHeader.appendChild(closeButton);
+  debugPanel.appendChild(panelHeader);
+  
+  const debugContent = document.createElement('div');
+  debugContent.id = 'debugContent';
+  debugPanel.appendChild(debugContent);
+  
+  const controlsContainer = document.createElement('div');
+  controlsContainer.style.marginTop = '10px';
+  controlsContainer.style.display = 'flex';
+  controlsContainer.style.flexWrap = 'wrap';
+  controlsContainer.style.gap = '5px';
+  
+  const createButton = (text, handler) => {
+    const button = document.createElement('button');
+    button.textContent = text;
+    button.style.fontSize = '10px';
+    button.style.padding = '3px 5px';
+    button.style.backgroundColor = '#333';
+    button.style.color = 'white';
+    button.style.border = 'none';
+    button.style.borderRadius = '3px';
+    button.style.cursor = 'pointer';
+    button.addEventListener('click', handler);
+    return button;
+  };
+  
+  // Add debug buttons
+  controlsContainer.appendChild(createButton('Clear', () => {
+    debugContent.innerHTML = '';
+  }));
+  
+  controlsContainer.appendChild(createButton('Test Modal', () => {
+    window.voxProDebug.testModal();
+  }));
+  
+  controlsContainer.appendChild(createButton('Test Connection', () => {
+    window.voxProDebug.testConnection().then(result => {
+      logDebugMessage(JSON.stringify(result, null, 2));
+    });
+  }));
+  
+  controlsContainer.appendChild(createButton('Show Cache', () => {
+    const cache = window.voxProDebug.dumpCache();
+    logDebugMessage(`Media URLs cached: ${Object.keys(cache.mediaCache).length}`);
+    logDebugMessage(`Audio objects cached: ${cache.audioObjectKeys.length}`);
+  }));
+  
+  controlsContainer.appendChild(createButton('Fix Handlers', () => {
+    window.voxProDebug.fixHandlers();
+    logDebugMessage('Event handlers fixed');
+  }));
+  
+  debugPanel.appendChild(controlsContainer);
+  document.body.appendChild(debugPanel);
+  
+  return debugPanel;
+}
+
+// Add debug message to panel
+function logDebugMessage(message) {
+  // Create panel if it doesn't exist
+  let debugPanel = document.getElementById('debugPanel');
+  let debugContent = document.getElementById('debugContent');
+  
+  if (!debugPanel) {
+    debugPanel = addDebugPanel();
+    debugContent = document.getElementById('debugContent');
+  }
+  
+  // Create message element
+  const msgEl = document.createElement('div');
+  msgEl.style.borderBottom = '1px solid #333';
+  msgEl.style.paddingBottom = '5px';
+  msgEl.style.marginBottom = '5px';
+  
+  // Add timestamp
+  const timestamp = new Date().toLocaleTimeString();
+  const timeSpan = document.createElement('span');
+  timeSpan.textContent = `[${timestamp}] `;
+  timeSpan.style.color = '#999';
+  msgEl.appendChild(timeSpan);
+  
+  // Add message content
+  if (typeof message === 'object') {
+    try {
+      const textNode = document.createTextNode(JSON.stringify(message, null, 2));
+      msgEl.appendChild(textNode);
+    } catch (e) {
+      msgEl.appendChild(document.createTextNode('[Object]'));
+    }
+  } else {
+    msgEl.appendChild(document.createTextNode(message));
+  }
+  
+  // Add to debug content
+  debugContent.appendChild(msgEl);
+  debugContent.scrollTop = debugContent.scrollHeight;
+  
+  // Show panel
+  debugPanel.style.display = 'block';
+}
+
+// Override console.log and console.error in debug mode
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+console.log = function() {
+  originalConsoleLog.apply(console, arguments);
+  
+  if (debugMode) {
+    const args = Array.from(arguments);
+    const message = args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ');
+    
+    if (message.includes('[VoxPro Debug]')) {
+      logDebugMessage(message.replace('[VoxPro Debug] ', ''));
+    }
+  }
+};
+
+console.error = function() {
+  originalConsoleError.apply(console, arguments);
+  
+  if (debugMode) {
+    const args = Array.from(arguments);
+    const message = args.map(arg => 
+      typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
+    ).join(' ');
+    
+    const errorMsg = document.createElement('div');
+    errorMsg.textContent = message;
+    errorMsg.style.color = '#FF5555';
+    
+    logDebugMessage(errorMsg.outerHTML);
+  }
+};
+
+// Add keyboard shortcut to toggle debug panel (Ctrl+Shift+D)
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+    e.preventDefault();
+    
+    const debugPanel = document.getElementById('debugPanel') || addDebugPanel();
+    debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
+  }
+});
+
+// Add debug button to UI
+function addDebugButton() {
+  const container = document.querySelector('.container') || document.body;
+  
+  const debugButton = document.createElement('button');
+  debugButton.textContent = '🐞';
+  debugButton.title = 'Show Debug Panel';
+  debugButton.style.position = 'fixed';
+  debugButton.style.bottom = '10px';
+  debugButton.style.left = '10px';
+  debugButton.style.zIndex = '9998';
+  debugButton.style.backgroundColor = '#333';
+  debugButton.style.color = '#4CAF50';
+  debugButton.style.border = 'none';
+  debugButton.style.borderRadius = '50%';
+  debugButton.style.width = '40px';
+  debugButton.style.height = '40px';
+  debugButton.style.fontSize = '20px';
+  debugButton.style.cursor = 'pointer';
+  debugButton.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
+  
+  debugButton.addEventListener('click', () => {
+    const debugPanel = document.getElementById('debugPanel') || addDebugPanel();
+    debugPanel.style.display = debugPanel.style.display === 'none' ? 'block' : 'none';
+  });
+  
+  container.appendChild(debugButton);
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', init);
+
+// Add debug button after slight delay
+setTimeout(addDebugButton, 2000);
