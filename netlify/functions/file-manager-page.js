@@ -1,10 +1,10 @@
-// Simple Netlify File Manager Function
+// Working Netlify File Manager Page Function
 exports.handler = async (event, context) => {
   const headers = {
+    'Content-Type': 'text/html',
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Content-Type': 'text/html'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -13,75 +13,332 @@ exports.handler = async (event, context) => {
 
   const html = `
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Netlify File Manager</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idaho Broadcasting Media Upload</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-        .form-group { margin: 15px 0; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, textarea, select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
-        button { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #005a87; }
-        .success { color: green; margin: 10px 0; }
-        .error { color: red; margin: 10px 0; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .form-container {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        input[type="text"], 
+        input[type="file"], 
+        textarea, 
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+        
+        input[type="text"]:focus, 
+        textarea:focus, 
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        input[type="file"] {
+            background: white;
+            cursor: pointer;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .upload-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        
+        .upload-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+            display: none;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+            display: none;
+        }
+        
+        .file-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e1e5e9;
+            border-radius: 3px;
+            margin-top: 15px;
+            overflow: hidden;
+            display: none;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        .required {
+            color: #e74c3c;
+        }
     </style>
 </head>
 <body>
-    <h1>Netlify File Manager</h1>
-    <form id="uploadForm" enctype="multipart/form-data">
-        <div class="form-group">
-            <label>Select File:</label>
-            <input type="file" id="file" name="file" required>
+    <div class="container">
+        <div class="header">
+            <h1>Idaho Broadcasting Media Upload</h1>
+            <p>Upload media files to the VoxPro system</p>
         </div>
-        <div class="form-group">
-            <label>Title:</label>
-            <input type="text" id="title" name="title" required>
+        
+        <div class="form-container">
+            <div id="successMessage" class="success-message"></div>
+            <div id="errorMessage" class="error-message"></div>
+            
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">Select Media File: <span class="required">*</span></label>
+                    <input type="file" id="file" name="file" required 
+                           accept=".mp4,.mov,.avi,.mkv,.wmv,.flv,.mp3,.wav,.aac,.m4a,.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx">
+                    <div id="fileInfo" class="file-info"></div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="title">Title: <span class="required">*</span></label>
+                    <input type="text" id="title" name="title" required placeholder="Enter media title">
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" placeholder="Enter media description"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="category">Category:</label>
+                    <select id="category" name="category">
+                        <option value="">Select category</option>
+                        <option value="Audio">Audio</option>
+                        <option value="Video">Video</option>
+                        <option value="Photo">Photo</option>
+                        <option value="Document">Document</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="submittedBy">Submitted By:</label>
+                    <input type="text" id="submittedBy" name="submittedBy" placeholder="Your name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="station">Station:</label>
+                    <select id="station" name="station">
+                        <option value="">Select station</option>
+                        <option value="KIVI">KIVI</option>
+                        <option value="KNIN">KNIN</option>
+                        <option value="KGEM">KGEM</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tags">Tags:</label>
+                    <input type="text" id="tags" name="tags" placeholder="Enter tags separated by commas">
+                </div>
+                
+                <div class="form-group">
+                    <label for="priority">Priority:</label>
+                    <select id="priority" name="priority">
+                        <option value="Normal">Normal</option>
+                        <option value="High">High</option>
+                        <option value="Low">Low</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">Notes:</label>
+                    <textarea id="notes" name="notes" placeholder="Additional notes or comments"></textarea>
+                </div>
+                
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                
+                <button type="submit" class="upload-btn" id="uploadBtn">Upload Media</button>
+            </form>
+            
+            <a href="/voxpro-manager" class="back-link">← Back to VoxPro Manager</a>
         </div>
-        <div class="form-group">
-            <label>Description:</label>
-            <textarea id="description" name="description"></textarea>
-        </div>
-        <div class="form-group">
-            <label>Station:</label>
-            <input type="text" id="station" name="station">
-        </div>
-        <div class="form-group">
-            <label>Tags:</label>
-            <input type="text" id="tags" name="tags" placeholder="comma, separated, tags">
-        </div>
-        <div class="form-group">
-            <label>Submitted By:</label>
-            <input type="text" id="submitted_by" name="submitted_by">
-        </div>
-        <button type="submit">Upload to Xano</button>
-    </form>
-    <div id="result"></div>
-
+    </div>
+    
     <script>
-        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('file');
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        // File size limit: 250MB
+        const MAX_FILE_SIZE = 250 * 1024 * 1024;
+        
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > MAX_FILE_SIZE) {
+                    showError('File size exceeds 250MB limit. Please choose a smaller file.');
+                    fileInput.value = '';
+                    fileInfo.style.display = 'none';
+                    return;
+                }
+                
+                fileInfo.innerHTML = \`
+                    <strong>Selected file:</strong> \${file.name}<br>
+                    <strong>Size:</strong> \${(file.size / (1024 * 1024)).toFixed(2)} MB<br>
+                    <strong>Type:</strong> \${file.type || 'Unknown'}
+                \`;
+                fileInfo.style.display = 'block';
+            }
+        });
+        
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const formData = new FormData();
-            const fileInput = document.getElementById('file');
             const file = fileInput.files[0];
-            
             if (!file) {
-                document.getElementById('result').innerHTML = '<div class="error">Please select a file</div>';
+                showError('Please select a file to upload.');
                 return;
             }
             
-            // Add form data
+            if (file.size > MAX_FILE_SIZE) {
+                showError('File size exceeds 250MB limit.');
+                return;
+            }
+            
+            const formData = new FormData();
             formData.append('file', file);
             formData.append('title', document.getElementById('title').value);
             formData.append('description', document.getElementById('description').value);
+            formData.append('category', document.getElementById('category').value);
+            formData.append('submittedBy', document.getElementById('submittedBy').value);
             formData.append('station', document.getElementById('station').value);
             formData.append('tags', document.getElementById('tags').value);
-            formData.append('submitted_by', document.getElementById('submitted_by').value);
+            formData.append('priority', document.getElementById('priority').value);
+            formData.append('notes', document.getElementById('notes').value);
+            
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            progressBar.style.display = 'block';
+            hideMessages();
             
             try {
-                document.getElementById('result').innerHTML = '<div>Uploading...</div>';
-                
                 const response = await fetch('/.netlify/functions/file-manager-upload', {
                     method: 'POST',
                     body: formData
@@ -89,16 +346,45 @@ exports.handler = async (event, context) => {
                 
                 const result = await response.json();
                 
-                if (result.success) {
-                    document.getElementById('result').innerHTML = '<div class="success">Upload successful! File should now appear in VoxPro search.</div>';
-                    document.getElementById('uploadForm').reset();
+                if (response.ok && result.success) {
+                    showSuccess('File uploaded successfully! You can now find it in VoxPro Manager.');
+                    form.reset();
+                    fileInfo.style.display = 'none';
+                    progressFill.style.width = '100%';
                 } else {
-                    document.getElementById('result').innerHTML = '<div class="error">Upload failed: ' + result.error + '</div>';
+                    showError(result.error || 'Upload failed. Please try again.');
+                    progressFill.style.width = '0%';
                 }
             } catch (error) {
-                document.getElementById('result').innerHTML = '<div class="error">Upload error: ' + error.message + '</div>';
+                console.error('Upload error:', error);
+                showError('Upload failed. Please check your connection and try again.');
+                progressFill.style.width = '0%';
             }
+            
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = 'Upload Media';
+            setTimeout(() => {
+                progressBar.style.display = 'none';
+                progressFill.style.width = '0%';
+            }, 2000);
         });
+        
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+        }
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+        }
+        
+        function hideMessages() {
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+        }
     </script>
 </body>
 </html>`;
