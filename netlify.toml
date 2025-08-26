@@ -1,19 +1,47 @@
 [build]
-  publish = "."
+  publish = "public"
   functions = "netlify/functions"
 
+[functions]
+  node_bundler = "esbuild"
+
+# API proxy for Netlify Functions
 [[redirects]]
-  from = "/voxpro-manager"
-  to = "/templates/voxpro-manager.html"
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
   status = 200
   force = true
 
+# Media proxy redirect
 [[redirects]]
-  from = "/assets/*"
-  to = "/assets/:splat"
+  from = "/media-proxy/*"
+  to = "https://:splat"
   status = 200
+  force = true
+  headers = {Access-Control-Allow-Origin = "*"}
 
+# Single page app redirect
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self' https://*; connect-src 'self' https://*; img-src 'self' https://* data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src 'self' https://* data:;"
+
+# CORS headers for media files
+[[headers]]
+  for = "/media-proxy/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept"
+    Cache-Control = "public, max-age=86400"
