@@ -28,11 +28,23 @@
   to = "/.netlify/functions/fetch-media?url=:splat"
   status = 200
 
-# Fallback for SPA routing
+# File Manager routing
 [[redirects]]
-  from = "/*"
+  from = "/file-manager"
+  to = "/.netlify/functions/file-manager-page"
+  status = 200
+
+# VoxPro Manager routing (SPECIFIC - not catch-all)
+[[redirects]]
+  from = "/voxpro-manager"
   to = "/index.html"
   status = 200
+
+# Root redirect to VoxPro Manager
+[[redirects]]
+  from = "/"
+  to = "/voxpro-manager"
+  status = 302
 
 # Headers for CORS and security
 [[headers]]
@@ -49,21 +61,15 @@
     Access-Control-Allow-Headers = "Content-Type, Authorization"
     Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
 
-# Environment variables (set these in Netlify dashboard)
-# XANO_API_BASE = "https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX"
-# XANO_API_KEY = "your-api-key-if-needed"
-
 # Function configuration
 [functions]
   directory = "netlify/functions"
-  
-  # Increase timeout for media operations
-  [functions."fetch-media"]
-    timeout = 30
-    
-  [functions."xano-data-fetch"]
-    timeout = 15
-    
-  [functions."xano-diagnostic-test"]
-    timeout = 20
 
+[functions."fetch-media"]
+  timeout = 30
+
+[functions."xano-data-fetch"]
+  timeout = 15
+
+[functions."xano-diagnostic-test"]
+  timeout = 20
