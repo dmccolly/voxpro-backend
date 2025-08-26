@@ -1,47 +1,69 @@
+# Improved Netlify Configuration for VoxPro
+# Based on the working Audio Memory Game setup
+
 [build]
-  publish = "public"
+  publish = "."
   functions = "netlify/functions"
 
-[functions]
-  node_bundler = "esbuild"
-
-# API proxy for Netlify Functions
+# API routing - ensures all API calls go to functions
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
-  force = true
 
-# Media proxy redirect
+# Specific function routing for diagnostics
+[[redirects]]
+  from = "/test-xano"
+  to = "/.netlify/functions/xano-diagnostic-test"
+  status = 200
+
+[[redirects]]
+  from = "/test-data"
+  to = "/.netlify/functions/xano-data-fetch"
+  status = 200
+
+# Media proxy routing
 [[redirects]]
   from = "/media-proxy/*"
-  to = "https://:splat"
+  to = "/.netlify/functions/improved-fetch-media?url=:splat"
   status = 200
-  force = true
-  headers = {Access-Control-Allow-Origin = "*"}
 
-# Single page app redirect
+# Fallback for SPA routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# Security headers
+# Headers for CORS and security
 [[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
-    X-Content-Type-Options = "nosniff"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self' https://*; connect-src 'self' https://*; img-src 'self' https://* data:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src 'self' https://* data:;"
-
-# CORS headers for media files
-[[headers]]
-  for = "/media-proxy/*"
+  for = "/api/*"
   [headers.values]
     Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "GET, OPTIONS"
-    Access-Control-Allow-Headers = "Origin, X-Requested-With, Content-Type, Accept"
-    Cache-Control = "public, max-age=86400"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+
+# Environment variables (set these in Netlify dashboard)
+# XANO_API_BASE = "https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX"
+# XANO_API_KEY = "your-api-key-if-needed"
+
+# Function configuration
+[functions]
+  directory = "netlify/functions"
+  
+  # Increase timeout for media operations
+  [functions."improved-fetch-media"]
+    timeout = 30
+    
+  [functions."xano-data-fetch"]
+    timeout = 15
+    
+  [functions."xano-diagnostic-test"]
+    timeout = 20
+
