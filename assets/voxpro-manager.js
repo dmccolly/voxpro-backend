@@ -556,6 +556,22 @@ function getAssetUrl(item) {
     }
   }
   
+  // Special handling for database_url when it's an object (Xano format)
+  if (item.database_url && typeof item.database_url === 'object') {
+    debug('Found database_url object:', item.database_url);
+    // Try to construct URL from Xano object format
+    if (item.database_url.path && item.database_url.name) {
+      const constructedUrl = `https://x8ki-letl-twmt.n7.xano.io/vault/${item.database_url.path}/${item.database_url.name}`;
+      debug('Constructed URL from database_url object:', constructedUrl);
+      return constructedUrl;
+    }
+    // If path/name not available, try other object properties
+    if (item.database_url.url && typeof item.database_url.url === 'string') {
+      debug('Found URL in database_url.url:', item.database_url.url);
+      return item.database_url.url;
+    }
+  }
+  
   // Check for nested URL objects (Xano often returns nested objects)
   if (item.file && typeof item.file === 'object') {
     debug('Found file object:', item.file);
