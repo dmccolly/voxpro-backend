@@ -25,7 +25,7 @@
 # Media proxy routing
 [[redirects]]
   from = "/media-proxy/*"
-  to = "/.netlify/functions/improved-fetch-media?url=:splat"
+  to = "/.netlify/functions/fetch-media?url=:splat"
   status = 200
 
 # Fallback for SPA routing
@@ -58,7 +58,7 @@
   directory = "netlify/functions"
   
   # Increase timeout for media operations
-  [functions."improved-fetch-media"]
+  [functions."fetch-media"]
     timeout = 30
     
   [functions."xano-data-fetch"]
