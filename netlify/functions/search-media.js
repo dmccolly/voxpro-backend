@@ -1,48 +1,11 @@
-// Multi-endpoint search-media.js - tries multiple Xano endpoints to find File Manager data
-const fetch = require('node-fetch');
+// Unified search-media.js for VoxPro Manager
+// Searches the unified Xano database where File Manager uploads go
 
-// Get API base from environment variables or use default
+const https = require('https');
+const http = require('http');
+
+// Get API base from environment variables
 const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX';
-
-// List of possible endpoints where File Manager might store data
-const POSSIBLE_ENDPOINTS = [
-    '/voxpro',           // Most likely
-    '/media',            // Common name
-    '/assets',           // Alternative name
-    '/uploads',          // File uploads
-    '/files',            // File storage
-    '/content',          // Content management
-    '/broadcast_media',  // Broadcast specific
-    '/idaho_media'       // Idaho Broadcasting specific
-];
-
-async function tryEndpoint(endpoint, query) {
-    try {
-        const searchUrl = `${XANO_API_BASE}${endpoint}`;
-        console.log(`Trying endpoint: ${searchUrl}`);
-        
-        const response = await fetch(searchUrl, {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            },
-            timeout: 10000
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            console.log(`✅ Endpoint ${endpoint} returned ${Array.isArray(data) ? data.length : 'non-array'} results`);
-            return { success: true, data, endpoint };
-        } else {
-            console.log(`❌ Endpoint ${endpoint} failed: ${response.status}`);
-            return { success: false, status: response.status, endpoint };
-        }
-    } catch (error) {
-        console.log(`❌ Endpoint ${endpoint} error: ${error.message}`);
-        return { success: false, error: error.message, endpoint };
-    }
-}
 
 exports.handler = async (event, context) => {
     // Set up CORS headers
@@ -66,47 +29,78 @@ exports.handler = async (event, context) => {
     const query = event.queryStringParameters?.q || '';
 
     try {
-        console.log(`Multi-endpoint search for: "${query}"`);
+        console.log(`Unified search for: "${query}"`);
         
-        // Try all possible endpoints
-        const results = [];
-        const endpointResults = [];
+        // Search the unified Xano voxpro table
+        const searchUrl = `${XANO_API_BASE}/voxpro`;
+        console.log(`Searching unified database: ${searchUrl}`);
 
-        for (const endpoint of POSSIBLE_ENDPOINTS) {
-            const result = await tryEndpoint(endpoint, query);
-            endpointResults.push(result);
-            
-            if (result.success && Array.isArray(result.data)) {
-                // Filter results based on query if provided
-                let filteredData = result.data;
-                if (query) {
-                    filteredData = result.data.filter(item => {
-                        const searchText = `${item.title || ''} ${item.description || ''} ${item.station || ''} ${item.tags || ''}`.toLowerCase();
-                        return searchText.includes(query.toLowerCase());
-                    });
-                }
+        const response = await makeRequest(searchUrl);
 
-                // Transform and add to results
-                const transformedItems = filteredData.map(item => ({
-                    id: item.id || `${endpoint}:${item.id}`,
-                    source: `xano${endpoint}`,
-                    title: item.title || item.name || 'Untitled',
-                    description: item.description || '',
-                    station: item.station || 'Unknown',
-                    tags: item.tags || '',
-                    thumbnail: item.thumbnail || '',
-                    media_url: item.database_url || item.media_url || '',
-                    file_type: item.file_type || 'unknown',
-                    submitted_by: item.submitted_by || '',
-                    created_at: item.created_at || Date.now(),
-                    _endpoint: endpoint
-                }));
-
-                results.push(...transformedItems);
-            }
+        if (response.status !== 200) {
+            console.error(`Xano API error: ${response.status}`);
+            return {
+                statusCode: response.status,
+                headers,
+                body: JSON.stringify({ 
+                    error: 'Search failed', 
+                    status: response.status,
+                    message: response.data
+                })
+            };
         }
 
-        console.log(`Found ${results.length} total results across all endpoints`);
+        // Parse response
+        let allData = [];
+        try {
+            allData = JSON.parse(response.data);
+        } catch (parseError) {
+            console.error('Failed to parse Xano response:', parseError);
+            return {
+                statusCode: 500,
+                headers,
+                body: JSON.stringify({ error: 'Invalid response from database' })
+            };
+        }
+
+        // Filter results based on query
+        let filteredResults = allData;
+        if (query && query.trim() !== '') {
+            const searchTerm = query.toLowerCase().trim();
+            filteredResults = allData.filter(item => {
+                const searchableText = [
+                    item.title || '',
+                    item.description || '',
+                    item.station || '',
+                    item.tags || '',
+                    item.category || '',
+                    item.submitted_by || ''
+                ].join(' ').toLowerCase();
+                
+                return searchableText.includes(searchTerm);
+            });
+        }
+
+        // Transform results to VoxPro format
+        const results = filteredResults.map(item => ({
+            id: item.id || `xano:${item.id}`,
+            source: 'xano',
+            title: item.title || 'Untitled',
+            description: item.description || '',
+            station: item.station || 'Unknown',
+            tags: item.tags || '',
+            thumbnail: item.thumbnail || '',
+            media_url: item.database_url || '',
+            file_type: item.file_type || 'unknown',
+            submitted_by: item.submitted_by || '',
+            created_at: item.created_at || Date.now(),
+            category: item.category || '',
+            priority: item.priority || 'normal',
+            notes: item.notes1 || '',
+            file_size: item.file_size || 0
+        }));
+
+        console.log(`Returning ${results.length} unified search results`);
 
         return {
             statusCode: 200,
@@ -115,23 +109,67 @@ exports.handler = async (event, context) => {
                 results: results,
                 total: results.length,
                 query: query,
-                debug: {
-                    endpoints_tried: endpointResults,
-                    successful_endpoints: endpointResults.filter(r => r.success).map(r => r.endpoint)
-                }
+                source: 'unified-xano',
+                timestamp: new Date().toISOString()
             })
         };
 
     } catch (error) {
-        console.error('Multi-endpoint search error:', error);
+        console.error('Unified search error:', error);
         return {
             statusCode: 500,
             headers,
             body: JSON.stringify({ 
-                error: 'Internal server error', 
-                message: error.message 
+                error: 'Search failed', 
+                message: error.message,
+                source: 'unified-search'
             })
         };
     }
 };
+
+function makeRequest(url) {
+    return new Promise((resolve, reject) => {
+        const urlObj = new URL(url);
+        const client = urlObj.protocol === 'https:' ? https : http;
+        
+        const options = {
+            hostname: urlObj.hostname,
+            port: urlObj.port,
+            path: urlObj.pathname + urlObj.search,
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'User-Agent': 'VoxPro-Unified-Search/1.0'
+            },
+            timeout: 15000
+        };
+
+        const req = client.request(options, (res) => {
+            let data = '';
+            res.on('data', (chunk) => {
+                data += chunk;
+            });
+            res.on('end', () => {
+                resolve({
+                    status: res.statusCode,
+                    headers: res.headers,
+                    data: data
+                });
+            });
+        });
+
+        req.on('error', (error) => {
+            reject(error);
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Request timeout'));
+        });
+
+        req.end();
+    });
+}
 
