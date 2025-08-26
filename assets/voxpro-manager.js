@@ -23,7 +23,7 @@ let connGood = false;
 let searchEndpointChosen = null;
 let activeMediaEl = null;
 let debugMode = true; // Set to true for debugging
-let preloadedMedia = {}; // Cache for preloaded media
+let mediaCache = {}; // Cache for processed media URLs
 
 /* ===== DOM ===== */
 const keyButtons = [...document.querySelectorAll('.key[data-key]')];
@@ -163,58 +163,17 @@ async function loadAssignments() {
     assignments = data.assignments || [];
     debug('Assignments loaded', assignments);
     
-    // Preload media URLs for all assignments
-    for (const assignment of assignments) {
-      preloadMediaUrl(assignment);
+    // Process and cache media URLs for all assignments
+    if (assignments && assignments.length > 0) {
+      assignments.forEach(assignment => {
+        processMediaUrl(assignment);
+      });
     }
     
     renderAssignments();
   } catch (error) {
     debug('Error loading assignments', error);
     showAlert('Failed to load assignments');
-  }
-}
-
-// Function to preload and cache media URLs
-function preloadMediaUrl(item) {
-  if (!item) return;
-  
-  const id = item.id || item.key || JSON.stringify(item).substring(0, 50);
-  debug(`Preloading media for item: ${id}`);
-  
-  try {
-    // Get the URL
-    const url = getAssetUrl(item);
-    if (!url) {
-      debug(`No URL found for item: ${id}`);
-      return;
-    }
-    
-    // Cache the URL
-    preloadedMedia[id] = url;
-    debug(`Cached media URL for item ${id}: ${url}`);
-    
-    // For audio/video, we could even preload the metadata
-    const type = item.file_type || '';
-    if (type.includes('audio') || type.includes('video')) {
-      const tempEl = type.includes('audio') 
-        ? document.createElement('audio') 
-        : document.createElement('video');
-      
-      tempEl.preload = 'metadata';
-      tempEl.src = url;
-      
-      tempEl.addEventListener('loadedmetadata', () => {
-        debug(`Preloaded metadata for ${id}: duration=${tempEl.duration}s`);
-        preloadedMedia[id + '_duration'] = tempEl.duration;
-      });
-      
-      tempEl.addEventListener('error', (e) => {
-        debug(`Error preloading ${id}: ${e.message}`);
-      });
-    }
-  } catch (error) {
-    debug(`Error in preloadMediaUrl for ${id}:`, error);
   }
 }
 
@@ -289,6 +248,13 @@ async function handleSearch() {
     unifiedResults = data.results || [];
     debug('Search results:', unifiedResults);
     
+    // Process and cache media URLs for all results
+    if (unifiedResults && unifiedResults.length > 0) {
+      unifiedResults.forEach(item => {
+        processMediaUrl(item);
+      });
+    }
+    
     renderMediaResults();
   } catch (error) {
     debug('Search error', error);
@@ -327,9 +293,6 @@ function renderMediaResults() {
     description.className = 'description';
     description.textContent = item.description || '';
     
-    // Preload this item's media URL
-    preloadMediaUrl(item);
-    
     mediaItem.appendChild(thumbnail);
     thumbnail.appendChild(typeIcon);
     mediaItem.appendChild(title);
@@ -363,6 +326,40 @@ function getTypeIcon(fileType) {
   if (fileType.includes('image')) return '🖼️';
   if (fileType.includes('pdf')) return '📄';
   return '📁';
+}
+
+// Process and cache a media URL from an item
+function processMediaUrl(item) {
+  if (!item) return null;
+  
+  const id = item.id || item.key || JSON.stringify(item).substring(0, 20);
+  debug(`Processing media URL for item: ${id}`);
+  
+  // First, try to get the URL from the item
+  const url = getAssetUrl(item);
+  if (!url) {
+    debug(`No URL found for item: ${id}`);
+    return null;
+  }
+  
+  // Process the URL (add proxy if needed)
+  let processedUrl = url;
+  
+  // If it's an absolute URL, determine if we need to proxy it
+  if (url.startsWith('http')) {
+    // Always proxy external URLs to avoid CORS issues
+    processedUrl = `${MEDIA_PROXY}${encodeURIComponent(url)}`;
+    debug(`Proxied URL for ${id}: ${processedUrl}`);
+  } else {
+    debug(`Using direct URL for ${id}: ${url}`);
+  }
+  
+  // Cache the processed URL
+  const cacheKey = item.key || id;
+  mediaCache[cacheKey] = processedUrl;
+  debug(`Cached media URL for ${cacheKey}: ${processedUrl}`);
+  
+  return processedUrl;
 }
 
 function getAssetUrl(item) {
@@ -481,19 +478,30 @@ function openMediaModal(asset) {
   // Show modal first
   mediaModal.style.display = 'block';
   
-  // Get media URL
-  const url = getAssetUrl(asset);
-  debug('Media URL:', url);
+  // Get media URL - first check cache, then get from asset
+  let url = '';
+  if (asset.key && mediaCache[asset.key]) {
+    url = mediaCache[asset.key];
+    debug('Using cached URL for key ' + asset.key + ':', url);
+  } else {
+    url = getAssetUrl(asset);
+    debug('Got URL from asset:', url);
+    
+    // Process and cache the URL if not already done
+    if (url) {
+      // If it's an absolute URL and not already proxied, add the proxy
+      if (url.startsWith('http') && !url.includes(MEDIA_PROXY)) {
+        url = `${MEDIA_PROXY}${encodeURIComponent(url)}`;
+        debug('Added proxy to URL:', url);
+      }
+    }
+  }
   
   if (!url) {
     mediaPlayer.innerHTML = '<div style="padding:20px;color:red">No media URL found. Check console for details.</div>';
     console.error('Failed to find URL in asset:', asset);
     return;
   }
-  
-  // Determine if we need to proxy the URL
-  const proxyUrl = url.startsWith('/') ? url : `${MEDIA_PROXY}${encodeURIComponent(url)}`;
-  debug('Using URL for media player:', proxyUrl);
   
   // Create appropriate element based on type
   let el;
@@ -503,7 +511,7 @@ function openMediaModal(asset) {
     el = document.createElement('audio');
     el.controls = true;
     el.autoplay = false;
-    el.src = proxyUrl;
+    el.src = url;
     el.style.width = '100%';
     el.style.marginTop = '20px';
     
@@ -516,7 +524,7 @@ function openMediaModal(asset) {
     el = document.createElement('video');
     el.controls = true;
     el.autoplay = false;
-    el.src = proxyUrl;
+    el.src = url;
     el.style.maxWidth = '100%';
     el.style.maxHeight = '400px';
     
@@ -527,7 +535,7 @@ function openMediaModal(asset) {
   }
   else if (type.includes('image') || url.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
     el = document.createElement('img');
-    el.src = proxyUrl;
+    el.src = url;
     el.alt = asset.title || '';
     el.style.maxWidth = '100%';
     el.style.maxHeight = '400px';
@@ -535,7 +543,7 @@ function openMediaModal(asset) {
   else if (type.includes('pdf') || url.match(/\.(pdf)$/i)) {
     // For PDF files, create an iframe or object
     el = document.createElement('iframe');
-    el.src = proxyUrl;
+    el.src = url;
     el.style.width = '100%';
     el.style.height = '500px';
     el.style.border = 'none';
@@ -628,8 +636,13 @@ function handleMediaClick(e) {
   thumbnail.appendChild(typeIcon);
   mediaItem.appendChild(title);
   
-  // Add play button for audio/video
-  if (selectedUnified.file_type && (selectedUnified.file_type.includes('audio') || selectedUnified.file_type.includes('video'))) {
+  // Add play button for audio/video/images
+  const fileType = selectedUnified.file_type || '';
+  const isPlayable = fileType.includes('audio') || 
+                    fileType.includes('video') || 
+                    fileType.includes('image');
+  
+  if (isPlayable) {
     const playBtn = document.createElement('button');
     playBtn.className = 'play-btn';
     playBtn.innerHTML = '▶';
@@ -657,13 +670,20 @@ async function handleAssign() {
   try {
     debug('Assigning to key:', key);
     
+    // Get the media URL
+    const mediaUrl = getAssetUrl(selectedUnified);
+    if (!mediaUrl) {
+      showAlert('No media URL found');
+      return;
+    }
+    
     const assignData = {
       key,
       media_id: selectedUnified.id,
       title: titleInput.value,
       description: descriptionInput.value,
       file_type: selectedUnified.file_type,
-      media_url: getAssetUrl(selectedUnified),
+      media_url: mediaUrl,
       station: stationInput.value,
       tags: tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag),
       submitted_by: submittedByInput.value
@@ -684,6 +704,13 @@ async function handleAssign() {
     
     if (data.success) {
       showAlert('Assignment created successfully', 'success');
+      
+      // Process and cache the media URL for this assignment
+      processMediaUrl({
+        ...assignData,
+        id: selectedUnified.id
+      });
+      
       await loadAssignments();
     } else {
       showAlert(data.message || 'Failed to create assignment');
@@ -717,6 +744,13 @@ async function deleteAssignment(key) {
     
     if (data.success) {
       showAlert('Assignment deleted successfully', 'success');
+      
+      // Remove from cache
+      if (mediaCache[key]) {
+        delete mediaCache[key];
+        debug(`Removed key ${key} from media cache`);
+      }
+      
       await loadAssignments();
     } else {
       showAlert(data.message || 'Failed to delete assignment');
@@ -729,12 +763,19 @@ async function deleteAssignment(key) {
 
 function handleKeyPress(e) {
   const key = e.target.getAttribute('data-key');
+  if (!key) return;
+  
+  debug('Key pressed:', key);
+  
   const assignment = assignments.find(a => a.key === key);
   
   if (!assignment) {
     debug('No assignment for key:', key);
+    showAlert(`No media assigned to key ${key}`);
     return;
   }
+  
+  debug('Playing assignment:', assignment);
   
   if (playing === key) {
     handleStop();
@@ -743,7 +784,7 @@ function handleKeyPress(e) {
   
   handleStop(); // Stop any currently playing
   
-  debug('Playing assignment:', assignment);
+  // Set as playing
   playing = key;
   e.target.classList.add('playing');
   
@@ -804,5 +845,46 @@ window.voxProDebug = {
       file_type: 'video/mp4'
     };
     openMediaModal(testAsset);
+  },
+  clearCache: () => {
+    mediaCache = {};
+    debug('Media cache cleared');
+  },
+  showCache: () => {
+    debug('Current media cache:', mediaCache);
+    return mediaCache;
+  },
+  fixHandlers: () => {
+    // Re-add event handlers to fix any issues
+    keyButtons.forEach(btn => {
+      const key = btn.getAttribute('data-key');
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn, btn);
+      newBtn.addEventListener('click', handleKeyPress);
+      debug(`Fixed handler for key ${key}`);
+    });
+    
+    const newStopBtn = stopButton.cloneNode(true);
+    stopButton.parentNode.replaceChild(newStopBtn, stopButton);
+    newStopBtn.addEventListener('click', handleStop);
+    
+    debug('Event handlers fixed');
   }
 };
+
+// Global error handler to prevent UI freezes
+window.addEventListener('error', function(e) {
+  console.error('Global error caught:', e.error || e.message);
+  
+  // Prevent UI freeze by stopping any playing media
+  if (playing) {
+    try {
+      handleStop();
+    } catch (stopError) {
+      console.error('Error in emergency stop:', stopError);
+    }
+  }
+  
+  // Show alert to user
+  showAlert('An error occurred. Check console for details.');
+});
