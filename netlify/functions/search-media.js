@@ -1,10 +1,48 @@
-// Fixed search-media.js file for Netlify function
-// This version connects to the same Xano table that the File Manager uploads to
-
+// Multi-endpoint search-media.js - tries multiple Xano endpoints to find File Manager data
 const fetch = require('node-fetch');
 
 // Get API base from environment variables or use default
 const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX';
+
+// List of possible endpoints where File Manager might store data
+const POSSIBLE_ENDPOINTS = [
+    '/voxpro',           // Most likely
+    '/media',            // Common name
+    '/assets',           // Alternative name
+    '/uploads',          // File uploads
+    '/files',            // File storage
+    '/content',          // Content management
+    '/broadcast_media',  // Broadcast specific
+    '/idaho_media'       // Idaho Broadcasting specific
+];
+
+async function tryEndpoint(endpoint, query) {
+    try {
+        const searchUrl = `${XANO_API_BASE}${endpoint}`;
+        console.log(`Trying endpoint: ${searchUrl}`);
+        
+        const response = await fetch(searchUrl, {
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            },
+            timeout: 10000
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log(`✅ Endpoint ${endpoint} returned ${Array.isArray(data) ? data.length : 'non-array'} results`);
+            return { success: true, data, endpoint };
+        } else {
+            console.log(`❌ Endpoint ${endpoint} failed: ${response.status}`);
+            return { success: false, status: response.status, endpoint };
+        }
+    } catch (error) {
+        console.log(`❌ Endpoint ${endpoint} error: ${error.message}`);
+        return { success: false, error: error.message, endpoint };
+    }
+}
 
 exports.handler = async (event, context) => {
     // Set up CORS headers
@@ -27,82 +65,48 @@ exports.handler = async (event, context) => {
     // Get query parameter
     const query = event.queryStringParameters?.q || '';
 
-    if (!query) {
-        return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ error: 'Missing query parameter' })
-        };
-    }
-
     try {
-        console.log(`Searching for: "${query}"`);
+        console.log(`Multi-endpoint search for: "${query}"`);
         
-        // FIXED: Call the correct Xano endpoint that File Manager uses
-        // This should be the same table where File Manager uploads go
-        const searchUrl = `${XANO_API_BASE}/voxpro?title=${encodeURIComponent(query)}`;
-        console.log(`Making request to: ${searchUrl}`);
+        // Try all possible endpoints
+        const results = [];
+        const endpointResults = [];
 
-        // Prepare fetch options with proper headers
-        const fetchOptions = {
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                // Add a user agent to avoid restrictions
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            },
-            // Add a generous timeout for slow API responses
-            timeout: 15000
-        };
+        for (const endpoint of POSSIBLE_ENDPOINTS) {
+            const result = await tryEndpoint(endpoint, query);
+            endpointResults.push(result);
+            
+            if (result.success && Array.isArray(result.data)) {
+                // Filter results based on query if provided
+                let filteredData = result.data;
+                if (query) {
+                    filteredData = result.data.filter(item => {
+                        const searchText = `${item.title || ''} ${item.description || ''} ${item.station || ''} ${item.tags || ''}`.toLowerCase();
+                        return searchText.includes(query.toLowerCase());
+                    });
+                }
 
-        const response = await fetch(searchUrl, fetchOptions);
+                // Transform and add to results
+                const transformedItems = filteredData.map(item => ({
+                    id: item.id || `${endpoint}:${item.id}`,
+                    source: `xano${endpoint}`,
+                    title: item.title || item.name || 'Untitled',
+                    description: item.description || '',
+                    station: item.station || 'Unknown',
+                    tags: item.tags || '',
+                    thumbnail: item.thumbnail || '',
+                    media_url: item.database_url || item.media_url || '',
+                    file_type: item.file_type || 'unknown',
+                    submitted_by: item.submitted_by || '',
+                    created_at: item.created_at || Date.now(),
+                    _endpoint: endpoint
+                }));
 
-        // Read response as text first
-        const responseText = await response.text();
-        console.log(`Search raw response: ${responseText.substring(0, 500)}${responseText.length > 500 ? '...' : ''}`);
-
-        let responseData;
-        try {
-            // Try to parse as JSON
-            responseData = JSON.parse(responseText);
-        } catch (e) {
-            console.log(`Response is not valid JSON: ${e.message}`);
-            responseData = { text: responseText };
+                results.push(...transformedItems);
+            }
         }
 
-        // Handle error responses
-        if (!response.ok) {
-            console.error(`Search API error: ${response.status} ${response.statusText}`, responseData);
-            return {
-                statusCode: response.status,
-                headers,
-                body: JSON.stringify({ 
-                    error: 'Search failed', 
-                    details: responseData,
-                    status: response.status 
-                })
-            };
-        }
-
-        // Transform the response to match VoxPro's expected format
-        let results = [];
-        if (Array.isArray(responseData)) {
-            results = responseData.map(item => ({
-                id: item.id || `xano:${item.id}`,
-                source: 'xano',
-                title: item.title || item.name || 'Untitled',
-                description: item.description || '',
-                station: item.station || 'Unknown',
-                tags: item.tags || '',
-                thumbnail: item.thumbnail || '',
-                media_url: item.database_url || item.media_url || '',
-                file_type: item.file_type || 'unknown',
-                submitted_by: item.submitted_by || '',
-                created_at: item.created_at || Date.now()
-            }));
-        }
-
-        console.log(`Returning ${results.length} search results`);
+        console.log(`Found ${results.length} total results across all endpoints`);
 
         return {
             statusCode: 200,
@@ -110,12 +114,16 @@ exports.handler = async (event, context) => {
             body: JSON.stringify({
                 results: results,
                 total: results.length,
-                query: query
+                query: query,
+                debug: {
+                    endpoints_tried: endpointResults,
+                    successful_endpoints: endpointResults.filter(r => r.success).map(r => r.endpoint)
+                }
             })
         };
 
     } catch (error) {
-        console.error('Search function error:', error);
+        console.error('Multi-endpoint search error:', error);
         return {
             statusCode: 500,
             headers,
