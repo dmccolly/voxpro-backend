@@ -21,21 +21,31 @@ exports.handler = async (event) => {
     // Extract the endpoint from the path
     let endpoint = event.path.replace('/.netlify/functions/xano-proxy', '');
     
-    // Default to /voxpro if no endpoint specified or if /auth/ping is requested
-    if (!endpoint || endpoint === '/auth/ping') {
+    // Handle the auth/ping endpoint by checking /voxpro exists
+    if (endpoint === '/auth/ping') {
       endpoint = '/voxpro';
     }
     
-    // Use the correct Xano API URL
+    // Default to /voxpro if no endpoint
+    if (!endpoint) {
+      endpoint = '/voxpro';
+    }
+    
+    // Use the correct Xano API URL (fixed typo: letl not lell)
     const url = 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX' + endpoint;
     
     console.log(`Forwarding ${event.httpMethod} request to: ${url}`);
+    console.log('Body size:', event.body ? event.body.length : 0);
     
     const response = await new Promise((resolve, reject) => {
       const urlObj = new URL(url);
       
-      // Add timestamp to prevent caching
-      urlObj.searchParams.append('_t', Date.now());
+      // Add timestamp to prevent caching for GET requests
+      if (event.httpMethod === 'GET') {
+        urlObj.searchParams.append('_t', Date.now());
+      }
+      
+      const postData = event.body || '';
       
       const options = {
         hostname: urlObj.hostname,
@@ -45,9 +55,9 @@ exports.handler = async (event) => {
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
+          'Content-Length': Buffer.byteLength(postData)
         },
-        rejectUnauthorized: false
+        rejectUnauthorized: false // Disable SSL verification
       };
       
       const req = https.request(options, (res) => {
@@ -55,6 +65,7 @@ exports.handler = async (event) => {
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
           console.log('Response status:', res.statusCode);
+          console.log('Response preview:', data.substring(0, 200));
           resolve({ 
             statusCode: res.statusCode, 
             headers: res.headers, 
@@ -68,15 +79,15 @@ exports.handler = async (event) => {
         reject(error);
       });
       
-      if (event.body) {
-        req.write(event.body);
+      if (postData) {
+        req.write(postData);
       }
       
       req.end();
     });
     
-    // For /auth/ping requests, return a success response if we got data from /voxpro
-    if (endpoint === '/voxpro' && event.path.includes('/auth/ping')) {
+    // Special handling for auth/ping
+    if (event.path.includes('/auth/ping') && response.statusCode === 200) {
       return {
         statusCode: 200,
         headers: { 
