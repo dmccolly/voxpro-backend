@@ -65,7 +65,7 @@ exports.handler = async (event, context) => {
                 
                 console.log('Sending data to Xano:', data);
                 
-                const response = await fetch('https://x8k1-lell-twmt.n7.xano.io/api:pYeQctV/voxpro', {
+                const response = await fetch('https://x8k1-lell-twmt.n7.xano.io/api:pYeQctV/voxpro', {...})
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
