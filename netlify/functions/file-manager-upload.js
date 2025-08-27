@@ -1,6 +1,7 @@
 const https = require('https');
 const cloudinary = require('cloudinary').v2;
-const Multipart = require('parse-multipart'); // lightweight multipart parser
+const multipart = require('parse-multipart-data');
+
 
 // Configure Cloudinary from Netlify environment variables
 cloudinary.config({
