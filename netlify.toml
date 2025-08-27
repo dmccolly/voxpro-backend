@@ -1,15 +1,14 @@
+[build]
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/file-manager"
-  to = "/.netlify/functions/file-manager-page"
+  to = "/.netlify/functions/uploader"
   status = 200
-
-[[redirects]]
-  from = "/voxpro-manager"
-  to = "/templates/voxpro-manager.html"
-  status = 200
-
-# Catch-all MUST be last
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+  force = true
