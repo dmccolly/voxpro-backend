@@ -342,10 +342,10 @@ exports.handler = async (event, context) => {
                 progressFill.style.width = '30%';
                 
                 // Send directly to Xano's user_submission endpoint
-                const response = await fetch('https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX/user_submission', {
-                method: 'POST',
-                    body: formData
-                });
+               const response = await fetch('https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX/user_submission', {
+              method: 'POST',
+              body: formData
+                })  ;
                 
                 progressFill.style.width = '80%';
                 
