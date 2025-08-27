@@ -1,9 +1,8 @@
 {
-  "name": "voxpro-backend",
-  "private": true,
-  "type": "commonjs",
+  "name": "netlify-functions",
+  "version": "1.0.0",
   "dependencies": {
     "busboy": "^1.6.0",
-    "cloudinary": "^1.41.3"
+    "cloudinary": "^1.41.2"
   }
 }
