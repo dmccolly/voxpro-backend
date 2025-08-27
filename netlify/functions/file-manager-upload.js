@@ -1,4 +1,4 @@
-// Fixed file-manager-upload.js - Uses SAME endpoint as search-media.js
+// Complete working file-manager-upload.js - Uses SAME endpoint as search-media.js
 const https = require('https');
 const http = require('http');
 
@@ -6,185 +6,110 @@ const http = require('http');
 const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8k1-lell-twmt.n7.xano.io/api:pYeQctV';
 const DEBUG = true;
 
-// Helper function to make HTTP requests to Xano
+// Helper function to make HTTP requests to Xano - SAME as search-media.js
 const makeRequest = (url, options = {}) => {
   return new Promise((resolve, reject) => {
-    try {
-      const urlObj = new URL(url);
-      const cacheBuster = `${urlObj.search ? '&' : '?'}_t=${Date.now()}&_r=${Math.random()}`;
-      const fullUrl = urlObj.toString() + cacheBuster;
-      const protocol = fullUrl.startsWith('https:') ? https : http;
-      
-      if (DEBUG) {
-        console.log(`[DEBUG] Making ${options.method || 'GET'} request to: ${url}`);
-        if (options.body) {
-          console.log(`[DEBUG] Request data:`, JSON.stringify(options.body).substring(0, 500));
-        }
-      }
-
-      const parsedUrl = new URL(fullUrl);
-      const requestOptions = {
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: options.method || 'GET',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0',
-          'Content-Type': 'application/json',
-          'User-Agent': 'VoxPro-Netlify-Function/1.0',
-          'Accept': 'application/json',
-          ...options.headers
-        }
-      };
-
-      const req = protocol.request(requestOptions, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        
-        res.on('end', () => {
-          if (DEBUG) {
-            console.log(`[DEBUG] Response status: ${res.statusCode}`);
-            console.log(`[DEBUG] Response headers:`, res.headers);
-            console.log(`[DEBUG] Response data (preview):`, data.substring(0, 200));
-          }
-          
-          try {
-            const parsedData = JSON.parse(data);
-            resolve(parsedData);
-          } catch (e) {
-            console.log(`[DEBUG] Non-JSON response or empty data`);
-            resolve(data);
-          }
-        });
-      });
-
-      req.on('error', (error) => {
-        console.error(`[ERROR] Request error:`, error);
-        reject(error);
-      });
-      
+    const cacheBuster = `?_t=${Date.now()}&_r=${Math.random()}`;
+    const fullUrl = url + cacheBuster;
+    const protocol = fullUrl.startsWith('https:') ? https : http;
+    
+    if (DEBUG) {
+      console.log(`[DEBUG] Making ${options.method || 'GET'} request to: ${url.toString()}`);
       if (options.body) {
-        const stringData = JSON.stringify(options.body);
-        req.write(stringData);
+        console.log(`[DEBUG] Request data:`, JSON.stringify(options.body).substring(0, 500));
       }
-      
-      req.end();
-    } catch (error) {
-      console.error(`[ERROR] Request setup error:`, error);
-      reject(error);
     }
+
+    const requestOptions = {
+      ...options,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Content-Type': 'application/json',
+        'User-Agent': 'VoxPro-Netlify-Function/1.0',
+        'Accept': 'application/json',
+        ...options.headers
+      }
+    };
+
+    const req = protocol.request(fullUrl, requestOptions, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          resolve(data);
+        }
+      });
+    });
+
+    req.on('error', reject);
+    
+    if (options.body) {
+      req.write(JSON.stringify(options.body));
+    }
+    
+    req.end();
   });
 };
 
 // Parse multipart form data
-function parseMultipartForm(event) {
-  return new Promise((resolve, reject) => {
-    try {
-      if (!event.headers['content-type']?.includes('multipart/form-data')) {
-        return reject(new Error('Not a multipart form data request'));
-      }
-      
-      const contentType = event.headers['content-type'] || '';
-      const boundary = contentType.split('boundary=')[1]?.split(';')[0];
-      
-      if (!boundary) {
-        return reject(new Error('No boundary found in content-type header'));
-      }
-      
-      const body = event.isBase64Encoded 
-        ? Buffer.from(event.body, 'base64').toString() 
-        : event.body;
-      
-      const parts = body.split(`--${boundary}`);
-      const formData = {};
-      
-      // Process each part
-      parts.forEach(part => {
-        if (!part.includes('Content-Disposition: form-data')) return;
+function parseMultipartData(body, boundary) {
+  const parts = body.split(`--${boundary}`);
+  const fields = {};
+  let file = null;
+
+  for (const part of parts) {
+    if (part.includes('Content-Disposition: form-data')) {
+      const nameMatch = part.match(/name="([^"]+)"/);
+      if (nameMatch) {
+        const fieldName = nameMatch[1];
+        const valueStart = part.indexOf('\r\n\r\n') + 4;
+        const valueEnd = part.lastIndexOf('\r\n');
         
-        const nameMatch = part.match(/name="([^"]+)"/);
-        if (!nameMatch) return;
-        
-        const name = nameMatch[1];
-        const isFile = part.includes('filename="');
-        
-        if (isFile) {
-          const filenameMatch = part.match(/filename="([^"]+)"/);
-          const filename = filenameMatch ? filenameMatch[1] : 'unknown';
+        if (valueStart < valueEnd) {
+          const value = part.substring(valueStart, valueEnd);
           
-          const contentTypeMatch = part.match(/Content-Type: ([^\r\n]+)/);
-          const contentType = contentTypeMatch ? contentTypeMatch[1] : 'application/octet-stream';
-          
-          const headerEndIndex = part.indexOf('\r\n\r\n');
-          const dataStartIndex = headerEndIndex + 4;
-          
-          formData[name] = {
-            filename,
-            contentType,
-            // For simplicity, we're not handling binary data correctly here
-            // In a real implementation, you'd need to handle Base64 encoding
-            data: part.substring(dataStartIndex, part.lastIndexOf('\r\n'))
-          };
-        } else {
-          const valueStartIndex = part.indexOf('\r\n\r\n') + 4;
-          const value = part.substring(valueStartIndex, part.lastIndexOf('\r\n'));
-          formData[name] = value;
+          if (part.includes('filename=')) {
+            const filenameMatch = part.match(/filename="([^"]+)"/);
+            file = {
+              fieldName,
+              filename: filenameMatch ? filenameMatch[1] : 'unknown',
+              data: value,
+              headers: {
+                'content-type': part.match(/Content-Type: ([^\r\n]+)/)?.[1] || 'application/octet-stream'
+              }
+            };
+          } else {
+            fields[fieldName] = value;
+          }
         }
-      });
-      
-      resolve(formData);
-    } catch (error) {
-      console.error(`[ERROR] Error parsing multipart form:`, error);
-      reject(error);
+      }
     }
-  });
+  }
+
+  return { fields, file };
 }
 
 // Main handler function
 exports.handler = async (event, context) => {
-  // Log the request details
-  console.log(`[INFO] Received ${event.httpMethod} request to ${event.path}`);
-  console.log(`[INFO] Headers:`, JSON.stringify(event.headers));
-  
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
   };
 
-  // Handle CORS preflight requests
   if (event.httpMethod === 'OPTIONS') {
-    console.log('[INFO] Handling OPTIONS request (CORS preflight)');
-    return { 
-      statusCode: 200, 
-      headers, 
-      body: JSON.stringify({ status: 'ok' }) 
-    };
+    return { statusCode: 200, headers, body: '' };
   }
 
   try {
-    // For initial testing, just return a success response
-    // This helps isolate deployment issues from code logic issues
-    if (event.queryStringParameters?.test === 'true') {
-      console.log('[INFO] Test mode - returning success response');
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          message: 'Upload function is accessible',
-          method: event.httpMethod,
-          path: event.path,
-          contentType: event.headers['content-type'] || 'none',
-          timestamp: new Date().toISOString()
-        })
-      };
-    }
-
-    // Only allow POST requests for actual uploads
     if (event.httpMethod !== 'POST') {
       return {
         statusCode: 405,
@@ -193,25 +118,38 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Parse form data from the request
-    let formData;
-    try {
-      formData = await parseMultipartForm(event);
-      console.log('[INFO] Parsed form data fields:', Object.keys(formData));
-    } catch (parseError) {
-      console.error('[ERROR] Form parsing error:', parseError);
+    const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
+    
+    if (!contentType.includes('multipart/form-data')) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ 
-          error: 'Could not parse form data', 
-          details: parseError.message 
-        })
+        body: JSON.stringify({ error: 'Content-Type must be multipart/form-data' })
       };
     }
 
+    const boundary = contentType.split('boundary=')[1];
+    if (!boundary) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'No boundary found in Content-Type' })
+      };
+    }
+
+    const body = event.isBase64Encoded ? 
+      Buffer.from(event.body, 'base64').toString('binary') : 
+      event.body;
+
+    const { fields, file } = parseMultipartData(body, boundary);
+
+    if (DEBUG) {
+      console.log('Parsed fields:', Object.keys(fields));
+      console.log('File info:', file ? { filename: file.filename, size: file.data.length } : 'No file');
+    }
+
     // Validate required fields
-    if (!formData.title) {
+    if (!fields.title) {
       return {
         statusCode: 400,
         headers,
@@ -219,42 +157,41 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Prepare upload data - using same structure as existing VoxPro entries
+    // Create the upload data object - SAME structure as existing VoxPro entries
     const uploadData = {
-      title: formData.title || 'Untitled',
-      description: formData.description || '',
-      category: formData.category || 'Other',
-      station: formData.station || '',
-      tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : [],
-      submitted_by: formData.submittedBy || '',
-      priority: formData.priority || 'Normal',
-      notes: formData.notes || '',
+      title: fields.title || 'Untitled',
+      description: fields.description || '',
+      category: fields.category || 'Other',
+      station: fields.station || 'Unknown',
+      tags: fields.tags || '',
+      submittedBy: fields.submittedBy || 'Unknown',
+      priority: fields.priority || 'Normal',
+      notes: fields.notes || '',
+      filename: file ? file.filename : 'no-file',
+      fileSize: file ? file.data.length : 0,
+      contentType: file ? file.headers['content-type'] : 'unknown',
       uploadDate: new Date().toISOString(),
       source: 'file-manager'
     };
 
-    // Add file information if a file was uploaded
-    if (formData.file) {
-      uploadData.filename = formData.file.filename;
-      uploadData.file_type = formData.file.contentType;
-      uploadData.file_size = formData.file.data.length;
-      
-      // In a real implementation, you would upload the file to storage
-      // and add the URL to uploadData
-      console.log(`[INFO] File details: ${formData.file.filename}, ${formData.file.contentType}`);
+    if (DEBUG) {
+      console.log('Upload data to send to Xano:', uploadData);
     }
 
-    console.log('[INFO] Sending data to Xano:', JSON.stringify(uploadData));
-
-    // Send to Xano using same endpoint as search-media.js
+    // Send to Xano using EXACT same endpoint as search-media.js
     const xanoUrl = `${XANO_API_BASE}/voxpro`;
     
     const result = await makeRequest(xanoUrl, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: uploadData
     });
 
-    console.log('[INFO] Xano response:', JSON.stringify(result));
+    if (DEBUG) {
+      console.log('Xano response:', result);
+    }
 
     return {
       statusCode: 200,
@@ -265,14 +202,14 @@ exports.handler = async (event, context) => {
         data: result,
         uploadInfo: {
           title: uploadData.title,
-          filename: uploadData.filename || 'No file',
-          size: uploadData.file_size || 0
+          filename: uploadData.filename,
+          size: uploadData.fileSize
         }
       })
     };
 
   } catch (error) {
-    console.error('[ERROR] Upload error:', error);
+    console.error('Upload error:', error);
     
     return {
       statusCode: 500,
@@ -280,8 +217,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: false,
         error: 'Upload failed',
-        details: error.message,
-        stack: error.stack
+        details: error.message
       })
     };
   }
