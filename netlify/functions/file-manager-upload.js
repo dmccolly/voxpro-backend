@@ -1,3 +1,12 @@
+# Complete Solution for VoxPro Upload Function
+
+Based on your screenshots and the described issue, here's a comprehensive solution to fix the file-manager-upload.js function that's returning 404 errors.
+
+## 1. Full File-Manager-Upload.js Code
+
+Save this complete code to `netlify/functions/file-manager-upload.js`:
+
+```javascript
 // Complete working file-manager-upload.js - Uses SAME endpoint as search-media.js
 const https = require('https');
 const http = require('http');
@@ -164,7 +173,7 @@ exports.handler = async (event, context) => {
       category: fields.category || 'Other',
       station: fields.station || 'Unknown',
       tags: fields.tags || '',
-      submittedBy: fields.submittedBy || 'Unknown',
+      submitted_by: fields.submittedBy || 'Unknown',
       priority: fields.priority || 'Normal',
       notes: fields.notes || '',
       filename: file ? file.filename : 'no-file',
@@ -222,3 +231,113 @@ exports.handler = async (event, context) => {
     };
   }
 };
+```
+
+## 2. Create a Simple Test Function
+
+To verify that Netlify functions are working correctly, create this simple test function at `netlify/functions/test-function.js`:
+
+```javascript
+// netlify/functions/test-function.js
+exports.handler = async (event, context) => {
+  return {
+    statusCode: 200,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    },
+    body: JSON.stringify({
+      message: 'Test function is working',
+      timestamp: new Date().toISOString(),
+      method: event.httpMethod,
+      path: event.path
+    })
+  };
+};
+```
+
+## 3. Update _redirects File
+
+Ensure your `_redirects` file has the correct rules to handle Netlify functions properly:
+
+```
+/voxpro-manager    /templates/voxpro-manager.html    200
+/assets/*          /assets/:splat                    200
+/file-manager      /.netlify/functions/file-manager-page    200
+/.netlify/functions/*  /.netlify/functions/:splat  200
+/*                 /index.html                       200
+```
+
+## 4. Update netlify.toml Configuration
+
+Update your `netlify.toml` to ensure functions are configured correctly:
+
+```toml
+# Netlify Configuration for VoxPro
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Increase timeout for the upload function
+[functions."file-manager-upload"]
+  timeout = 30
+```
+
+## 5. Deployment Instructions
+
+Follow these steps to deploy your fix:
+
+1. Replace the existing `file-manager-upload.js` with the complete code provided above
+2. Add the test function to check if Netlify functions are working
+3. Update your `_redirects` file if needed
+4. Update your `netlify.toml` file if needed
+5. Commit these changes to your `Voxpro_Update` branch
+6. Deploy to Netlify (either through auto-deploy or manual deploy)
+
+## 6. Verification Steps
+
+After deployment:
+
+1. First, verify the test function works by accessing:
+   ```
+   https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/test-function
+   ```
+
+2. If the test function works, try the file upload:
+   - Go to the file manager page
+   - Fill out the form and select a file
+   - Submit and check for success
+
+3. Check Netlify function logs for any errors
+
+## 7. Troubleshooting Common Issues
+
+If you're still experiencing issues:
+
+1. **404 Function Not Found**:
+   - Check that the function file is in the correct location: `netlify/functions/file-manager-upload.js`
+   - Verify that Netlify built and deployed the function by checking the deployment logs
+   - Try clearing your Netlify cache and redeploying
+
+2. **Function Deploys But Returns an Error**:
+   - Check the Netlify function logs for specific error messages
+   - Test the function directly using a tool like Postman to isolate any issues
+
+3. **CORS Issues**:
+   - The provided code includes CORS headers, but if you're still having issues, verify your browser console for CORS errors
+
+4. **Xano API Connection Issues**:
+   - Verify the `XANO_API_BASE` is correct
+   - Test connectivity to Xano with the test function
+
+## 8. Additional Resources
+
+If you need more help, these resources might be useful:
+
+- [Netlify Functions Documentation](https://docs.netlify.com/functions/overview/)
+- [Netlify Redirects Documentation](https://docs.netlify.com/routing/redirects/)
+- [Netlify Troubleshooting Guide](https://docs.netlify.com/configure-builds/troubleshooting-tips/)
