@@ -175,7 +175,7 @@ exports.handler = async (event, context) => {
         return json(500, { ok: false, error: 'Invalid XANO_API_BASE environment variable' });
       }
 
-      // Make request to Xano
+      // Make request to Xano using the same pattern as list-media.js
       const xanoResponse = await new Promise((resolve) => {
         const req = https.request(
           {
@@ -196,7 +196,9 @@ exports.handler = async (event, context) => {
           }
         );
         req.on('error', (e) => resolve({ status: 500, body: JSON.stringify({ error: e.message }) }));
-        req.write(JSON.stringify(data));
+        
+        const requestBody = JSON.stringify(data);
+        req.write(requestBody);
         req.end();
       });
 
