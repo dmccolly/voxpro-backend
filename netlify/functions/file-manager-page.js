@@ -200,7 +200,7 @@ exports.handler = async (event, context) => {
             <div id="successMessage" class="success-message"></div>
             <div id="errorMessage" class="error-message"></div>
             
-            <form id="uploadForm" enctype="multipart/form-data">
+            <form id="uploadForm">
                 <div class="form-group">
                     <label for="file">Select Media File: <span class="required">*</span></label>
                     <input type="file" id="file" name="file" required 
@@ -328,65 +328,38 @@ exports.handler = async (event, context) => {
             hideMessages();
             
             try {
-                // Set progress to show we've started
-                progressFill.style.width = '20%';
+                // Create FormData with the actual file
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('title', document.getElementById('title').value || 'Untitled');
+                formData.append('description', document.getElementById('description').value || '');
+                formData.append('category', document.getElementById('category').value || 'Other');
+                formData.append('station', document.getElementById('station').value || '');
+                formData.append('tags', document.getElementById('tags').value || '');
+                formData.append('submittedBy', document.getElementById('submittedBy').value || '');
+                formData.append('priority', document.getElementById('priority').value || 'Normal');
+                formData.append('notes', document.getElementById('notes').value || '');
                 
-                // Read file as base64
-                const base64File = await readFileAsBase64(file);
-                progressFill.style.width = '40%';
+                progressFill.style.width = '30%';
                 
-                // Create upload data with the file as base64
-                const uploadData = {
-                    title: document.getElementById('title').value || 'Untitled',
-                    description: document.getElementById('description').value || '',
-                    category: document.getElementById('category').value || 'Other',
-                    station: document.getElementById('station').value || '',
-                    tags: document.getElementById('tags').value || '',
-                    submitted_by: document.getElementById('submittedBy').value || '',
-                    priority: document.getElementById('priority').value || 'Normal',
-                    notes: document.getElementById('notes').value || '',
-                    filename: file.name,
-                    file_type: file.type || 'application/octet-stream',
-                    file_size: file.size,
-                    file_data: base64File,
-                    upload_date: new Date().toISOString()
-                };
-                
-                console.log('Sending data to xano-proxy...');
-                progressFill.style.width = '60%';
-                
-                // Send to the proxy function
-                const response = await fetch('/.netlify/functions/xano-proxy/voxpro', {
+                // Send FormData directly to file-manager-upload function
+                const response = await fetch('/.netlify/functions/file-manager-upload', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(uploadData)
+                    body: formData
                 });
                 
                 progressFill.style.width = '80%';
-                console.log('Response status:', response.status);
                 
-                // Get the text response first
-                const responseText = await response.text();
-                console.log('Response text:', responseText);
+                const result = await response.json();
+                console.log('Upload result:', result);
                 
-                // Try to parse as JSON
-                let result;
-                try {
-                    result = JSON.parse(responseText);
-                } catch (e) {
-                    console.error('Error parsing response:', e);
-                    throw new Error('Invalid response from server');
-                }
-                
-                if (response.ok) {
+                if (response.ok && result.success) {
                     showSuccess('File uploaded successfully! You can now find it in VoxPro Manager.');
                     form.reset();
                     fileInfo.style.display = 'none';
                     progressFill.style.width = '100%';
                 } else {
-                    showError(result.error || 'Upload failed. Please try again.');
+                    showError(result.error || result.message || 'Upload failed. Please try again.');
                     progressFill.style.width = '0%';
                 }
             } catch (error) {
@@ -402,19 +375,6 @@ exports.handler = async (event, context) => {
                 progressFill.style.width = '0%';
             }, 2000);
         });
-        
-        // Read file as base64
-        function readFileAsBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const base64 = reader.result.split(',')[1];
-                    resolve(base64);
-                };
-                reader.onerror = error => reject(error);
-                reader.readAsDataURL(file);
-            });
-        }
         
         function showSuccess(message) {
             successMessage.textContent = message;
