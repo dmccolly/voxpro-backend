@@ -2,10 +2,9 @@
   publish   = "."
   functions = "netlify/functions"
 
-# Pretty URL for the uploader
 [[redirects]]
   from = "/file-manager"
-  to   = "/.netlify/functions/file-manager-upload"
+  to   = "/.netlify/functions/uploader"
   status = 200
   force  = true
 
