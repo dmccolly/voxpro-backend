@@ -4,6 +4,6 @@
   "private": true,
   "dependencies": {
     "cloudinary": "^1.39.2",
-    "aws-lambda-multipart-parser": "^1.2.0"
+    "busboy": "^1.6.0"
   }
 }
