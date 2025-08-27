@@ -1,672 +1,138 @@
 <!DOCTYPE html>
-<base href="/" />
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoxPro Manager</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --primary: #2c3e50;
-            --secondary: #34495e;
-            --accent: #3498db;
-            --light: #ecf0f1;
-            --dark: #2c3e50;
-            --success: #2ecc71;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --info: #3498db;
-        }
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-            color: var(--dark);
-            background-color: #f5f5f5;
-            padding: 20px;
-        }
-        
-        h1, h2, h3 {
-            margin-bottom: 15px;
-            font-weight: 600;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-        
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px 0;
-            margin-bottom: 20px;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        .header h1 {
-            margin-bottom: 0;
-        }
-        
-        .status {
-            display: flex;
-            align-items: center;
-        }
-        
-        .status-indicator {
-            margin-right: 10px;
-        }
-        
-        .connected {
-            color: var(--success);
-        }
-        
-        .disconnected {
-            color: var(--danger);
-        }
-        
-        .panel {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        
-        .panel-title {
-            font-size: 1.2rem;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #eee;
-        }
-        
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-        }
-        
-        .key-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-            gap: 10px;
-        }
-        
-        .two-column {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 20px;
-        }
-        
-        @media (max-width: 768px) {
-            .two-column {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        .key {
-            background: var(--light);
-            border: 2px solid #ddd;
-            border-radius: 4px;
-            padding: 15px 10px;
-            text-align: center;
-            font-size: 1.2rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .key:hover {
-            background: #ddd;
-        }
-        
-        .key.playing {
-            background: var(--accent);
-            color: white;
-            border-color: var(--accent);
-        }
-        
-        .list-container {
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #eee;
-            border-radius: 4px;
-        }
-        
-        .list-item {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            align-items: center;
-        }
-        
-        .list-item:last-child {
-            border-bottom: none;
-        }
-        
-        .list-item.empty {
-            color: #999;
-            font-style: italic;
-            justify-content: center;
-        }
-        
-        .list-item.assignment {
-            cursor: pointer;
-        }
-        
-        .list-item.assignment:hover {
-            background: #f9f9f9;
-        }
-        
-        .key-name {
-            font-weight: bold;
-            margin-right: 10px;
-            background: var(--primary);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 3px;
-            min-width: 30px;
-            text-align: center;
-        }
-        
-        .search-container {
-            margin-bottom: 15px;
-        }
-        
-        .search-input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-        }
-        
-        .media-browser {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 15px;
-            max-height: 400px;
-            overflow-y: auto;
-            padding: 10px 0;
-        }
-        
-        .media-item {
-            background: white;
-            border: 1px solid #eee;
-            border-radius: 4px;
-            padding: 10px;
-            cursor: pointer;
-            position: relative;
-            transition: all 0.2s;
-        }
-        
-        .media-item:hover {
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        
-        .media-item.empty {
-            grid-column: 1 / -1;
-            text-align: center;
-            color: #999;
-            font-style: italic;
-            cursor: default;
-        }
-        
-        .media-item.selected {
-            border-color: var(--accent);
-            background: #f0f7fd;
-        }
-        
-        .thumbnail {
-            height: 80px;
-            background: #f5f5f5;
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 10px;
-        }
-        
-        .thumbnail.large {
-            height: 120px;
-        }
-        
-        .type-icon {
-            font-size: 2rem;
-            color: #999;
-        }
-        
-        .title {
-            font-weight: 600;
-            margin-bottom: 5px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .description {
-            font-size: 0.9rem;
-            color: #777;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .play-btn {
-            position: absolute;
-            top: 40px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .play-btn:hover {
-            background: var(--accent);
-        }
-        
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        .form-label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-        }
-        
-        .form-control {
-            width: 100%;
-            padding: 8px 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-        }
-        
-        textarea.form-control {
-            min-height: 100px;
-            resize: vertical;
-        }
-        
-        .btn {
-            display: inline-block;
-            background: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 10px 15px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .btn:hover {
-            background: #2980b9;
-        }
-        
-        .btn-block {
-            display: block;
-            width: 100%;
-        }
-        
-        .btn-danger {
-            background: var(--danger);
-        }
-        
-        .btn-danger:hover {
-            background: #c0392b;
-        }
-        
-        .alert {
-            padding: 10px 15px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            display: none;
-        }
-        
-        .alert-error {
-            background: #fee;
-            border: 1px solid #fcc;
-            color: var(--danger);
-        }
-        
-        .alert-success {
-            background: #efe;
-            border: 1px solid #cfc;
-            color: var(--success);
-        }
-        
-        .current-info {
-            padding: 10px;
-            background: var(--light);
-            border-radius: 4px;
-            text-align: center;
-            font-weight: 600;
-            margin-top: 10px;
-        }
-        
-        /* Player */
-        .player-controls {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        
-        .control-btn {
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            padding: 8px 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .control-btn:hover {
-            background: var(--secondary);
-        }
-        
-        .control-btn.stop {
-            background: var(--danger);
-        }
-        
-        .control-btn.stop:hover {
-            background: #c0392b;
-        }
-        
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1000;
-            overflow: auto;
-        }
-        
-        .modal-content {
-            background: white;
-            margin: 50px auto;
-            max-width: 800px;
-            width: 90%;
-            border-radius: 8px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            position: relative;
-        }
-        
-        .modal-header {
-            padding: 15px 20px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .modal-close {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #999;
-        }
-        
-        .modal-close:hover {
-            color: var(--danger);
-        }
-        
-        .modal-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin: 0;
-        }
-        
-        .modal-body {
-            padding: 20px;
-        }
-        
-        .media-player {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 200px;
-        }
-        
-        .media-description {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 4px;
-            font-size: 0.9rem;
-            color: #666;
-        }
-        
-        /* Delete button */
-        .delete-btn {
-            margin-left: auto;
-            background: none;
-            border: none;
-            color: var(--danger);
-            font-size: 1.2rem;
-            cursor: pointer;
-            opacity: 0.7;
-            transition: all 0.2s;
-        }
-        
-        .delete-btn:hover {
-            opacity: 1;
-        }
-        
-        /* Tabs */
-        .tabs {
-            display: flex;
-            border-bottom: 1px solid #ddd;
-            margin-bottom: 20px;
-        }
-        
-        .tab {
-            padding: 10px 15px;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-        }
-        
-        .tab.active {
-            border-bottom-color: var(--accent);
-            color: var(--accent);
-            font-weight: 600;
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>VoxPro Manager</title>
+
+<!-- Inline styles so the page looks correct even if external assets aren’t loaded -->
+<style>
+  :root{
+    --bg1:#1e3c72; --bg2:#2a5298;
+    --card:#ffffff; --text:#212529; --muted:#6c757d;
+    --pri1:#667eea; --pri2:#764ba2; --ok:#16a34a; --bad:#e11d48;
+    --chip:#f1f5f9; --chipbd:#e2e8f0;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Arial,sans-serif;
+    background:linear-gradient(135deg,var(--bg1),var(--bg2));
+    color:var(--text);
+  }
+  .shell{max-width:1100px;margin:0 auto;padding:24px}
+  .card{
+    background:var(--card);
+    border-radius:16px;
+    box-shadow:0 16px 40px rgba(0,0,0,.15);
+    overflow:hidden;
+  }
+  .header{
+    padding:28px 28px 18px;
+    background:linear-gradient(135deg,var(--pri1),var(--pri2));
+    color:#fff;
+  }
+  .title{margin:0;font-size:28px;font-weight:700;letter-spacing:.2px}
+  .subtitle{margin:6px 0 0;font-size:14px;opacity:.9}
+  .bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:16px}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:8px 12px;border-radius:999px;background:var(--chip);border:1px solid var(--chipbd);
+    color:#0f172a;font-weight:600;font-size:14px;
+  }
+  .chip.ok{background:#ecfdf5;border-color:#bbf7d0;color:#065f46}
+  .chip.bad{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
+  .content{padding:24px}
+  .grid{display:grid;grid-template-columns:1fr;gap:20px}
+  @media(min-width:900px){.grid{grid-template-columns:2fr 1fr}}
+  .panel{border:1px solid #e5e7eb;border-radius:14px;padding:18px}
+  .panel h3{margin:0 0 10px;font-size:16px}
+  .muted{color:var(--muted);font-size:14px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    gap:8px;padding:12px 16px;border:0;border-radius:10px;
+    background:linear-gradient(135deg,var(--pri1),var(--pri2));color:#fff;
+    font-weight:700;cursor:pointer;text-decoration:none;transition:.2s transform,.2s box-shadow;
+  }
+  .btn:hover{transform:translateY(-1px);box-shadow:0 10px 20px rgba(118,75,162,.35)}
+  .btn.secondary{background:#0f172a}
+  .list{margin:8px 0 0;padding:0;list-style:none}
+  .item{padding:10px 0;border-bottom:1px dashed #e5e7eb;font-size:14px}
+  .item:last-child{border-bottom:0}
+  .kbd{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+    background:#0f172a;color:#fff;padding:2px 6px;border-radius:6px;font-size:12px
+  }
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>VoxPro Manager</h1>
-            <div class="status">
-                <span class="status-indicator">Status:</span>
-                <span id="connectionStatus" class="disconnected">Disconnected</span>
-            </div>
+  <div class="shell">
+    <div class="card">
+      <div class="header">
+        <h1 class="title">VoxPro Manager</h1>
+        <p class="subtitle">Upload, track, and manage media going to VoxPro.</p>
+        <div class="bar">
+          <span id="statusChip" class="chip">Status: Checking…</span>
+          <a class="btn" href="/file-manager">Open Upload Form</a>
+          <a class="btn secondary" href="/file-manager-upload" target="_blank" rel="noopener">API (GET) Diagnostics</a>
         </div>
-        
-        <div id="alert" class="alert alert-error"></div>
-        
-        <div class="panel">
-            <h2 class="panel-title">Player</h2>
-            <div class="key-grid">
-                <div class="key" data-key="F1">F1</div>
-                <div class="key" data-key="F2">F2</div>
-                <div class="key" data-key="F3">F3</div>
-                <div class="key" data-key="F4">F4</div>
-                <div class="key" data-key="F5">F5</div>
-                <div class="key" data-key="F6">F6</div>
-                <div class="key" data-key="F7">F7</div>
-                <div class="key" data-key="F8">F8</div>
-                <div class="key" data-key="F9">F9</div>
-                <div class="key" data-key="F10">F10</div>
-                <div class="key" data-key="F11">F11</div>
-                <div class="key" data-key="F12">F12</div>
+      </div>
+
+      <div class="content">
+        <div class="grid">
+          <div class="panel">
+            <h3>How it works</h3>
+            <ul class="list">
+              <li class="item">1. Use <strong>Open Upload Form</strong> to send your file.</li>
+              <li class="item">2. File is stored in Cloudinary (thumbnail auto-generated).</li>
+              <li class="item">3. Metadata is written to Xano (<span class="kbd">/user_submission</span>).</li>
+            </ul>
+          </div>
+
+          <div class="panel">
+            <h3>Quick actions</h3>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
+              <a class="btn" href="/file-manager">Upload Media</a>
+              <a class="btn secondary" href="/voxpro-manager">Refresh</a>
             </div>
-            
-            <div class="player-controls">
-                <button id="stopButton" class="control-btn stop">
-                    <i class="fas fa-stop"></i> Stop
-                </button>
-            </div>
-            
-            <div id="currentInfo" class="current-info"></div>
+            <p class="muted" style="margin-top:10px">
+              Tip: If styling ever looks off, hard-refresh <span class="kbd">Ctrl/Cmd+Shift+R</span>.
+            </p>
+          </div>
         </div>
-        
-        <div class="tabs">
-            <div class="tab active" data-tab="assignments">Assignments</div>
-            <div class="tab" data-tab="manager">Manager</div>
-        </div>
-        
-        <div id="assignmentsTab" class="tab-content active">
-            <div class="panel">
-                <h2 class="panel-title">Current Assignments</h2>
-                <div class="list-container">
-                    <div id="assignmentsList"></div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="managerTab" class="tab-content">
-            <div class="panel">
-                <h2 class="panel-title">Manage Assignments</h2>
-                <div class="two-column">
-                    <div>
-                        <div class="list-container">
-                            <div id="assignmentsListManager"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="search-container">
-                            <input type="text" id="searchInput" class="search-input" placeholder="Search media...">
-                        </div>
-                        
-                        <div id="mediaBrowser" class="media-browser"></div>
-                        
-                        <div id="selectedMedia" class="selected-media" style="margin-top: 20px;"></div>
-                        
-                        <div class="form-group" style="margin-top: 20px;">
-                            <label class="form-label" for="keySelect">Assign to Key:</label>
-                            <select id="keySelect" class="form-control">
-                                <option value="">Select Key</option>
-                                <option value="F1">F1</option>
-                                <option value="F2">F2</option>
-                                <option value="F3">F3</option>
-                                <option value="F4">F4</option>
-                                <option value="F5">F5</option>
-                                <option value="F6">F6</option>
-                                <option value="F7">F7</option>
-                                <option value="F8">F8</option>
-                                <option value="F9">F9</option>
-                                <option value="F10">F10</option>
-                                <option value="F11">F11</option>
-                                <option value="F12">F12</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label" for="titleInput">Title:</label>
-                            <input type="text" id="titleInput" class="form-control">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label" for="descriptionInput">Description:</label>
-                            <textarea id="descriptionInput" class="form-control"></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label" for="stationInput">Station:</label>
-                            <input type="text" id="stationInput" class="form-control">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label" for="tagsInput">Tags (comma separated):</label>
-                            <input type="text" id="tagsInput" class="form-control">
-                        </div>
-                        
-                        <div class="form-group">
-                            <label class="form-label" for="submittedByInput">Submitted By:</label>
-                            <input type="text" id="submittedByInput" class="form-control">
-                        </div>
-                        
-                        <button id="assignButton" class="btn btn-block">Assign to Key</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
-    
-    <!-- Media Player Modal -->
-    <div id="mediaModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Media Player</h2>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="mediaPlayer" class="media-player"></div>
-                <div id="mediaDescription" class="media-description"></div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Tab functionality -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const tabs = document.querySelectorAll('.tab');
-            const tabContents = document.querySelectorAll('.tab-content');
-            
-            tabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const tabId = tab.getAttribute('data-tab');
-                    
-                    // Remove active class from all tabs and contents
-                    tabs.forEach(t => t.classList.remove('active'));
-                    tabContents.forEach(c => c.classList.remove('active'));
-                    
-                    // Add active class to selected tab and content
-                    tab.classList.add('active');
-                    document.getElementById(`${tabId}Tab`).classList.add('active');
-                });
-            });
-        });
-    </script>
-    
-    <!-- External Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    
-    <!-- App Logic -->
-    <script src="/assets/voxpro-manager.js"></script>
+  </div>
+
+<script>
+(async function(){
+  const chip = document.getElementById('statusChip');
+  const set = (cls, text) => { chip.className = 'chip ' + cls; chip.textContent = text; };
+
+  try {
+    const r = await fetch('/.netlify/functions/file-manager-upload', { method: 'GET' });
+    const data = await r.json().catch(() => ({}));
+
+    if (r.ok && data && data.ok && data.env) {
+      const missing = [];
+      if (!data.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
+      if (!data.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
+      if (!data.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
+      if (!data.env.XANO_API_KEY) missing.push('XANO_API_KEY');
+      if (!data.env.XANO_API_BASE_present) missing.push('XANO_API_BASE');
+      if (missing.length === 0) {
+        set('ok', 'Status: Connected');
+      } else {
+        set('bad', 'Status: Disconnected (missing ' + missing.join(', ') + ')');
+      }
+    } else {
+      set('bad', 'Status: Disconnected (function error)');
+    }
+  } catch (e) {
+    set('bad', 'Status: Disconnected (network)');
+  }
+})();
+</script>
 </body>
 </html>
