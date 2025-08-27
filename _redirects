@@ -1,6 +1,6 @@
-/direct-upload        /.netlify/functions/direct-uploader    200
-/voxpro-manager       /templates/voxpro-manager.html         200
-/assets/*             /assets/:splat                         200
-/file-manager         /.netlify/functions/file-manager-page  200
-/.netlify/functions/* /.netlify/functions/:splat             200
-/*                    /index.html                            200
+/direct-upload       /.netlify/functions/direct-uploader    200
+/voxpro-manager      /templates/voxpro-manager.html         200
+/assets/*            /assets/:splat                         200
+/file-manager        /.netlify/functions/file-manager-page  200
+/.netlify/functions/* /.netlify/functions/:splat            200
+/*                   /index.html                            200
