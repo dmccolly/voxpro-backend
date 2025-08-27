@@ -55,8 +55,8 @@ exports.handler = async (event, context) => {
 
   try {
     const query = event.queryStringParameters?.q || '';
-    const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX';
-    // CHANGED: Using user_submission instead of voxpro
+    // FIXED URL
+    const XANO_API_BASE = process.env.XANO_API_BASE || 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
     const searchUrl = `${XANO_API_BASE}/user_submission`;
     
     console.log(`FRESH SEARCH: ${searchUrl} for query: "${query}"`);
@@ -94,7 +94,6 @@ exports.handler = async (event, context) => {
       return dateB - dateA;
     });
     
-    // Return in the format voxpro-manager expects
     return {
       statusCode: 200,
       headers,
