@@ -10,7 +10,7 @@ window.addEventListener('load', () => {
 // Use relative paths instead of hard-coded domain
 const SEARCH_API_PRIMARY = '/api/search-media';
 const SEARCH_API_SECONDARY = '';
-const XANO_API_BASE = '/api/xano-proxy';
+const XANO_API_BASE = '/.netlify/functions/xano-proxy';
 const MEDIA_PROXY = '/media-proxy/';
 const ASSIGNMENTS_REFRESH_MS = 30000;
 
