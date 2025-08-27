@@ -21,14 +21,14 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Forward the entire request to Xano - FIXED API KEY
+    // CORRECTED URL
     const options = {
-      hostname: 'x8ki-letl-twmt.n7.xano.io',
-      path: '/api:pYeQctVX/user_submission',  // Fixed - ends with VX
+      hostname: 'xajo-bs7d-cagt.n7e.xano.io',
+      path: '/api:pYeQctVX/user_submission',
       method: 'POST',
       headers: {
         ...event.headers,
-        'host': 'x8ki-letl-twmt.n7.xano.io'
+        'host': 'xajo-bs7d-cagt.n7e.xano.io'
       }
     };
 
@@ -56,7 +56,6 @@ exports.handler = async (event, context) => {
         });
       });
 
-      // Write the body directly
       if (event.body) {
         req.write(event.isBase64Encoded ? Buffer.from(event.body, 'base64') : event.body);
       }
