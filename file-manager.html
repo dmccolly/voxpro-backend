@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Media Manager</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        
+        .upload-form {
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .form-row {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        input[type="file"] {
+            padding: 8px;
+            background: #f9f9f9;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        .file-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f8ff;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            display: block;
+            width: 100%;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .alert {
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .file-list {
+            margin-top: 30px;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background: white;
+        }
+        
+        .file-icon {
+            font-size: 24px;
+            margin-right: 15px;
+            color: #3498db;
+        }
+        
+        .file-details {
+            flex: 1;
+        }
+        
+        .file-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .file-meta {
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+        
+        .file-actions {
+            display: flex;
+        }
+        
+        .file-actions button {
+            width: auto;
+            padding: 6px 12px;
+            margin-left: 8px;
+            font-size: 14px;
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .nav-links {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+        
+        .nav-link {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Media Manager</h1>
+        
+        <div id="successAlert" class="alert alert-success"></div>
+        <div id="errorAlert" class="alert alert-error"></div>
+        
+        <div class="upload-form">
+            <h2>Upload New Media</h2>
+            
+            <form id="uploadForm">
+                <div class="form-row">
+                    <label for="file">Select Media File</label>
+                    <input type="file" id="file" name="file" required>
+                    <div id="fileInfo" class="file-info"></div>
+                </div>
+                
+                <div class="form-row">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" name="title" required placeholder="Enter media title">
+                </div>
+                
+                <div class="form-row">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" placeholder="Enter media description"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <label for="category">Category</label>
+                    <select id="category" name="category">
+                        <option value="">Select category</option>
+                        <option value="Audio">Audio</option>
+                        <option value="Video">Video</option>
+                        <option value="Photo">Photo</option>
+                        <option value="Document">Document</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <label for="submittedBy">Submitted By</label>
+                    <input type="text" id="submittedBy" name="submittedBy" placeholder="Your name">
+                </div>
+                
+                <div class="form-row">
+                    <label for="station">Station</label>
+                    <select id="station" name="station">
+                        <option value="">Select station</option>
+                        <option value="KIVI">KIVI</option>
+                        <option value="KNIN">KNIN</option>
+                        <option value="KGEM">KGEM</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-row">
+                    <label for="tags">Tags (comma separated)</label>
+                    <input type="text" id="tags" name="tags" placeholder="Enter tags separated by commas">
+                </div>
+                
+                <button type="submit" id="uploadBtn">Upload Media</button>
+            </form>
+        </div>
+        
+        <div class="file-list">
+            <h2>Recently Uploaded</h2>
+            <div id="fileList">
+                <!-- Files will be listed here -->
+                <div class="file-item">
+                    <div class="file-icon">📄</div>
+                    <div class="file-details">
+                        <div class="file-title">Loading files...</div>
+                        <div class="file-meta">Please wait...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="nav-links">
+            <a href="/voxpro-manager" class="nav-link">← Back to VoxPro Manager</a>
+        </div>
+    </div>
+    
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+    </div>
+    
+    <script>
+        // Configuration
+        const XANO_API_BASE = 'https://x8k1-lell-twmt.n7.xano.io/api:pYeQctV';
+        const MAX_FILE_SIZE = 250 * 1024 * 1024; // 250MB
+        
+        // DOM Elements
+        const uploadForm = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('file');
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const successAlert = document.getElementById('successAlert');
+        const errorAlert = document.getElementById('errorAlert');
+        const fileList = document.getElementById('fileList');
+        const loading = document.getElementById('loading');
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            // Show file info when a file is selected
+            fileInput.addEventListener('change', handleFileSelect);
+            
+            // Handle form submission
+            uploadForm.addEventListener('submit', handleUpload);
+            
+            // Load recent files
+            loadRecentFiles();
+        });
+        
+        // File selection handler
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) {
+                fileInfo.style.display = 'none';
+                return;
+            }
+            
+            if (file.size > MAX_FILE_SIZE) {
+                showError('File size exceeds 250MB limit. Please choose a smaller file.');
+                fileInput.value = '';
+                fileInfo.style.display = 'none';
+                return;
+            }
+            
+            // Display file info
+            fileInfo.innerHTML = `
+                <strong>File:</strong> ${file.name}<br>
+                <strong>Type:</strong> ${file.type || 'Unknown'}<br>
+                <strong>Size:</strong> ${formatFileSize(file.size)}
+            `;
+            fileInfo.style.display = 'block';
+        }
+        
+        // Form submission handler
+        async function handleUpload(e) {
+            e.preventDefault();
+            
+            const file = fileInput.files[0];
+            if (!file) {
+                showError('Please select a file to upload.');
+                return;
+            }
+            
+            // Create form data
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', document.getElementById('title').value);
+            formData.append('description', document.getElementById('description').value);
+            formData.append('category', document.getElementById('category').value);
+            formData.append('submittedBy', document.getElementById('submittedBy').value);
+            formData.append('station', document.getElementById('station').value);
+            formData.append('tags', document.getElementById('tags').value);
+            
+            // Disable form and show loading indicator
+            uploadBtn.disabled = true;
+            showLoading();
+            hideAlerts();
+            
+            try {
+                // Log what we're doing
+                console.log('Uploading file:', file.name);
+                
+                // Send to Xano directly
+                const uploadData = {
+                    title: document.getElementById('title').value || 'Untitled',
+                    description: document.getElementById('description').value || '',
+                    category: document.getElementById('category').value || 'Other',
+                    station: document.getElementById('station').value || '',
+                    tags: document.getElementById('tags').value || '',
+                    submitted_by: document.getElementById('submittedBy').value || '',
+                    filename: file.name,
+                    file_type: file.type || 'application/octet-stream',
+                    file_size: file.size,
+                    upload_date: new Date().toISOString()
+                };
+                
+                // Make the request to Xano
+                const response = await fetch(`${XANO_API_BASE}/voxpro`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(uploadData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Upload failed with status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Upload success:', result);
+                
+                // Show success message
+                showSuccess('File uploaded successfully!');
+                
+                // Reset form
+                uploadForm.reset();
+                fileInfo.style.display = 'none';
+                
+                // Reload file list
+                loadRecentFiles();
+            } catch (error) {
+                console.error('Upload error:', error);
+                showError('Upload failed: ' + (error.message || 'Unknown error'));
+            } finally {
+                // Re-enable form and hide loading indicator
+                uploadBtn.disabled = false;
+                hideLoading();
+            }
+        }
+        
+        // Load recent files from Xano
+        async function loadRecentFiles() {
+            try {
+                showLoading();
+                
+                const response = await fetch(`${XANO_API_BASE}/voxpro?_sort=-upload_date&_limit=5`);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load files: ${response.status}`);
+                }
+                
+                const files = await response.json();
+                
+                // Clear file list
+                fileList.innerHTML = '';
+                
+                if (files.length === 0) {
+                    fileList.innerHTML = '<div class="file-item"><div class="file-details">No files found.</div></div>';
+                    return;
+                }
+                
+                // Add files to list
+                files.forEach(file => {
+                    const fileElement = document.createElement('div');
+                    fileElement.className = 'file-item';
+                    
+                    const icon = getFileIcon(file.file_type);
+                    
+                    fileElement.innerHTML = `
+                        <div class="file-icon">${icon}</div>
+                        <div class="file-details">
+                            <div class="file-title">${file.title || 'Untitled'}</div>
+                            <div class="file-meta">
+                                ${file.file_type || 'Unknown type'} • 
+                                ${formatFileSize(file.file_size || 0)} • 
+                                Uploaded ${formatDate(file.upload_date || new Date().toISOString())}
+                                ${file.submitted_by ? ' by ' + file.submitted_by : ''}
+                            </div>
+                        </div>
+                        <div class="file-actions">
+                            <button class="view-btn" data-id="${file.id}">View</button>
+                            <button class="assign-btn" data-id="${file.id}">Assign</button>
+                        </div>
+                    `;
+                    
+                    fileList.appendChild(fileElement);
+                });
+                
+                // Add event listeners for buttons
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.addEventListener('click', () => viewFile(btn.dataset.id));
+                });
+                
+                document.querySelectorAll('.assign-btn').forEach(btn => {
+                    btn.addEventListener('click', () => assignFile(btn.dataset.id));
+                });
+            } catch (error) {
+                console.error('Error loading files:', error);
+                fileList.innerHTML = `
+                    <div class="file-item">
+                        <div class="file-details">
+                            <div class="file-title">Error loading files</div>
+                            <div class="file-meta">${error.message}</div>
+                        </div>
+                    </div>
+                `;
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // View file details
+        function viewFile(id) {
+            // Redirect to VoxPro manager with file selected
+            window.location.href = `/voxpro-manager?file=${id}`;
+        }
+        
+        // Assign file to a key
+        function assignFile(id) {
+            // Redirect to VoxPro manager with assignment mode
+            window.location.href = `/voxpro-manager?assign=${id}`;
+        }
+        
+        // Utility Functions
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            
+            // If today, show time
+            if (date.toDateString() === now.toDateString()) {
+                return 'Today at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            }
+            
+            // If yesterday, show "Yesterday"
+            const yesterday = new Date();
+            yesterday.setDate(now.getDate() - 1);
+            if (date.toDateString() === yesterday.toDateString()) {
+                return 'Yesterday';
+            }
+            
+            // Otherwise show date
+            return date.toLocaleDateString();
+        }
+        
+        function getFileIcon(fileType) {
+            if (!fileType) return '📄';
+            
+            if (fileType.includes('audio')) return '🔊';
+            if (fileType.includes('video')) return '🎬';
+            if (fileType.includes('image')) return '🖼️';
+            if (fileType.includes('pdf')) return '📕';
+            if (fileType.includes('text')) return '📝';
+            
+            return '📄';
+        }
+        
+        function showSuccess(message) {
+            successAlert.textContent = message;
+            successAlert.style.display = 'block';
+            errorAlert.style.display = 'none';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                successAlert.style.display = 'none';
+            }, 5000);
+        }
+        
+        function showError(message) {
+            errorAlert.textContent = message;
+            errorAlert.style.display = 'block';
+            successAlert.style.display = 'none';
+        }
+        
+        function hideAlerts() {
+            successAlert.style.display = 'none';
+            errorAlert.style.display = 'none';
+        }
+        
+        function showLoading() {
+            loading.style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            loading.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
