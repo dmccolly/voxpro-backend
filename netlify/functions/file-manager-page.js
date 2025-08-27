@@ -26,18 +26,22 @@ exports.handler = async (event) => {
   .card{background:#fff;border-radius:16px;box-shadow:0 18px 40px rgba(0,0,0,.18);overflow:hidden}
   .head{padding:24px;background:linear-gradient(135deg,var(--p1),var(--p2));color:#fff}
   .head h1{margin:0;font-weight:800}
+  .head p{margin:6px 0 0;opacity:.95}
   .body{padding:22px}
   label{font-weight:700;display:block;margin:14px 0 6px}
   input,select,textarea{width:100%;padding:10px 12px;border:2px solid #e5e7eb;border-radius:10px;font-size:15px;background:#f9fafb}
+  input[type="file"]{background:#fff}
   textarea{min-height:90px;resize:vertical}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .btn{display:inline-flex;gap:8px;align-items:center;margin-top:14px;padding:12px 16px;border:0;border-radius:10px;background:linear-gradient(135deg,var(--p1),var(--p2));color:#fff;font-weight:800;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:not-allowed}
   .msg{margin-top:14px;border-radius:10px;padding:12px;font-weight:700;display:none}
   .ok{background:#ecfdf5;color:#065f46;border:1px solid #bbf7d0}
   .err{background:#fef2f2;color:#7f1d1d;border:1px solid #fecaca}
   .progress{height:8px;background:#e5e7eb;border-radius:8px;overflow:hidden;margin-top:10px;display:none}
   .bar{height:100%;width:0;background:linear-gradient(135deg,var(--p1),var(--p2));transition:width .2s}
   small{color:#6b7280}
+  .fileinfo{color:#334155;font-size:13px;margin-top:6px}
 </style>
 </head>
 <body>
@@ -53,7 +57,9 @@ exports.handler = async (event) => {
 
         <form id="f">
           <label>Media file <small>(required; max 250MB)</small></label>
-          <input type="file" id="file" required />
+          <input type="file" id="file" required
+                 accept=".mp4,.mov,.avi,.mkv,.wmv,.flv,.mp3,.wav,.aac,.m4a,.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx" />
+          <div id="fileinfo" class="fileinfo"></div>
 
           <div class="row">
             <div>
@@ -102,7 +108,7 @@ exports.handler = async (event) => {
           <textarea id="notes" placeholder="Additional notes or comments"></textarea>
 
           <div class="progress" id="prog"><div class="bar" id="bar"></div></div>
-          <button class="btn" type="submit">Upload Media</button>
+          <button class="btn" id="submitBtn" type="submit">Upload Media</button>
         </form>
       </div>
     </div>
@@ -113,11 +119,23 @@ exports.handler = async (event) => {
   const MAX = 250 * 1024 * 1024; // 250MB
   const qs = (id)=>document.getElementById(id);
   const form = qs('f');
-  const ok = qs('ok'), err = qs('err'), file = qs('file');
-  const bar = qs('bar'), prog = qs('prog');
+  const ok = qs('ok'), err = qs('err'), file = qs('file'), info = qs('fileinfo');
+  const bar = qs('bar'), prog = qs('prog'), btn = qs('submitBtn');
 
   function showOk(m){ ok.textContent = m; ok.style.display='block'; err.style.display='none'; }
   function showErr(m){ err.textContent = m; err.style.display='block'; ok.style.display='none'; }
+  function resetProg(){ prog.style.display='none'; bar.style.width='0'; }
+
+  file.addEventListener('change', ()=>{
+    const f = file.files[0];
+    if(!f){ info.textContent=''; return; }
+    if(f.size > MAX){
+      showErr('File exceeds 250MB limit.');
+      file.value=''; info.textContent='';
+      return;
+    }
+    info.textContent = 'Selected: ' + f.name + ' • ' + (f.size/(1024*1024)).toFixed(2) + ' MB • ' + (f.type || 'unknown');
+  });
 
   form.addEventListener('submit', async (e)=>{
     e.preventDefault();
@@ -127,7 +145,9 @@ exports.handler = async (event) => {
     if(f.size > MAX){ return showErr('File exceeds 250MB limit.'); }
 
     const fd = new FormData();
+    // IMPORTANT: field name must be "attachment" to match the upload function
     fd.append('attachment', f);
+    // Use the same field names the backend expects
     fd.append('title', qs('title').value || 'Untitled');
     fd.append('description', qs('description').value || '');
     fd.append('submitted_by', qs('submittedBy').value || 'Anonymous');
@@ -141,13 +161,15 @@ exports.handler = async (event) => {
     fd.append('filename', f.name);
     fd.append('is_approved', 'false');
 
+    btn.disabled = true;
     prog.style.display='block';
-    bar.style.width='20%';
+    bar.style.width='25%';
+    showOk(''); showErr(''); // clear messages
 
     try{
-      // ABSOLUTE URL so it works from /file-manager OR /.netlify/functions/file-manager-page
+      // ABSOLUTE path so it works from /file-manager OR /.netlify/functions/file-manager-page
       const res = await fetch('/.netlify/functions/file-manager-upload', { method:'POST', body: fd });
-      bar.style.width='80%';
+      bar.style.width='70%';
 
       const text = await res.text();
       let data; try{ data = JSON.parse(text); }catch{ data = { message:text }; }
@@ -155,14 +177,16 @@ exports.handler = async (event) => {
       if(res.ok){
         bar.style.width='100%';
         showOk('File uploaded successfully! You can now find it in VoxPro Manager.');
-        form.reset(); prog.style.display='none'; bar.style.width='0';
+        form.reset(); info.textContent=''; resetProg();
       }else{
-        showErr(data.error || data.message || 'Upload failed.');
-        prog.style.display='none'; bar.style.width='0';
+        showErr((data.error || data.message || 'Upload failed.') + (data.stage ? (' ['+data.stage+']') : ''));
+        resetProg();
       }
     }catch(ex){
       showErr('Upload failed: ' + ex.message);
-      prog.style.display='none'; bar.style.width='0';
+      resetProg();
+    }finally{
+      btn.disabled = false;
     }
   });
 })();
