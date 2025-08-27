@@ -23,32 +23,64 @@ exports.handler = async (event) => {
     console.log(`Forwarding ${event.httpMethod} request to: ${url}`);
     
     const response = await new Promise((resolve, reject) => {
-      const req = https.request(url, {
+      const urlObj = new URL(url);
+      
+      const options = {
+        hostname: urlObj.hostname,
+        path: urlObj.pathname + urlObj.search,
+        port: 443,
         method: event.httpMethod,
-        headers: { 'Content-Type': 'application/json' }
-      }, (res) => {
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        // Critical fix: disable SSL certificate verification
+        rejectUnauthorized: false
+      };
+      
+      const req = https.request(options, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
-        res.on('end', () => resolve({ statusCode: res.statusCode, body: data }));
+        res.on('end', () => resolve({ 
+          statusCode: res.statusCode, 
+          headers: res.headers, 
+          body: data 
+        }));
       });
       
-      req.on('error', reject);
+      req.on('error', (error) => {
+        console.error('Request error:', error);
+        reject(error);
+      });
       
-      if (event.body) req.write(event.body);
+      if (event.body) {
+        req.write(event.body);
+      }
+      
       req.end();
     });
     
     return {
       statusCode: response.statusCode,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Access-Control-Allow-Origin': '*' 
+      },
       body: response.body
     };
   } catch (error) {
     console.error('Proxy error:', error);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: error.message })
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Access-Control-Allow-Origin': '*' 
+      },
+      body: JSON.stringify({ 
+        error: 'Proxy request failed', 
+        message: error.message,
+        stack: error.stack 
+      })
     };
   }
 };
