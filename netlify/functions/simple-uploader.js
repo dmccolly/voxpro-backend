@@ -1,22 +1,19 @@
 // netlify/functions/simple-uploader.js
+const https = require('https');
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-};
+exports.handler = async (event) => {
+  const cors = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+  };
+  const out = (code, body) => ({
+    statusCode: code,
+    headers: { ...cors, 'content-type': 'application/json' },
+    body: JSON.stringify(body)
+  });
 
-const json = (code, body) => ({
-  statusCode: code,
-  headers: { ...CORS, 'content-type': 'application/json' },
-  body: JSON.stringify(body),
-});
-
-exports.handler = async (event, context) => {
-  // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers: CORS, body: '' };
-  }
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
 
   // Serve the HTML form on GET
   if (event.httpMethod === 'GET') {
@@ -154,53 +151,58 @@ exports.handler = async (event, context) => {
     };
   }
 
-  // Handle POST request (server-side processing)
-  if (event.httpMethod === 'POST') {
-    const { XANO_API_BASE, XANO_API_KEY } = process.env;
-    
-    if (!XANO_API_BASE || !XANO_API_KEY) {
-      return json(500, { ok: false, error: 'Missing XANO_API_BASE or XANO_API_KEY environment variables' });
-    }
+  // Handle POST request (server-side processing) - using exact pattern from list-media.js
+  if (event.httpMethod !== 'POST') return out(405, { ok: false, error: 'Method not allowed' });
 
-    try {
-      // Parse the request body
-      const data = JSON.parse(event.body || '{}');
-      
-      // Construct the Xano URL using environment variables
-      let xanoUrl;
-      try {
-        xanoUrl = XANO_API_BASE.replace(/\/+$/, '') + '/user_submission';
-      } catch (e) {
-        return json(500, { ok: false, error: 'Invalid XANO_API_BASE environment variable' });
-      }
-
-      // Make request to Xano using fetch API
-      const xanoResponse = await fetch(xanoUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + XANO_API_KEY,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-
-      let xanoBody;
-      try {
-        xanoBody = await xanoResponse.json();
-      } catch (e) {
-        xanoBody = await xanoResponse.text();
-      }
-
-      if (xanoResponse.ok) {
-        return json(200, { ok: true, data: xanoBody });
-      } else {
-        return json(xanoResponse.status, { ok: false, error: 'Xano request failed', details: xanoBody });
-      }
-    } catch (error) {
-      return json(500, { ok: false, error: error.message });
-    }
+  const { XANO_API_BASE, XANO_API_KEY } = process.env;
+  if (!XANO_API_BASE || !XANO_API_KEY) {
+    return out(500, { ok: false, stage: 'env', error: 'Missing XANO_API_BASE or XANO_API_KEY' });
   }
 
-  return json(405, { ok: false, error: 'Method not allowed' });
+  let url;
+  try {
+    // POST to same endpoint as list-media uses for GET
+    const base = XANO_API_BASE.replace(/\/+$/, '');
+    url = new URL(base + '/user_submission');
+  } catch {
+    return out(500, { ok: false, stage: 'env', error: 'Invalid XANO_API_BASE', value: XANO_API_BASE });
+  }
+
+  // Parse the request body
+  let data;
+  try {
+    data = JSON.parse(event.body || '{}');
+  } catch {
+    return out(400, { ok: false, error: 'Invalid JSON in request body' });
+  }
+
+  // POST to Xano using exact same pattern as list-media.js
+  const res = await new Promise((resolve) => {
+    const req = https.request(
+      {
+        protocol: url.protocol,
+        hostname: url.hostname,
+        path: url.pathname + url.search,
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + XANO_API_KEY,
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
+        }
+      },
+      (r) => {
+        let responseData = '';
+        r.on('data', (c) => (responseData += c));
+        r.on('end', () => resolve({ status: r.statusCode, data: responseData }));
+      }
+    );
+    req.on('error', (e) => resolve({ status: 500, data: JSON.stringify({ ok: false, error: e.message }) }));
+    req.write(JSON.stringify(data));
+    req.end();
+  });
+
+  // try to parse response - same as list-media.js
+  let payload = res.data;
+  try { payload = JSON.parse(res.data); } catch {}
+  return out(res.status, { ok: res.status === 200 || res.status === 201, data: payload });
 };
