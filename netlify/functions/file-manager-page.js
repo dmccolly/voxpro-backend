@@ -322,26 +322,16 @@ exports.handler = async (event, context) => {
                 return;
             }
             
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('title', document.getElementById('title').value);
-            formData.append('description', document.getElementById('description').value);
-            formData.append('category', document.getElementById('category').value);
-            formData.append('submittedBy', document.getElementById('submittedBy').value);
-            formData.append('station', document.getElementById('station').value);
-            formData.append('tags', document.getElementById('tags').value);
-            formData.append('priority', document.getElementById('priority').value);
-            formData.append('notes', document.getElementById('notes').value);
-            
             uploadBtn.disabled = true;
             uploadBtn.textContent = 'Uploading...';
             progressBar.style.display = 'block';
             hideMessages();
             
             try {
-                console.log('Preparing upload...');
+                // Read file as base64
+                const base64File = await readFileAsBase64(file);
                 
-                // Convert FormData to JSON object
+                // Create JSON payload instead of FormData
                 const uploadData = {
                     title: document.getElementById('title').value || 'Untitled',
                     description: document.getElementById('description').value || '',
@@ -354,12 +344,14 @@ exports.handler = async (event, context) => {
                     filename: file.name,
                     file_type: file.type || 'application/octet-stream',
                     file_size: file.size,
+                    file_data: base64File, // Send the file as base64
                     upload_date: new Date().toISOString()
                 };
                 
-                console.log('Sending to proxy...');
+                console.log('Sending data to xano-proxy...');
+                progressFill.style.width = '30%';
                 
-                // Use the proxy endpoint instead of direct Xano connection
+                // Send to xano-proxy
                 const response = await fetch('/.netlify/functions/xano-proxy/voxpro', {
                     method: 'POST',
                     headers: {
@@ -368,16 +360,16 @@ exports.handler = async (event, context) => {
                     body: JSON.stringify(uploadData)
                 });
                 
+                progressFill.style.width = '80%';
                 console.log('Response status:', response.status);
-                
-                const responseText = await response.text();
-                console.log('Response:', responseText);
                 
                 let result;
                 try {
-                    result = JSON.parse(responseText);
-                } catch (e) {
-                    console.error('Failed to parse response as JSON:', e);
+                    const text = await response.text();
+                    console.log('Response text:', text);
+                    result = JSON.parse(text);
+                } catch (error) {
+                    console.error('Error parsing response:', error);
                     throw new Error('Invalid response from server');
                 }
                 
@@ -392,7 +384,7 @@ exports.handler = async (event, context) => {
                 }
             } catch (error) {
                 console.error('Upload error:', error);
-                showError('Upload failed. Please check your connection and try again.');
+                showError('Upload failed: ' + error.message);
                 progressFill.style.width = '0%';
             }
             
@@ -403,6 +395,20 @@ exports.handler = async (event, context) => {
                 progressFill.style.width = '0%';
             }, 2000);
         });
+        
+        // Helper function to read file as base64
+        function readFileAsBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    // Get the base64 string (remove the data URL prefix)
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
         
         function showSuccess(message) {
             successMessage.textContent = message;
