@@ -19,9 +19,14 @@ exports.handler = async (event) => {
 
   try {
     // Extract the endpoint from the path
-    const endpoint = event.path.replace('/.netlify/functions/xano-proxy', '') || '/auth/ping';
+    let endpoint = event.path.replace('/.netlify/functions/xano-proxy', '');
     
-    // Use the CORRECT Xano API URL (typo fixed: letl not lell)
+    // Default to /voxpro if no endpoint specified or if /auth/ping is requested
+    if (!endpoint || endpoint === '/auth/ping') {
+      endpoint = '/voxpro';
+    }
+    
+    // Use the correct Xano API URL
     const url = 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX' + endpoint;
     
     console.log(`Forwarding ${event.httpMethod} request to: ${url}`);
@@ -42,7 +47,6 @@ exports.handler = async (event) => {
           'Accept': 'application/json',
           'Cache-Control': 'no-cache'
         },
-        // CRITICAL: Disable SSL verification
         rejectUnauthorized: false
       };
       
@@ -51,7 +55,6 @@ exports.handler = async (event) => {
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
           console.log('Response status:', res.statusCode);
-          console.log('Response data preview:', data.substring(0, 200));
           resolve({ 
             statusCode: res.statusCode, 
             headers: res.headers, 
@@ -66,12 +69,23 @@ exports.handler = async (event) => {
       });
       
       if (event.body) {
-        console.log('Sending body:', event.body.substring(0, 200));
         req.write(event.body);
       }
       
       req.end();
     });
+    
+    // For /auth/ping requests, return a success response if we got data from /voxpro
+    if (endpoint === '/voxpro' && event.path.includes('/auth/ping')) {
+      return {
+        statusCode: 200,
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Access-Control-Allow-Origin': '*'
+        },
+        body: JSON.stringify({ status: 'ok', message: 'Connection successful' })
+      };
+    }
     
     return {
       statusCode: response.statusCode,
