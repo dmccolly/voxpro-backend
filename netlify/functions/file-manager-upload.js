@@ -1,4 +1,7 @@
-// netlify/functions/file-manager-upload.js
+// Serverless function: receives multipart/form-data, uploads the file to Cloudinary,
+// then posts metadata (including Cloudinary URLs) to Xano.
+// Returns JSON (never raw HTML) so errors are visible in the browser Network tab.
+
 const https = require('https');
 
 exports.handler = async (event) => {
@@ -16,16 +19,23 @@ exports.handler = async (event) => {
   }
 
   try {
-    // REQUIRE INSIDE TRY so missing packages don’t cause a 502
+    // Require inside try so missing packages surface as JSON not a 502
     const cloudinary = require('cloudinary').v2;
-    const multipart = require('parse-multipart'); // v1.0.4
+    const multipart = require('parse-multipart'); // v1.0.4 uses lowercase parse()
 
-    // Basic sanity checks so we fail fast with a readable error
-    const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET, XANO_API_KEY } = process.env;
+    const {
+      CLOUDINARY_CLOUD_NAME,
+      CLOUDINARY_API_KEY,
+      CLOUDINARY_API_SECRET,
+      XANO_API_KEY
+    } = process.env;
+
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
-      throw new Error('Cloudinary env vars missing (CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET).');
+      throw new Error('Cloudinary env vars missing (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET).');
     }
-    if (!XANO_API_KEY) throw new Error('XANO_API_KEY missing.');
+    if (!XANO_API_KEY) {
+      throw new Error('XANO_API_KEY env var is missing.');
+    }
 
     cloudinary.config({
       cloud_name: CLOUDINARY_CLOUD_NAME,
@@ -38,18 +48,19 @@ exports.handler = async (event) => {
       throw new Error(`Invalid content-type: ${contentType || 'undefined'}`);
     }
 
+    // Parse the incoming multipart body
     const boundary = multipart.getBoundary(contentType);
     const bodyBuf = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
-    const parts = multipart.parse(bodyBuf, boundary); // NOTE: lowercase parse() for v1.0.4
+    const parts = multipart.parse(bodyBuf, boundary);
 
     const filePart = parts.find(p => p.filename);
-    if (!filePart) throw new Error('No file part found in multipart payload.');
+    if (!filePart) throw new Error('No file found in multipart payload (field "attachment" from the form).');
 
-    // Collect other fields
+    // Collect text fields
     const fields = {};
     parts.forEach(p => { if (!p.filename) fields[p.name] = p.data.toString('utf8'); });
 
-    // Upload to Cloudinary
+    // Upload to Cloudinary (auto-detect resource type; generate a 300x300 thumbnail)
     const uploadResult = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         { resource_type: 'auto', eager: [{ width: 300, height: 300, crop: 'thumb' }] },
@@ -58,7 +69,7 @@ exports.handler = async (event) => {
       stream.end(filePart.data);
     });
 
-    // Send metadata to Xano
+    // Prepare payload for Xano
     const payload = {
       title: fields.title || 'Untitled',
       description: fields.description || '',
@@ -76,17 +87,21 @@ exports.handler = async (event) => {
       thumbnail_url: uploadResult.eager?.[0]?.secure_url || ''
     };
 
+    // Send to Xano
     const reqOpts = {
       hostname: 'xajo-b57d-cagt.n7e.xano.io',
       path: '/api:pYQcQtVX/user_submission',
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + XANO_API_KEY, 'Content-Type': 'application/json' }
+      headers: {
+        'Authorization': 'Bearer ' + XANO_API_KEY,
+        'Content-Type': 'application/json'
+      }
     };
 
     const xanoRes = await new Promise((resolve) => {
       const req = https.request(reqOpts, (res) => {
         let data = '';
-        res.on('data', (c) => data += c);
+        res.on('data', c => data += c);
         res.on('end', () => resolve({ statusCode: res.statusCode, body: data }));
       });
       req.on('error', (e) => resolve({ statusCode: 500, body: JSON.stringify({ error: e.message }) }));
@@ -94,14 +109,18 @@ exports.handler = async (event) => {
       req.end();
     });
 
-    return { statusCode: xanoRes.statusCode, headers: { ...cors, 'content-type': 'application/json' }, body: xanoRes.body };
+    return {
+      statusCode: xanoRes.statusCode,
+      headers: { ...cors, 'content-type': 'application/json' },
+      body: xanoRes.body
+    };
 
   } catch (err) {
-    // You will now see this in the browser Network “Response” tab instead of a 502
+    // Always return JSON on error so you can read it in the browser Network tab
     return {
       statusCode: 500,
       headers: { ...cors, 'content-type': 'application/json' },
-      body: JSON.stringify({ error: err.message, stack: err.stack, hint: 'See Cloudinary/Xano env vars & parse-multipart version (use 1.0.4).' })
+      body: JSON.stringify({ error: err.message, stack: err.stack })
     };
   }
 };
