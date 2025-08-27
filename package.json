@@ -1,8 +1,6 @@
 {
-  "name": "voxpro-backend",
-  "version": "1.0.0",
   "dependencies": {
     "cloudinary": "^1.39.2",
-    "parse-multipart-data": "^1.0.3"
+    "parse-multipart": "^0.0.4"
   }
 }
