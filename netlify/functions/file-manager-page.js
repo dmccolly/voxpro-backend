@@ -1,16 +1,16 @@
-// netlify/functions/file-manager-page.js
 exports.handler = async (event, context) => {
   const headers = {
     'Content-Type': 'text/html',
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   };
 
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
 
+  // Serve HTML with the upload form
   const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -19,7 +19,7 @@ exports.handler = async (event, context) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Idaho Broadcasting Media Upload</title>
   <style>
-    /* (unchanged CSS) */
+    /* basic styling omitted for brevity; keep your existing CSS */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -79,10 +79,7 @@ exports.handler = async (event, context) => {
       background: white;
       cursor: pointer;
     }
-    textarea {
-      resize: vertical;
-      min-height: 100px;
-    }
+    textarea { resize: vertical; min-height: 100px; }
     .upload-btn {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
@@ -243,7 +240,7 @@ exports.handler = async (event, context) => {
     const successMessage = document.getElementById('successMessage');
     const errorMessage = document.getElementById('errorMessage');
 
-    // File size limit: 250 MB
+    // Limit file size to 250MB
     const MAX_FILE_SIZE = 250 * 1024 * 1024;
 
     fileInput.addEventListener('change', function(e) {
@@ -279,7 +276,7 @@ exports.handler = async (event, context) => {
       hideMessages();
 
       try {
-        // Build form data with Xano's expected field names
+        // Build FormData with Xano’s expected fields
         const formData = new FormData();
         formData.append('attachment', file);
         formData.append('title', document.getElementById('title').value || 'Untitled');
@@ -297,7 +294,7 @@ exports.handler = async (event, context) => {
 
         progressFill.style.width = '30%';
 
-        // Send the request to your Netlify function, which in turn sends to Xano
+        // Submit to the Netlify function which will proxy to Xano
         const response = await fetch('/.netlify/functions/file-manager-upload', {
           method: 'POST',
           body: formData
@@ -306,8 +303,6 @@ exports.handler = async (event, context) => {
         progressFill.style.width = '80%';
 
         const responseText = await response.text();
-        console.log('Response:', responseText);
-
         let result;
         try {
           result = JSON.parse(responseText);
@@ -362,6 +357,6 @@ exports.handler = async (event, context) => {
   return {
     statusCode: 200,
     headers,
-    body: html,
+    body: html
   };
 };
