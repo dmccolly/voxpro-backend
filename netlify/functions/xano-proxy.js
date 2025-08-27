@@ -20,6 +20,8 @@ exports.handler = async (event) => {
     const endpoint = event.path.replace('/.netlify/functions/xano-proxy', '') || '/auth/ping';
     const url = 'https://x8k1-lell-twmt.n7.xano.io/api:pYeQctV' + endpoint;
     
+    console.log(`Forwarding ${event.httpMethod} request to: ${url}`);
+    
     const response = await new Promise((resolve, reject) => {
       const req = https.request(url, {
         method: event.httpMethod,
@@ -42,10 +44,11 @@ exports.handler = async (event) => {
       body: response.body
     };
   } catch (error) {
+    console.error('Proxy error:', error);
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: error.message })
     };
   }
-}
+};
