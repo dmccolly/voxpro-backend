@@ -1,9 +1,9 @@
 {
   "name": "voxpro-backend",
-  "version": "1.0.0",
   "private": true,
+  "type": "commonjs",
   "dependencies": {
-    "cloudinary": "^1.39.2",
-    "busboy": "^1.6.0"
+    "busboy": "^1.6.0",
+    "cloudinary": "^1.41.3"
   }
 }
