@@ -1,12 +1,33 @@
 // netlify/functions/simple-uploader.js
+const https = require('https');
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': '*',
+  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+};
+
+const json = (code, body) => ({
+  statusCode: code,
+  headers: { ...CORS, 'content-type': 'application/json' },
+  body: JSON.stringify(body),
+});
+
 exports.handler = async (event, context) => {
-  return {
-    statusCode: 200,
-    headers: {
-      'Content-Type': 'text/html',
-      'Access-Control-Allow-Origin': '*'
-    },
-    body: `
+  // Handle CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers: CORS, body: '' };
+  }
+
+  // Serve the HTML form on GET
+  if (event.httpMethod === 'GET') {
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'text/html',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: `
 <!DOCTYPE html>
 <html>
 <head>
@@ -79,7 +100,7 @@ exports.handler = async (event, context) => {
             submitButton.textContent = 'Uploading...';
             
             try {
-                // Prepare data for Xano
+                // Prepare data for server-side processing
                 const data = {
                     title: document.getElementById('title').value,
                     description: document.getElementById('description').value,
@@ -91,10 +112,10 @@ exports.handler = async (event, context) => {
                     upload_date: new Date().toISOString()
                 };
                 
-                console.log('Sending data to Xano:', data);
+                console.log('Sending data to server:', data);
                 
-                // Direct POST to Xano
-                const response = await fetch('https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX/user_submission', {
+                // POST to this same function for server-side processing
+                const response = await fetch('/.netlify/functions/simple-uploader', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -105,25 +126,15 @@ exports.handler = async (event, context) => {
                 
                 console.log('Response status:', response.status);
                 
-                // Get response text
-                const responseText = await response.text();
-                console.log('Response text:', responseText);
+                const result = await response.json();
+                console.log('Result:', result);
                 
-                // Try to parse as JSON
-                let result;
-                try {
-                    result = JSON.parse(responseText);
-                    console.log('Parsed result:', result);
-                } catch (e) {
-                    console.error('Failed to parse response as JSON:', e);
-                }
-                
-                if (response.ok) {
+                if (response.ok && result.ok) {
                     messageDiv.textContent = 'Success! Test record created in Xano.';
                     messageDiv.className = 'message success';
                     document.getElementById('uploadForm').reset();
                 } else {
-                    const errorMsg = result?.error || 'Upload failed with status: ' + response.status;
+                    const errorMsg = result.error || 'Upload failed with status: ' + response.status;
                     messageDiv.textContent = errorMsg;
                     messageDiv.className = 'message error';
                 }
@@ -140,6 +151,71 @@ exports.handler = async (event, context) => {
     </script>
 </body>
 </html>
-    `
-  };
+      `
+    };
+  }
+
+  // Handle POST request (server-side processing)
+  if (event.httpMethod === 'POST') {
+    const { XANO_API_BASE, XANO_API_KEY } = process.env;
+    
+    if (!XANO_API_BASE || !XANO_API_KEY) {
+      return json(500, { ok: false, error: 'Missing XANO_API_BASE or XANO_API_KEY environment variables' });
+    }
+
+    try {
+      // Parse the request body
+      const data = JSON.parse(event.body || '{}');
+      
+      // Construct the Xano URL using environment variables
+      let xanoUrl;
+      try {
+        xanoUrl = new URL(XANO_API_BASE.replace(/\/+$/, '') + '/user_submission');
+      } catch (e) {
+        return json(500, { ok: false, error: 'Invalid XANO_API_BASE environment variable' });
+      }
+
+      // Make request to Xano
+      const xanoResponse = await new Promise((resolve) => {
+        const req = https.request(
+          {
+            protocol: xanoUrl.protocol,
+            hostname: xanoUrl.hostname,
+            path: xanoUrl.pathname + xanoUrl.search,
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + XANO_API_KEY,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+          },
+          (res) => {
+            let responseData = '';
+            res.on('data', (chunk) => responseData += chunk);
+            res.on('end', () => resolve({ status: res.statusCode, body: responseData }));
+          }
+        );
+        req.on('error', (e) => resolve({ status: 500, body: JSON.stringify({ error: e.message }) }));
+        req.write(JSON.stringify(data));
+        req.end();
+      });
+
+      let xanoBody = xanoResponse.body;
+      try {
+        xanoBody = JSON.parse(xanoResponse.body);
+      } catch (e) {
+        // Keep as string if not valid JSON
+      }
+
+      if (xanoResponse.status === 200 || xanoResponse.status === 201) {
+        return json(200, { ok: true, data: xanoBody });
+      } else {
+        return json(xanoResponse.status, { ok: false, error: 'Xano request failed', details: xanoBody });
+      }
+    } catch (error) {
+      return json(500, { ok: false, error: error.message });
+    }
+  }
+
+  return json(405, { ok: false, error: 'Method not allowed' });
 };
