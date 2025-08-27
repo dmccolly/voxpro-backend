@@ -7,17 +7,37 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Headers': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
   };
-
-  const fail = (statusCode, stage, msg, extra = {}) => ({
-    statusCode,
+  const json = (code, obj) => ({
+    statusCode: code,
     headers: { ...cors, 'content-type': 'application/json' },
-    body: JSON.stringify({ ok: false, stage, error: msg, ...extra })
+    body: JSON.stringify(obj)
   });
+  const fail = (code, stage, msg, extra = {}) =>
+    json(code, { ok: false, stage, error: msg, ...extra });
 
+  // CORS preflight
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
+
+  // --- NEW: DIAGNOSTIC GET ---
+  if (event.httpMethod === 'GET') {
+    const diag = {
+      ok: true,
+      method: 'GET',
+      expects: 'POST multipart/form-data with field name "attachment"',
+      env: {
+        CLOUDINARY_CLOUD_NAME: !!process.env.CLOUDINARY_CLOUD_NAME,
+        CLOUDINARY_API_KEY: !!process.env.CLOUDINARY_API_KEY,
+        CLOUDINARY_API_SECRET: !!process.env.CLOUDINARY_API_SECRET,
+        XANO_API_KEY: !!process.env.XANO_API_KEY,
+        XANO_API_BASE_present: !!process.env.XANO_API_BASE,
+        XANO_API_BASE_value: process.env.XANO_API_BASE || null
+      }
+    };
+    return json(200, diag);
+  }
+
   if (event.httpMethod !== 'POST') return fail(405, 'entry', 'Method not allowed');
 
-  // Sanity check env
   const {
     CLOUDINARY_CLOUD_NAME,
     CLOUDINARY_API_KEY,
@@ -30,12 +50,11 @@ exports.handler = async (event) => {
     return fail(500, 'env', 'Missing Cloudinary env vars (CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET).');
   }
   if (!XANO_API_KEY) return fail(500, 'env', 'Missing XANO_API_KEY.');
-  if (!XANO_API_BASE) return fail(500, 'env', 'Missing XANO_API_BASE (e.g. https://xajo-xxxx.n7e.xano.io/api:KEY).');
+  if (!XANO_API_BASE) return fail(500, 'env', 'Missing XANO_API_BASE (e.g. https://...xano.io/api:YOURKEY)');
 
-  // Build Xano URL from XANO_API_BASE
+  // Build Xano URL
   let xanoURL;
   try {
-    // Ensure we POST to .../user_submission under the API base
     const base = XANO_API_BASE.replace(/\/+$/, '');
     xanoURL = new URL(base + '/user_submission');
   } catch (e) {
@@ -43,7 +62,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Require inside try so missing modules give JSON instead of a 502
+    // Require inside try so module errors come back as JSON (not 502)
     const cloudinary = require('cloudinary').v2;
     const multipart = require('parse-multipart'); // v1.0.4 -> .parse()
 
@@ -61,10 +80,12 @@ exports.handler = async (event) => {
 
     const boundary = multipart.getBoundary(contentType);
     const bodyBuf = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
+
+    // NOTE: parse-multipart@1.0.4 uses lowercase `parse`
     const parts = multipart.parse(bodyBuf, boundary);
 
     const filePart = parts.find(p => p.filename);
-    if (!filePart) return fail(400, 'parse', 'No file part found (expected field name "attachment").');
+    if (!filePart) return fail(400, 'parse', 'No file part found (field name must be "attachment").');
 
     const fields = {};
     parts.forEach(p => { if (!p.filename) fields[p.name] = p.data.toString('utf8'); });
@@ -123,11 +144,10 @@ exports.handler = async (event) => {
       req.end();
     });
 
-    return {
-      statusCode: xanoRes.code,
-      headers: { ...cors, 'content-type': 'application/json' },
-      body: xanoRes.body
-    };
+    return json(xanoRes.code, xanoRes.body ? (() => {
+      // body may already be JSON string from Xano; return as-is
+      try { return JSON.parse(xanoRes.body); } catch { return { raw: xanoRes.body }; }
+    })() : { ok: true });
 
   } catch (err) {
     return fail(500, 'unhandled', err.message, { stack: err.stack });
