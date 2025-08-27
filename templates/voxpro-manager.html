@@ -4,76 +4,53 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>VoxPro Manager</title>
-  <base href="/" />
-
-  <!-- Your site styles (absolute paths so /voxpro-manager resolves correctly) -->
-  <link rel="stylesheet" href="/content.css" />
-  <link rel="stylesheet" href="/fabric-icons.css" />
-
-  <!-- Optional: Font Awesome (matches what your old page loaded) -->
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-        referrerpolicy="no-referrer" />
-
   <style>
-    /* Small, minimal styles just for the status chip so we don't depend on theme classes */
-    .vp-shell{max-width:1100px;margin:0 auto;padding:24px}
-    .vp-hero{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:14px;padding:22px 20px;margin-bottom:18px}
-    .vp-hero h1{margin:0;font-size:28px;font-weight:800;letter-spacing:.2px}
-    .vp-hero p{margin:6px 0 0;opacity:.9}
-    .vp-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
-    .vp-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46;font-weight:700}
-    .vp-chip.bad{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
-    .vp-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;font-weight:700}
+    :root{--pri1:#667eea;--pri2:#764ba2}
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:#0b1220;color:#fff}
+    .top{padding:18px;background:linear-gradient(135deg,var(--pri1),var(--pri2))}
+    .wrap{max-width:1200px;margin:0 auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    h1{margin:0;font-size:26px;font-weight:800;letter-spacing:.2px}
+    .chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46;font-weight:700}
+    .btn{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;font-weight:700}
+    .bar{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+    .frame{height:calc(100vh - 70px);width:100%;border:0;display:block}
   </style>
 </head>
 <body>
-  <div class="vp-shell">
-    <section class="vp-hero">
+  <div class="top">
+    <div class="wrap">
       <h1>VoxPro Manager</h1>
-      <p>Upload, track, and manage media going to VoxPro.</p>
-      <div class="vp-bar">
-        <span id="vpStatus" class="vp-chip">Status: Checking…</span>
-        <a class="vp-btn" href="/file-manager"><i class="fa-solid fa-upload"></i> Open Upload Form</a>
-        <a class="vp-btn" style="background:#334155" href="/.netlify/functions/file-manager-upload" target="_blank" rel="noopener">
-          <i class="fa-solid fa-stethoscope"></i> API (GET) Diagnostics
-        </a>
+      <span id="vpStatus" class="chip">Status: Checking…</span>
+      <div class="bar">
+        <a class="btn" href="/file-manager">Open Upload Form</a>
+        <a class="btn" href="/.netlify/functions/file-manager-upload" target="_blank" rel="noopener">API (GET) Diagnostics</a>
       </div>
-    </section>
-
-    <!-- Your page content area (your theme CSS takes over from /content.css etc.) -->
-    <main>
-      <!-- If you have a script that renders the manager UI, it can target this container -->
-      <div id="voxpro-app"></div>
-    </main>
+    </div>
   </div>
 
-  <!-- If you have a site script that builds the manager UI, keep it here -->
-  <script src="/voxpro-manager.js" defer></script>
+  <!-- Load your exact existing design right now -->
+  <iframe class="frame" src="https://www.streamofdan.com/voxpro-manager" title="VoxPro Manager"></iframe>
 
   <script>
-  // Keep the connection badge (quiet, no UI changes beyond the chip text/color)
+  // connection badge (quiet, no UI other than chip color/text)
   (async function(){
-    const chip = document.getElementById('vpStatus');
-    const ok = (t)=>{ chip.classList.remove('bad'); chip.textContent = t; };
-    const bad = (t)=>{ chip.classList.add('bad'); chip.textContent = t; };
-
-    try {
-      const r = await fetch('/.netlify/functions/file-manager-upload', { method:'GET' });
-      const data = await r.json().catch(()=> ({}));
-      if (r.ok && data && data.ok && data.env) {
-        const missing=[];
-        if (!data.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
-        if (!data.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
-        if (!data.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
-        if (!data.env.XANO_API_KEY) missing.push('XANO_API_KEY');
-        if (!data.env.XANO_API_BASE_present) missing.push('XANO_API_BASE');
-        missing.length ? bad('Status: Disconnected ('+missing.join(', ')+')')
-                       : ok('Status: Connected');
-      } else {
-        bad('Status: Disconnected (function error)');
-      }
-    } catch(e){ bad('Status: Disconnected (network)'); }
+    const chip=document.getElementById('vpStatus');
+    const ok=t=>{chip.style.background='#ecfdf5';chip.style.borderColor='#bbf7d0';chip.style.color='#065f46';chip.textContent=t};
+    const bad=t=>{chip.style.background='#fef2f2';chip.style.borderColor='#fecaca';chip.style.color='#7f1d1d';chip.textContent=t};
+    try{
+      const r=await fetch('/.netlify/functions/file-manager-upload',{method:'GET'});
+      const d=await r.json().catch(()=>({}));
+      if(r.ok&&d&&d.ok&&d.env){
+        const m=[]; if(!d.env.CLOUDINARY_CLOUD_NAME)m.push('CLOUDINARY_CLOUD_NAME');
+        if(!d.env.CLOUDINARY_API_KEY)m.push('CLOUDINARY_API_KEY');
+        if(!d.env.CLOUDINARY_API_SECRET)m.push('CLOUDINARY_API_SECRET');
+        if(!d.env.XANO_API_KEY)m.push('XANO_API_KEY');
+        if(!d.env.XANO_API_BASE_present)m.push('XANO_API_BASE');
+        m.length?bad('Status: Disconnected ('+m.join(', ')+')'):ok('Status: Connected');
+      }else bad('Status: Disconnected (function error)');
+    }catch{bad('Status: Disconnected (network)')}
   })();
   </script>
 </body>
