@@ -1,138 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>VoxPro Manager</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VoxPro Manager</title>
+  <base href="/" />
 
-<!-- Inline styles so the page looks correct even if external assets aren’t loaded -->
-<style>
-  :root{
-    --bg1:#1e3c72; --bg2:#2a5298;
-    --card:#ffffff; --text:#212529; --muted:#6c757d;
-    --pri1:#667eea; --pri2:#764ba2; --ok:#16a34a; --bad:#e11d48;
-    --chip:#f1f5f9; --chipbd:#e2e8f0;
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0;
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Arial,sans-serif;
-    background:linear-gradient(135deg,var(--bg1),var(--bg2));
-    color:var(--text);
-  }
-  .shell{max-width:1100px;margin:0 auto;padding:24px}
-  .card{
-    background:var(--card);
-    border-radius:16px;
-    box-shadow:0 16px 40px rgba(0,0,0,.15);
-    overflow:hidden;
-  }
-  .header{
-    padding:28px 28px 18px;
-    background:linear-gradient(135deg,var(--pri1),var(--pri2));
-    color:#fff;
-  }
-  .title{margin:0;font-size:28px;font-weight:700;letter-spacing:.2px}
-  .subtitle{margin:6px 0 0;font-size:14px;opacity:.9}
-  .bar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:16px}
-  .chip{
-    display:inline-flex;align-items:center;gap:8px;
-    padding:8px 12px;border-radius:999px;background:var(--chip);border:1px solid var(--chipbd);
-    color:#0f172a;font-weight:600;font-size:14px;
-  }
-  .chip.ok{background:#ecfdf5;border-color:#bbf7d0;color:#065f46}
-  .chip.bad{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
-  .content{padding:24px}
-  .grid{display:grid;grid-template-columns:1fr;gap:20px}
-  @media(min-width:900px){.grid{grid-template-columns:2fr 1fr}}
-  .panel{border:1px solid #e5e7eb;border-radius:14px;padding:18px}
-  .panel h3{margin:0 0 10px;font-size:16px}
-  .muted{color:var(--muted);font-size:14px}
-  .btn{
-    display:inline-flex;align-items:center;justify-content:center;
-    gap:8px;padding:12px 16px;border:0;border-radius:10px;
-    background:linear-gradient(135deg,var(--pri1),var(--pri2));color:#fff;
-    font-weight:700;cursor:pointer;text-decoration:none;transition:.2s transform,.2s box-shadow;
-  }
-  .btn:hover{transform:translateY(-1px);box-shadow:0 10px 20px rgba(118,75,162,.35)}
-  .btn.secondary{background:#0f172a}
-  .list{margin:8px 0 0;padding:0;list-style:none}
-  .item{padding:10px 0;border-bottom:1px dashed #e5e7eb;font-size:14px}
-  .item:last-child{border-bottom:0}
-  .kbd{
-    font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
-    background:#0f172a;color:#fff;padding:2px 6px;border-radius:6px;font-size:12px
-  }
-</style>
+  <!-- Your site styles (absolute paths so /voxpro-manager resolves correctly) -->
+  <link rel="stylesheet" href="/content.css" />
+  <link rel="stylesheet" href="/fabric-icons.css" />
+
+  <!-- Optional: Font Awesome (matches what your old page loaded) -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        referrerpolicy="no-referrer" />
+
+  <style>
+    /* Small, minimal styles just for the status chip so we don't depend on theme classes */
+    .vp-shell{max-width:1100px;margin:0 auto;padding:24px}
+    .vp-hero{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:14px;padding:22px 20px;margin-bottom:18px}
+    .vp-hero h1{margin:0;font-size:28px;font-weight:800;letter-spacing:.2px}
+    .vp-hero p{margin:6px 0 0;opacity:.9}
+    .vp-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:14px}
+    .vp-chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46;font-weight:700}
+    .vp-chip.bad{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
+    .vp-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;font-weight:700}
+  </style>
 </head>
 <body>
-  <div class="shell">
-    <div class="card">
-      <div class="header">
-        <h1 class="title">VoxPro Manager</h1>
-        <p class="subtitle">Upload, track, and manage media going to VoxPro.</p>
-        <div class="bar">
-          <span id="statusChip" class="chip">Status: Checking…</span>
-          <a class="btn" href="/file-manager">Open Upload Form</a>
-          <a class="btn secondary" href="/file-manager-upload" target="_blank" rel="noopener">API (GET) Diagnostics</a>
-        </div>
+  <div class="vp-shell">
+    <section class="vp-hero">
+      <h1>VoxPro Manager</h1>
+      <p>Upload, track, and manage media going to VoxPro.</p>
+      <div class="vp-bar">
+        <span id="vpStatus" class="vp-chip">Status: Checking…</span>
+        <a class="vp-btn" href="/file-manager"><i class="fa-solid fa-upload"></i> Open Upload Form</a>
+        <a class="vp-btn" style="background:#334155" href="/.netlify/functions/file-manager-upload" target="_blank" rel="noopener">
+          <i class="fa-solid fa-stethoscope"></i> API (GET) Diagnostics
+        </a>
       </div>
+    </section>
 
-      <div class="content">
-        <div class="grid">
-          <div class="panel">
-            <h3>How it works</h3>
-            <ul class="list">
-              <li class="item">1. Use <strong>Open Upload Form</strong> to send your file.</li>
-              <li class="item">2. File is stored in Cloudinary (thumbnail auto-generated).</li>
-              <li class="item">3. Metadata is written to Xano (<span class="kbd">/user_submission</span>).</li>
-            </ul>
-          </div>
-
-          <div class="panel">
-            <h3>Quick actions</h3>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">
-              <a class="btn" href="/file-manager">Upload Media</a>
-              <a class="btn secondary" href="/voxpro-manager">Refresh</a>
-            </div>
-            <p class="muted" style="margin-top:10px">
-              Tip: If styling ever looks off, hard-refresh <span class="kbd">Ctrl/Cmd+Shift+R</span>.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Your page content area (your theme CSS takes over from /content.css etc.) -->
+    <main>
+      <!-- If you have a script that renders the manager UI, it can target this container -->
+      <div id="voxpro-app"></div>
+    </main>
   </div>
 
-<script>
-(async function(){
-  const chip = document.getElementById('statusChip');
-  const set = (cls, text) => { chip.className = 'chip ' + cls; chip.textContent = text; };
+  <!-- If you have a site script that builds the manager UI, keep it here -->
+  <script src="/voxpro-manager.js" defer></script>
 
-  try {
-    const r = await fetch('/.netlify/functions/file-manager-upload', { method: 'GET' });
-    const data = await r.json().catch(() => ({}));
+  <script>
+  // Keep the connection badge (quiet, no UI changes beyond the chip text/color)
+  (async function(){
+    const chip = document.getElementById('vpStatus');
+    const ok = (t)=>{ chip.classList.remove('bad'); chip.textContent = t; };
+    const bad = (t)=>{ chip.classList.add('bad'); chip.textContent = t; };
 
-    if (r.ok && data && data.ok && data.env) {
-      const missing = [];
-      if (!data.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
-      if (!data.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
-      if (!data.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
-      if (!data.env.XANO_API_KEY) missing.push('XANO_API_KEY');
-      if (!data.env.XANO_API_BASE_present) missing.push('XANO_API_BASE');
-      if (missing.length === 0) {
-        set('ok', 'Status: Connected');
+    try {
+      const r = await fetch('/.netlify/functions/file-manager-upload', { method:'GET' });
+      const data = await r.json().catch(()=> ({}));
+      if (r.ok && data && data.ok && data.env) {
+        const missing=[];
+        if (!data.env.CLOUDINARY_CLOUD_NAME) missing.push('CLOUDINARY_CLOUD_NAME');
+        if (!data.env.CLOUDINARY_API_KEY) missing.push('CLOUDINARY_API_KEY');
+        if (!data.env.CLOUDINARY_API_SECRET) missing.push('CLOUDINARY_API_SECRET');
+        if (!data.env.XANO_API_KEY) missing.push('XANO_API_KEY');
+        if (!data.env.XANO_API_BASE_present) missing.push('XANO_API_BASE');
+        missing.length ? bad('Status: Disconnected ('+missing.join(', ')+')')
+                       : ok('Status: Connected');
       } else {
-        set('bad', 'Status: Disconnected (missing ' + missing.join(', ') + ')');
+        bad('Status: Disconnected (function error)');
       }
-    } else {
-      set('bad', 'Status: Disconnected (function error)');
-    }
-  } catch (e) {
-    set('bad', 'Status: Disconnected (network)');
-  }
-})();
-</script>
+    } catch(e){ bad('Status: Disconnected (network)'); }
+  })();
+  </script>
 </body>
 </html>
