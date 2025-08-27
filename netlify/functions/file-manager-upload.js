@@ -21,20 +21,18 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Forward the entire request to Xano
-    const xanoUrl = 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX/user_submission';
-    
-    return new Promise((resolve) => {
-      const options = {
-        hostname: 'x8ki-letl-twmt.n7.xano.io',
-        path: '/api:pYeQctVX/user_submission',
-        method: 'POST',
-        headers: {
-          ...event.headers,
-          'host': 'x8ki-letl-twmt.n7.xano.io'
-        }
-      };
+    // Forward the entire request to Xano - FIXED API KEY
+    const options = {
+      hostname: 'x8ki-letl-twmt.n7.xano.io',
+      path: '/api:pYeQctVX/user_submission',  // Fixed - ends with VX
+      method: 'POST',
+      headers: {
+        ...event.headers,
+        'host': 'x8ki-letl-twmt.n7.xano.io'
+      }
+    };
 
+    return new Promise((resolve) => {
       const req = https.request(options, (res) => {
         let data = '';
         res.on('data', chunk => data += chunk);
