@@ -328,10 +328,14 @@ exports.handler = async (event, context) => {
             hideMessages();
             
             try {
+                // Set progress to show we've started
+                progressFill.style.width = '20%';
+                
                 // Read file as base64
                 const base64File = await readFileAsBase64(file);
+                progressFill.style.width = '40%';
                 
-                // Create JSON payload instead of FormData
+                // Create upload data with the file as base64
                 const uploadData = {
                     title: document.getElementById('title').value || 'Untitled',
                     description: document.getElementById('description').value || '',
@@ -344,14 +348,14 @@ exports.handler = async (event, context) => {
                     filename: file.name,
                     file_type: file.type || 'application/octet-stream',
                     file_size: file.size,
-                    file_data: base64File, // Send the file as base64
+                    file_data: base64File,
                     upload_date: new Date().toISOString()
                 };
                 
                 console.log('Sending data to xano-proxy...');
-                progressFill.style.width = '30%';
+                progressFill.style.width = '60%';
                 
-                // Send to xano-proxy
+                // Send to the proxy function
                 const response = await fetch('/.netlify/functions/xano-proxy/voxpro', {
                     method: 'POST',
                     headers: {
@@ -363,13 +367,16 @@ exports.handler = async (event, context) => {
                 progressFill.style.width = '80%';
                 console.log('Response status:', response.status);
                 
+                // Get the text response first
+                const responseText = await response.text();
+                console.log('Response text:', responseText);
+                
+                // Try to parse as JSON
                 let result;
                 try {
-                    const text = await response.text();
-                    console.log('Response text:', text);
-                    result = JSON.parse(text);
-                } catch (error) {
-                    console.error('Error parsing response:', error);
+                    result = JSON.parse(responseText);
+                } catch (e) {
+                    console.error('Error parsing response:', e);
                     throw new Error('Invalid response from server');
                 }
                 
@@ -396,12 +403,11 @@ exports.handler = async (event, context) => {
             }, 2000);
         });
         
-        // Helper function to read file as base64
+        // Read file as base64
         function readFileAsBase64(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onload = () => {
-                    // Get the base64 string (remove the data URL prefix)
                     const base64 = reader.result.split(',')[1];
                     resolve(base64);
                 };
