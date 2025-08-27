@@ -93,11 +93,15 @@ exports.handler = async (event, context) => {
       return dateB - dateA;
     });
     
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(results)
-    };
+return {
+  statusCode: 200,
+  headers,
+  body: JSON.stringify({
+    results: results,
+    total: results.length,
+    query: query
+  })
+};
     
   } catch (error) {
     console.error('SEARCH ERROR:', error);
