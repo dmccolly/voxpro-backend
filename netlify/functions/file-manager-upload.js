@@ -1,5 +1,6 @@
 // netlify/functions/file-manager-upload.js
 const https = require('https');
+const { Readable } = require('stream');
 
 exports.handler = async (event) => {
   const cors = {
@@ -17,7 +18,7 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
 
-  // Diagnostics without uploading
+  // Quick env probe via GET (no upload)
   if (event.httpMethod === 'GET') {
     return json(200, {
       ok: true,
@@ -44,9 +45,9 @@ exports.handler = async (event) => {
     XANO_API_BASE
   } = process.env;
 
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET)
     return fail(500, 'env', 'Missing Cloudinary env vars (CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET).');
-  }
+
   if (!XANO_API_KEY) return fail(500, 'env', 'Missing XANO_API_KEY.');
   if (!XANO_API_BASE) return fail(500, 'env', 'Missing XANO_API_BASE (e.g. https://...xano.io/api:YOURKEY)');
 
@@ -60,9 +61,9 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Require inside try so module errors come back as JSON (not 502)
+    // Require in try so missing modules show JSON error, not 502
+    const Busboy = require('busboy');
     const cloudinary = require('cloudinary').v2;
-    const parser = require('aws-lambda-multipart-parser');
 
     cloudinary.config({
       cloud_name: CLOUDINARY_CLOUD_NAME,
@@ -70,53 +71,74 @@ exports.handler = async (event) => {
       api_secret: CLOUDINARY_API_SECRET
     });
 
-    // -------- parse with aws-lambda-multipart-parser ----------
-    // keepBinary = true -> returns Buffer in file.content
-    const parsed = parser.parse(event, true);
-
-    // The file input NAME in the form must be "attachment"
-    const file = parsed.attachment;
-    if (!file || !file.content || !file.filename) {
-      return fail(400, 'parse', 'No file found. Ensure input name="attachment".', { fields: Object.keys(parsed) });
+    // ---------- Parse multipart with Busboy ----------
+    const contentType = event.headers?.['content-type'] || event.headers?.['Content-Type'] || '';
+    if (!/multipart\/form-data/i.test(contentType)) {
+      return fail(400, 'parse', `Invalid content-type: ${contentType || 'undefined'}`);
     }
 
-    // Collect text fields
-    const title = parsed.title || 'Untitled';
-    const description = parsed.description || '';
-    const submittedBy = parsed.submittedBy || 'Anonymous';
-    const notes = parsed.notes || '';
-    const tags = parsed.tags || '';
-    const category = parsed.category || 'Other';
-    const station = parsed.station || '';
-    const priority = parsed.priority || 'Normal';
+    const bb = Busboy({ headers: { 'content-type': contentType } });
 
-    // -------- Cloudinary upload ----------
+    const fields = {};
+    let fileMeta = null; // { filename, mimeType, buffer }
+
+    const filePromise = new Promise((resolve, reject) => {
+      bb.on('file', (name, file, info) => {
+        const { filename, mimeType } = info;
+        const chunks = [];
+        file.on('data', (d) => chunks.push(d));
+        file.on('limit', () => reject(new Error('File too large')));
+        file.on('end', () => {
+          if (name === 'attachment') {
+            fileMeta = { filename, mimeType, buffer: Buffer.concat(chunks) };
+          }
+        });
+      });
+
+      bb.on('field', (name, val) => {
+        fields[name] = val;
+      });
+
+      bb.on('error', reject);
+      bb.on('finish', () => resolve());
+    });
+
+    // Netlify sends base64 for multipart; prefer base64 regardless of flag to be safe
+    const bodyBuf = Buffer.from(event.body || '', 'base64');
+    Readable.from([bodyBuf]).pipe(bb);
+    await filePromise;
+
+    if (!fileMeta) {
+      return fail(400, 'parse', 'No file found. Ensure your input name="attachment".', { fields: Object.keys(fields) });
+    }
+
+    // ---------- Upload to Cloudinary ----------
     let uploadResult;
     try {
       uploadResult = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { resource_type: 'auto', eager: [{ width: 300, height: 300, crop: 'thumb' }] },
-          (err, res) => err ? reject(err) : resolve(res)
+          (err, res) => (err ? reject(err) : resolve(res))
         );
-        stream.end(file.content); // Buffer
+        stream.end(fileMeta.buffer);
       });
     } catch (e) {
       return fail(500, 'cloudinary', e.message);
     }
 
-    // -------- send to Xano ----------
+    // ---------- Send metadata to Xano ----------
     const payload = {
-      title,
-      description,
-      submitted_by: submittedBy,
-      notes,
-      tags,
-      category,
-      station,
-      priority,
-      file_type: file.contentType || 'unknown',
-      file_size: String(file.content.length),
-      filename: file.filename,
+      title: fields.title || 'Untitled',
+      description: fields.description || '',
+      submitted_by: fields.submittedBy || 'Anonymous',
+      notes: fields.notes || '',
+      tags: fields.tags || '',
+      category: fields.category || 'Other',
+      station: fields.station || '',
+      priority: fields.priority || 'Normal',
+      file_type: fileMeta.mimeType || 'unknown',
+      file_size: String(fileMeta.buffer.length),
+      filename: fileMeta.filename,
       is_approved: 'false',
       file_url: uploadResult.secure_url,
       thumbnail_url: uploadResult.eager?.[0]?.secure_url || ''
@@ -136,7 +158,7 @@ exports.handler = async (event) => {
     const xanoRes = await new Promise((resolve) => {
       const req = https.request(opts, (res) => {
         let data = '';
-        res.on('data', c => data += c);
+        res.on('data', (c) => (data += c));
         res.on('end', () => resolve({ code: res.statusCode, body: data }));
       });
       req.on('error', (e) => resolve({ code: 500, body: JSON.stringify({ error: e.message }) }));
@@ -144,11 +166,9 @@ exports.handler = async (event) => {
       req.end();
     });
 
-    // Return whatever Xano returns (parse if JSON)
-    let bodyOut = { raw: xanoRes.body };
-    try { bodyOut = JSON.parse(xanoRes.body); } catch {}
-    return json(xanoRes.code, bodyOut);
-
+    let out = { raw: xanoRes.body };
+    try { out = JSON.parse(xanoRes.body); } catch {}
+    return json(xanoRes.code, out);
   } catch (err) {
     return fail(500, 'unhandled', err.message, { stack: err.stack });
   }
