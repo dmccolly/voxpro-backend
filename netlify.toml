@@ -1,68 +1,68 @@
-# --- Build ---
+# ---------- Build ----------
 [build]
   publish   = "."
   functions = "netlify/functions"
   command   = "echo 'No build command needed'"
 
-# Bundle functions with esbuild
 [functions]
   node_bundler = "esbuild"
 
-# --- Redirects ---
-# Proxy all /api/* calls to serverless functions
-[[redirects]]
-  from   = "/api/*"
-  to     = "/.netlify/functions/:splat"
-  status = 200
-
-# File Manager page (served by a function)
-[[redirects]]
-  from   = "/file-manager"
-  to     = "/.netlify/functions/file-manager-page"
-  status = 200
-
-# Upload endpoint (served by a function)
-[[redirects]]
-  from   = "/file-manager-upload"
-  to     = "/.netlify/functions/file-manager-upload"
-  status = 200
-
-# VoxPro Manager static page
+# ---------- App routes ----------
+# VoxPro Manager page (static HTML)
 [[redirects]]
   from   = "/voxpro-manager"
   to     = "/templates/voxpro-manager.html"
   status = 200
 
-# Static assets (optional passthrough)
+# Upload UI (served by function)
+[[redirects]]
+  from   = "/file-manager"
+  to     = "/.netlify/functions/file-manager-page"
+  status = 200
+
+# Upload endpoint (function)
+[[redirects]]
+  from   = "/file-manager-upload"
+  to     = "/.netlify/functions/file-manager-upload"
+  status = 200
+
+# ---------- Static assets pass-through ----------
+# Serve everything under /assets/ as-is
 [[redirects]]
   from   = "/assets/*"
   to     = "/assets/:splat"
   status = 200
 
-# Root → VoxPro Manager
+# Map the root-level names your page is requesting to the real files
+# (Adjust the right-hand side if your files are in a different subfolder.)
+[[redirects]]
+  from   = "/content.css"
+  to     = "/assets/content.css"
+  status = 200
+
+[[redirects]]
+  from   = "/fabric-icons.css"
+  to     = "/assets/fabric-icons.css"
+  status = 200
+
+[[redirects]]
+  from   = "/content.js"
+  to     = "/assets/content.js"
+  status = 200
+
+[[redirects]]
+  from   = "/fonts/*"
+  to     = "/assets/fonts/:splat"
+  status = 200
+
+[[redirects]]
+  from   = "/images/*"
+  to     = "/assets/images/:splat"
+  status = 200
+
+# ---------- Landing ----------
+# Send the root to VoxPro Manager
 [[redirects]]
   from   = "/"
   to     = "/voxpro-manager"
   status = 302
-
-# SPA / catch-all (last)
-[[redirects]]
-  from   = "/*"
-  to     = "/index.html"
-  status = 200
-
-# --- Headers (CORS for function proxy) ---
-[[headers]]
-  for = "/api/*"
-  [headers.values]
-    Access-Control-Allow-Origin  = "*"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
-
-# Optional: CORS if you ever call the function route directly
-[[headers]]
-  for = "/file-manager-upload"
-  [headers.values]
-    Access-Control-Allow-Origin  = "*"
-    Access-Control-Allow-Headers = "Content-Type, Authorization"
-    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
