@@ -1,6 +1,6 @@
 {
   "dependencies": {
     "cloudinary": "^1.39.2",
-    "parse-multipart": "^0.0.4"
+    "parse-multipart": "^1.0.4"
   }
 }
