@@ -1,39 +1,22 @@
-# ---------- Build ----------
 [build]
   publish   = "."
   functions = "netlify/functions"
-  command   = "echo 'No build command needed'"
 
-[functions]
-  node_bundler = "esbuild"
-
-# ---------- Routes ----------
-# VoxPro Manager (static HTML)
+# Pretty route -> render the form (function page)
 [[redirects]]
-  from   = "/voxpro-manager"
-  to     = "/templates/voxpro-manager.html"
+  from = "/file-manager"
+  to   = "/.netlify/functions/file-manager-page"
+  status = 200
+  force  = true
+
+# (Optional) legacy pretty POST path -> upload function
+[[redirects]]
+  from = "/file-manager-upload"
+  to   = "/.netlify/functions/file-manager-upload"
   status = 200
 
-# Upload form (function-rendered page)
+# KEEP THIS LAST
 [[redirects]]
-  from   = "/file-manager"
-  to     = "/.netlify/functions/file-manager-page"
+  from = "/*"
+  to   = "/index.html"
   status = 200
-
-# Upload API (function)
-[[redirects]]
-  from   = "/file-manager-upload"
-  to     = "/.netlify/functions/file-manager-upload"
-  status = 200
-
-# Optional /api/* proxy to functions
-[[redirects]]
-  from   = "/api/*"
-  to     = "/.netlify/functions/:splat"
-  status = 200
-
-# Root → VoxPro Manager
-[[redirects]]
-  from   = "/"
-  to     = "/voxpro-manager"
-  status = 302
