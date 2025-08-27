@@ -8,14 +8,24 @@
     :root{--pri1:#667eea;--pri2:#764ba2}
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:#0b1220;color:#fff}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:#0b1220;color:#e5e7eb}
     .top{padding:18px;background:linear-gradient(135deg,var(--pri1),var(--pri2))}
-    .wrap{max-width:1200px;margin:0 auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    h1{margin:0;font-size:26px;font-weight:800;letter-spacing:.2px}
+    .wrap{max-width:1400px;margin:0 auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    h1{margin:0;color:#fff;font-size:26px;font-weight:800;letter-spacing:.2px}
     .chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#ecfdf5;border:1px solid #bbf7d0;color:#065f46;font-weight:700}
     .btn{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:#0f172a;color:#fff;text-decoration:none;font-weight:700}
     .bar{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
-    .frame{height:calc(100vh - 70px);width:100%;border:0;display:block}
+    .layout{max-width:1400px;margin:16px auto;display:grid;grid-template-columns:1.5fr .8fr;gap:16px}
+    .frame{height:75vh;width:100%;border:0;display:block;border-radius:12px;overflow:hidden}
+    .panel{background:#0f172a;border:1px solid #1f2937;border-radius:12px;padding:14px}
+    .panel h2{margin:0 0 8px;font-size:16px;color:#fff}
+    .list{display:grid;grid-template-columns:1fr;gap:10px;max-height:75vh;overflow:auto;padding-right:4px}
+    .item{display:grid;grid-template-columns:64px 1fr;gap:10px;padding:8px;border:1px solid #1f2937;border-radius:10px;background:#0b1220}
+    .thumb{width:64px;height:64px;border-radius:8px;object-fit:cover;background:#111827}
+    .meta{display:flex;flex-direction:column;gap:3px}
+    .title{color:#fff;font-weight:700;font-size:14px;line-height:1.2}
+    .sub{color:#9ca3af;font-size:12px}
+    .empty{color:#9ca3af;font-size:14px;padding:8px}
   </style>
 </head>
 <body>
@@ -30,11 +40,19 @@
     </div>
   </div>
 
-  <!-- Load your exact existing design right now -->
-  <iframe class="frame" src="https://www.streamofdan.com/voxpro-manager" title="VoxPro Manager"></iframe>
+  <div class="layout">
+    <!-- Your original remote UI (kept for familiarity) -->
+    <iframe class="frame" src="https://www.streamofdan.com/voxpro-manager" title="VoxPro Manager"></iframe>
+
+    <!-- Live list from the same Xano base used by uploads -->
+    <section class="panel">
+      <h2>Recent uploads (live)</h2>
+      <div id="recent" class="list"><div class="empty">Loading…</div></div>
+    </section>
+  </div>
 
   <script>
-  // connection badge (quiet, no UI other than chip color/text)
+  // connection badge
   (async function(){
     const chip=document.getElementById('vpStatus');
     const ok=t=>{chip.style.background='#ecfdf5';chip.style.borderColor='#bbf7d0';chip.style.color='#065f46';chip.textContent=t};
@@ -51,6 +69,53 @@
         m.length?bad('Status: Disconnected ('+m.join(', ')+')'):ok('Status: Connected');
       }else bad('Status: Disconnected (function error)');
     }catch{bad('Status: Disconnected (network)')}
+  })();
+
+  // fetch recent items from Netlify -> Xano and render
+  (async function(){
+    const box=document.getElementById('recent');
+    const fmt=(ts)=>{
+      try{
+        // handle epoch seconds or ms or ISO
+        if(typeof ts==='number'){
+          if(String(ts).length===10) ts*=1000;
+          return new Date(ts).toLocaleString();
+        }
+        return new Date(ts).toLocaleString();
+      }catch{return '';}
+    };
+    const safe=(v)=> (v==null?'':String(v));
+    try{
+      const r=await fetch('/.netlify/functions/list-media');
+      const j=await r.json();
+      const arr = Array.isArray(j.data) ? j.data : (Array.isArray(j.data?.items)?j.data.items:[]);
+      if(!arr.length){ box.innerHTML='<div class="empty">No items found.</div>'; return; }
+
+      // sort newest first if we can
+      arr.sort((a,b)=>{
+        const A = a.created_at ?? a.createdAt ?? 0;
+        const B = b.created_at ?? b.createdAt ?? 0;
+        return (B||0) - (A||0);
+      });
+
+      box.innerHTML = arr.slice(0,25).map(item=>{
+        const thumb = item.thumbnail_url || (/\.(png|jpg|jpeg|gif|webp)$/i.test(item.file_url||'') ? item.file_url : '');
+        const title = safe(item.title || item.filename || 'Untitled');
+        const who   = safe(item.submitted_by || '');
+        const when  = fmt(item.created_at ?? item.createdAt);
+        return `
+          <div class="item">
+            <img class="thumb" src="${thumb || ''}" alt="" onerror="this.style.display='none'">
+            <div class="meta">
+              <div class="title">${title}</div>
+              <div class="sub">${who ? 'By '+who+' · ' : ''}${when || ''}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }catch(e){
+      box.innerHTML = '<div class="empty">Failed to load recent items.</div>';
+    }
   })();
   </script>
 </body>
