@@ -1,7 +1,6 @@
 const https = require('https');
 const cloudinary = require('cloudinary').v2;
-const multipart = require('parse-multipart-data');
-
+const Multipart = require('parse-multipart'); // using the 0.0.x package
 
 // Configure Cloudinary from Netlify environment variables
 cloudinary.config({
@@ -17,7 +16,6 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS'
   };
 
-  // Handle OPTIONS pre-flight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers: corsHeaders, body: '' };
   }
@@ -31,13 +29,13 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Parse multipart form-data
+    // Parse multipart form-data using parse-multipart@0.0.x
     const contentType = event.headers['content-type'] || event.headers['Content-Type'];
     const boundary = Multipart.getBoundary(contentType);
     const bodyBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
     const parts = Multipart.Parse(bodyBuffer, boundary);
 
-    // Find the file part (field name 'attachment')
+    // Find the uploaded file part
     const filePart = parts.find(part => part.filename);
     if (!filePart) {
       return {
@@ -47,25 +45,19 @@ exports.handler = async (event) => {
       };
     }
 
-    // Upload file buffer to Cloudinary
+    // Upload to Cloudinary
     const uploadResult = await new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'auto',
-          eager: [{ width: 300, height: 300, crop: 'thumb' }] // generate a thumbnail
-        },
+        { resource_type: 'auto', eager: [{ width: 300, height: 300, crop: 'thumb' }] },
         (error, result) => error ? reject(error) : resolve(result)
       );
       uploadStream.end(filePart.data);
     });
 
-    // Build metadata payload for Xano
+    // Gather other form fields
     const fields = {};
-    // extract other form fields (title, description, etc.)
     parts.forEach(part => {
-      if (!part.filename) {
-        fields[part.name] = part.data.toString('utf8');
-      }
+      if (!part.filename) fields[part.name] = part.data.toString('utf8');
     });
 
     const xanoPayload = {
@@ -85,7 +77,7 @@ exports.handler = async (event) => {
       thumbnail_url: uploadResult.eager && uploadResult.eager[0] ? uploadResult.eager[0].secure_url : ''
     };
 
-    // Send metadata to Xano
+    // Send payload to Xano
     const options = {
       hostname: 'xajo-b57d-cagt.n7e.xano.io',
       path: '/api:pYQcQtVX/user_submission',
@@ -116,10 +108,12 @@ exports.handler = async (event) => {
       body: xanoResponse.body
     };
   } catch (err) {
+    // Return detailed error info to the client
+    console.error(err);
     return {
       statusCode: 500,
       headers: corsHeaders,
-      body: JSON.stringify({ error: err.message })
+      body: JSON.stringify({ error: err.message, stack: err.stack })
     };
   }
 };
