@@ -1,5 +1,4 @@
 // netlify/functions/simple-uploader.js
-const https = require('https');
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -170,46 +169,30 @@ exports.handler = async (event, context) => {
       // Construct the Xano URL using environment variables
       let xanoUrl;
       try {
-        xanoUrl = new URL(XANO_API_BASE.replace(/\/+$/, '') + '/user_submission');
+        xanoUrl = XANO_API_BASE.replace(/\/+$/, '') + '/user_submission';
       } catch (e) {
         return json(500, { ok: false, error: 'Invalid XANO_API_BASE environment variable' });
       }
 
-      // Make request to Xano using the same pattern as list-media.js
-      const xanoResponse = await new Promise((resolve) => {
-        const req = https.request(
-          {
-            protocol: xanoUrl.protocol,
-            hostname: xanoUrl.hostname,
-            path: xanoUrl.pathname + xanoUrl.search,
-            method: 'POST',
-            headers: {
-              'Authorization': 'Bearer ' + XANO_API_KEY,
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-          },
-          (res) => {
-            let responseData = '';
-            res.on('data', (chunk) => responseData += chunk);
-            res.on('end', () => resolve({ status: res.statusCode, body: responseData }));
-          }
-        );
-        req.on('error', (e) => resolve({ status: 500, body: JSON.stringify({ error: e.message }) }));
-        
-        const requestBody = JSON.stringify(data);
-        req.write(requestBody);
-        req.end();
+      // Make request to Xano using fetch API
+      const xanoResponse = await fetch(xanoUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + XANO_API_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(data)
       });
 
-      let xanoBody = xanoResponse.body;
+      let xanoBody;
       try {
-        xanoBody = JSON.parse(xanoResponse.body);
+        xanoBody = await xanoResponse.json();
       } catch (e) {
-        // Keep as string if not valid JSON
+        xanoBody = await xanoResponse.text();
       }
 
-      if (xanoResponse.status === 200 || xanoResponse.status === 201) {
+      if (xanoResponse.ok) {
         return json(200, { ok: true, data: xanoBody });
       } else {
         return json(xanoResponse.status, { ok: false, error: 'Xano request failed', details: xanoBody });
