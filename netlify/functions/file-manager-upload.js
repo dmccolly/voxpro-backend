@@ -15,12 +15,11 @@ exports.handler = async (event) => {
   const fail = (code, stage, msg, extra = {}) =>
     json(code, { ok: false, stage, error: msg, ...extra });
 
-  // CORS preflight
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
 
-  // --- NEW: DIAGNOSTIC GET ---
+  // Quick env probe via GET
   if (event.httpMethod === 'GET') {
-    const diag = {
+    return json(200, {
       ok: true,
       method: 'GET',
       expects: 'POST multipart/form-data with field name "attachment"',
@@ -32,8 +31,7 @@ exports.handler = async (event) => {
         XANO_API_BASE_present: !!process.env.XANO_API_BASE,
         XANO_API_BASE_value: process.env.XANO_API_BASE || null
       }
-    };
-    return json(200, diag);
+    });
   }
 
   if (event.httpMethod !== 'POST') return fail(405, 'entry', 'Method not allowed');
@@ -57,14 +55,14 @@ exports.handler = async (event) => {
   try {
     const base = XANO_API_BASE.replace(/\/+$/, '');
     xanoURL = new URL(base + '/user_submission');
-  } catch (e) {
+  } catch {
     return fail(500, 'env', 'XANO_API_BASE is not a valid URL', { value: XANO_API_BASE });
   }
 
   try {
-    // Require inside try so module errors come back as JSON (not 502)
+    // Require inside try so module issues return JSON instead of a 502
     const cloudinary = require('cloudinary').v2;
-    const multipart = require('parse-multipart'); // v1.0.4 -> .parse()
+    const multipart = require('parse-multipart'); // supports both parse() and Parse()
 
     cloudinary.config({
       cloud_name: CLOUDINARY_CLOUD_NAME,
@@ -72,7 +70,7 @@ exports.handler = async (event) => {
       api_secret: CLOUDINARY_API_SECRET
     });
 
-    // -------- parse ----------
+    // -------- parse (handles both APIs) ----------
     const contentType = event.headers['content-type'] || event.headers['Content-Type'];
     if (!contentType || !contentType.includes('multipart/form-data')) {
       return fail(400, 'parse', `Invalid content-type: ${contentType || 'undefined'}`);
@@ -81,8 +79,14 @@ exports.handler = async (event) => {
     const boundary = multipart.getBoundary(contentType);
     const bodyBuf = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
 
-    // NOTE: parse-multipart@1.0.4 uses lowercase `parse`
-    const parts = multipart.parse(bodyBuf, boundary);
+    let parts;
+    if (typeof multipart.parse === 'function') {
+      parts = multipart.parse(bodyBuf, boundary);     // lowercase API
+    } else if (typeof multipart.Parse === 'function') {
+      parts = multipart.Parse(bodyBuf, boundary);     // uppercase API
+    } else {
+      return fail(500, 'parse', 'Multipart library has neither parse() nor Parse(). Check package/version.');
+    }
 
     const filePart = parts.find(p => p.filename);
     if (!filePart) return fail(400, 'parse', 'No file part found (field name must be "attachment").');
@@ -144,10 +148,10 @@ exports.handler = async (event) => {
       req.end();
     });
 
-    return json(xanoRes.code, xanoRes.body ? (() => {
-      // body may already be JSON string from Xano; return as-is
+    return json(xanoRes.code, (function () {
+      if (!xanoRes.body) return { ok: true };
       try { return JSON.parse(xanoRes.body); } catch { return { raw: xanoRes.body }; }
-    })() : { ok: true });
+    })());
 
   } catch (err) {
     return fail(500, 'unhandled', err.message, { stack: err.stack });
