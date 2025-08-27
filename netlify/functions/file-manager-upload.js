@@ -177,4 +177,6 @@ exports.handler = async (event) => {
       return json(200, { ok:true, cloudinary: up, xano: { warning: 'Xano returned ' + xr.status, data: xr.data } });
     }
   } catch (e) {
-    return json(500, { ok:false, error: e.message, stage: 'h
+    return json(500, { ok:false, error: e.message, stage: 'handler' });
+  }
+};
