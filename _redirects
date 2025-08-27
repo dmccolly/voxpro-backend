@@ -4,3 +4,4 @@
 /.netlify/functions/*  /.netlify/functions/:splat  200
 /*                 /index.html                       200
 /file-manager    /file-manager.html    200
+/simple-upload    /.netlify/functions/simple-uploader    200
