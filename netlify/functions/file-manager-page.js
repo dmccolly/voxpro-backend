@@ -323,26 +323,20 @@ exports.handler = async (event, context) => {
             hideMessages();
             
             try {
-                // Create FormData with the correct field names for Xano
+                // Create FormData with the correct field names for Xano user_submission
                 const formData = new FormData();
-                formData.append('attachment', file);  // Changed to match Xano field name
+                formData.append('attachment', file);
                 formData.append('title', document.getElementById('title').value || 'Untitled');
                 formData.append('description', document.getElementById('description').value || '');
                 formData.append('submitted_by', document.getElementById('submittedBy').value || 'Anonymous');
                 formData.append('notes', document.getElementById('notes').value || '');
-                
-                // Combine tags from multiple fields
-                const tags = [];
-                if (document.getElementById('tags').value) {
-                    tags.push(document.getElementById('tags').value);
-                }
-                if (document.getElementById('category').value) {
-                    tags.push(document.getElementById('category').value);
-                }
-                if (document.getElementById('station').value) {
-                    tags.push(document.getElementById('station').value);
-                }
-                formData.append('tags', tags.join(', '));
+                formData.append('tags', document.getElementById('tags').value || '');
+                formData.append('category', document.getElementById('category').value || 'Other');
+                formData.append('station', document.getElementById('station').value || '');
+                formData.append('priority', document.getElementById('priority').value || 'Normal');
+                formData.append('file_type', file.type || 'unknown');
+                formData.append('file_size', file.size.toString());
+                formData.append('filename', file.name);
                 formData.append('is_approved', 'false');
                 
                 progressFill.style.width = '30%';
