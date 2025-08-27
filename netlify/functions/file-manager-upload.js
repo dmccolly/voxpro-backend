@@ -1,6 +1,9 @@
 const https = require('https');
 const cloudinary = require('cloudinary').v2;
-const Multipart = require('parse-multipart'); // using the 0.0.x package
+const multipart = require('parse-multipart');
+const boundary = multipart.getBoundary(contentType);
+const parts = multipart.parse(bodyBuffer, boundary);
+
 
 // Configure Cloudinary from Netlify environment variables
 cloudinary.config({
