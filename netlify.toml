@@ -1,15 +1,15 @@
-[build]
-  publish   = "."
-  functions = "netlify/functions"
-
 [[redirects]]
   from = "/file-manager"
-  to   = "/.netlify/functions/uploader"
+  to = "/.netlify/functions/file-manager-page"
   status = 200
-  force  = true
 
-# Keep this LAST
+[[redirects]]
+  from = "/voxpro-manager"
+  to = "/templates/voxpro-manager.html"
+  status = 200
+
+# Catch-all MUST be last
 [[redirects]]
   from = "/*"
-  to   = "/index.html"
+  to = "/index.html"
   status = 200
