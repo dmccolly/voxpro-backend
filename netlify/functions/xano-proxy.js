@@ -18,7 +18,9 @@ exports.handler = async (event) => {
   // Forward the request to Xano
   try {
     const endpoint = event.path.replace('/.netlify/functions/xano-proxy', '') || '/auth/ping';
-    const url = 'https://x8k1-lell-twmt.n7.xano.io/api:pYeQctV' + endpoint;
+    
+    // Corrected URL based on working search function
+    const url = 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX' + endpoint;
     
     console.log(`Forwarding ${event.httpMethod} request to: ${url}`);
     
