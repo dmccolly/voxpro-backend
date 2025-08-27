@@ -2,20 +2,14 @@
   publish   = "."
   functions = "netlify/functions"
 
-# Pretty route -> render the form (function page)
+# Pretty URL for the uploader
 [[redirects]]
   from = "/file-manager"
-  to   = "/.netlify/functions/file-manager-page"
+  to   = "/.netlify/functions/file-manager-upload"
   status = 200
   force  = true
 
-# (Optional) legacy pretty POST path -> upload function
-[[redirects]]
-  from = "/file-manager-upload"
-  to   = "/.netlify/functions/file-manager-upload"
-  status = 200
-
-# KEEP THIS LAST
+# Keep this LAST
 [[redirects]]
   from = "/*"
   to   = "/index.html"
