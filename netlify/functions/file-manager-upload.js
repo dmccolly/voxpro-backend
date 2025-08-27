@@ -17,7 +17,7 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
 
-  // Quick env probe via GET
+  // Diagnostics without uploading
   if (event.httpMethod === 'GET') {
     return json(200, {
       ok: true,
@@ -60,9 +60,9 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Require inside try so module errors return JSON instead of a 502
+    // Require inside try so module errors come back as JSON (not 502)
     const cloudinary = require('cloudinary').v2;
-    const multipart = require('parse-multipart'); // supports parse() or Parse()
+    const parser = require('aws-lambda-multipart-parser');
 
     cloudinary.config({
       cloud_name: CLOUDINARY_CLOUD_NAME,
@@ -70,38 +70,27 @@ exports.handler = async (event) => {
       api_secret: CLOUDINARY_API_SECRET
     });
 
-    // -------- robust boundary & body decode ----------
-    const contentType = event.headers?.['content-type'] || event.headers?.['Content-Type'] || '';
-    if (!/multipart\/form-data/i.test(contentType)) {
-      return fail(400, 'parse', `Invalid content-type: ${contentType || 'undefined'}`);
+    // -------- parse with aws-lambda-multipart-parser ----------
+    // keepBinary = true -> returns Buffer in file.content
+    const parsed = parser.parse(event, true);
+
+    // The file input NAME in the form must be "attachment"
+    const file = parsed.attachment;
+    if (!file || !file.content || !file.filename) {
+      return fail(400, 'parse', 'No file found. Ensure input name="attachment".', { fields: Object.keys(parsed) });
     }
 
-    // Safe boundary extraction (no split crash)
-    const m = /boundary=([^;]+)/i.exec(contentType);
-    const boundary = m && m[1] ? m[1] : null;
-    if (!boundary) {
-      return fail(400, 'parse', 'No multipart boundary found in Content-Type', { contentType });
-    }
+    // Collect text fields
+    const title = parsed.title || 'Untitled';
+    const description = parsed.description || '';
+    const submittedBy = parsed.submittedBy || 'Anonymous';
+    const notes = parsed.notes || '';
+    const tags = parsed.tags || '';
+    const category = parsed.category || 'Other';
+    const station = parsed.station || '';
+    const priority = parsed.priority || 'Normal';
 
-    // Netlify sends multipart bodies base64-encoded. Use base64 regardless of flag.
-    const bodyBuf = Buffer.from(event.body || '', 'base64');
-
-    let parts;
-    if (typeof multipart.parse === 'function') {
-      parts = multipart.parse(bodyBuf, boundary);      // lowercase API
-    } else if (typeof multipart.Parse === 'function') {
-      parts = multipart.Parse(bodyBuf, boundary);      // uppercase API
-    } else {
-      return fail(500, 'parse', 'Multipart library has neither parse() nor Parse(). Check package/version.');
-    }
-
-    const filePart = parts.find(p => p.filename);
-    if (!filePart) return fail(400, 'parse', 'No file part found (field name must be "attachment").');
-
-    const fields = {};
-    parts.forEach(p => { if (!p.filename) fields[p.name] = p.data.toString('utf8'); });
-
-    // -------- cloudinary ----------
+    // -------- Cloudinary upload ----------
     let uploadResult;
     try {
       uploadResult = await new Promise((resolve, reject) => {
@@ -109,25 +98,25 @@ exports.handler = async (event) => {
           { resource_type: 'auto', eager: [{ width: 300, height: 300, crop: 'thumb' }] },
           (err, res) => err ? reject(err) : resolve(res)
         );
-        stream.end(filePart.data);
+        stream.end(file.content); // Buffer
       });
     } catch (e) {
       return fail(500, 'cloudinary', e.message);
     }
 
-    // -------- xano ----------
+    // -------- send to Xano ----------
     const payload = {
-      title: fields.title || 'Untitled',
-      description: fields.description || '',
-      submitted_by: fields.submittedBy || 'Anonymous',
-      notes: fields.notes || '',
-      tags: fields.tags || '',
-      category: fields.category || 'Other',
-      station: fields.station || '',
-      priority: fields.priority || 'Normal',
-      file_type: filePart.type || 'unknown',
-      file_size: String(filePart.data.length),
-      filename: filePart.filename,
+      title,
+      description,
+      submitted_by: submittedBy,
+      notes,
+      tags,
+      category,
+      station,
+      priority,
+      file_type: file.contentType || 'unknown',
+      file_size: String(file.content.length),
+      filename: file.filename,
       is_approved: 'false',
       file_url: uploadResult.secure_url,
       thumbnail_url: uploadResult.eager?.[0]?.secure_url || ''
@@ -155,7 +144,7 @@ exports.handler = async (event) => {
       req.end();
     });
 
-    // Return whatever Xano returns (parsed if JSON)
+    // Return whatever Xano returns (parse if JSON)
     let bodyOut = { raw: xanoRes.body };
     try { bodyOut = JSON.parse(xanoRes.body); } catch {}
     return json(xanoRes.code, bodyOut);
