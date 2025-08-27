@@ -4,7 +4,6 @@ const https = require('https');
 exports.handler = async (event) => {
   console.log('xano-proxy called:', event.httpMethod, event.path);
   
-  // Handle OPTIONS requests for CORS
   if (event.httpMethod === 'OPTIONS') {
     return {
       statusCode: 200,
@@ -18,21 +17,18 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Extract the endpoint from the path
     let endpoint = event.path.replace('/.netlify/functions/xano-proxy', '');
     
-    // Handle the auth/ping endpoint by checking /voxpro exists
     if (endpoint === '/auth/ping') {
-      endpoint = '/voxpro';
+      endpoint = '/user_submission';
     }
     
-    // Default to /voxpro if no endpoint
     if (!endpoint) {
-      endpoint = '/voxpro';
+      endpoint = '/user_submission';
     }
     
-    // Use the correct Xano API URL (fixed typo: letl not lell)
-    const url = 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX' + endpoint;
+    // FIXED URL
+    const url = 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX' + endpoint;
     
     console.log(`Forwarding ${event.httpMethod} request to: ${url}`);
     console.log('Body size:', event.body ? event.body.length : 0);
@@ -40,7 +36,6 @@ exports.handler = async (event) => {
     const response = await new Promise((resolve, reject) => {
       const urlObj = new URL(url);
       
-      // Add timestamp to prevent caching for GET requests
       if (event.httpMethod === 'GET') {
         urlObj.searchParams.append('_t', Date.now());
       }
@@ -57,7 +52,7 @@ exports.handler = async (event) => {
           'Accept': 'application/json',
           'Content-Length': Buffer.byteLength(postData)
         },
-        rejectUnauthorized: false // Disable SSL verification
+        rejectUnauthorized: false
       };
       
       const req = https.request(options, (res) => {
@@ -86,7 +81,6 @@ exports.handler = async (event) => {
       req.end();
     });
     
-    // Special handling for auth/ping
     if (event.path.includes('/auth/ping') && response.statusCode === 200) {
       return {
         statusCode: 200,
