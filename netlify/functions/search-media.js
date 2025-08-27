@@ -1,12 +1,12 @@
-// No-cache search-media.js - Forces fresh data every time
-const https = require('https' );
-const http = require('http' );
+// netlify/functions/search-media.js
+const https = require('https');
+const http = require('http');
 
 const makeRequest = (url, options = {}) => {
   return new Promise((resolve, reject) => {
     const cacheBuster = `?_t=${Date.now()}&_r=${Math.random()}`;
     const fullUrl = url + cacheBuster;
-    const protocol = fullUrl.startsWith('https:' ) ? https : http;
+    const protocol = fullUrl.startsWith('https:') ? https : http;
     
     const requestOptions = {
       ...options,
@@ -18,7 +18,7 @@ const makeRequest = (url, options = {}) => {
       }
     };
     
-    const req = protocol.get(fullUrl, requestOptions, (res ) => {
+    const req = protocol.get(fullUrl, requestOptions, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
@@ -49,16 +49,17 @@ exports.handler = async (event, context) => {
     'Expires': '0'
   };
 
-  if (event.httpMethod === 'OPTIONS' ) {
+  if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
 
   try {
     const query = event.queryStringParameters?.q || '';
-    const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:pYeqCtV';
-    const searchUrl = `${XANO_API_BASE}/voxpro`;
+    const XANO_API_BASE = process.env.XANO_API_BASE || 'https://x8ki-letl-twmt.n7.xano.io/api:pYeQctVX';
+    // CHANGED: Using user_submission instead of voxpro
+    const searchUrl = `${XANO_API_BASE}/user_submission`;
     
-    console.log(`FRESH SEARCH: ${searchUrl} for query: "${query}"` );
+    console.log(`FRESH SEARCH: ${searchUrl} for query: "${query}"`);
     
     const data = await makeRequest(searchUrl);
     
@@ -66,7 +67,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify([])
+        body: JSON.stringify({ results: [], total: 0, query })
       };
     }
     
@@ -93,15 +94,16 @@ exports.handler = async (event, context) => {
       return dateB - dateA;
     });
     
-return {
-  statusCode: 200,
-  headers,
-  body: JSON.stringify({
-    results: results,
-    total: results.length,
-    query: query
-  })
-};
+    // Return in the format voxpro-manager expects
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        results: results,
+        total: results.length,
+        query: query
+      })
+    };
     
   } catch (error) {
     console.error('SEARCH ERROR:', error);
