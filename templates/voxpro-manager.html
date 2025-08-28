@@ -20,7 +20,7 @@
     .panel{background:#0f172a;border:1px solid #1f2937;border-radius:12px;padding:14px}
     .panel h2{margin:0 0 8px;font-size:16px;color:#fff}
     .list{display:grid;grid-template-columns:1fr;gap:10px;max-height:75vh;overflow:auto;padding-right:4px}
-    .item{display:grid;grid-template-columns:64px 1fr;gap:10px;padding:8px;border:1px solid #1f2937;border-radius:10px;background:#0b1220}
+    .item{display:grid;grid-template-columns:64px 1fr auto;gap:10px;padding:8px;border:1px solid #1f2937;border-radius:10px;background:#0b1220;align-items:center}
     .thumb{width:64px;height:64px;border-radius:8px;object-fit:cover;background:#111827}
     .meta{display:flex;flex-direction:column;gap:3px}
     .title{color:#fff;font-weight:700;font-size:14px;line-height:1.2}
@@ -32,7 +32,6 @@
   <div class="top">
     <div class="wrap">
       <h1>VoxPro Manager</h1>
-      <span id="vpStatus" class="chip">Status: Checking…</span>
       <div class="bar">
         <a class="btn" href="/file-manager">Open Upload Form</a>
         <a class="btn" href="/.netlify/functions/file-manager-upload" target="_blank" rel="noopener">API (GET) Diagnostics</a>
@@ -52,25 +51,6 @@
   </div>
 
   <script>
-  // connection badge
-  (async function(){
-    const chip=document.getElementById('vpStatus');
-    const ok=t=>{chip.style.background='#ecfdf5';chip.style.borderColor='#bbf7d0';chip.style.color='#065f46';chip.textContent=t};
-    const bad=t=>{chip.style.background='#fef2f2';chip.style.borderColor='#fecaca';chip.style.color='#7f1d1d';chip.textContent=t};
-    try{
-      const r=await fetch('/.netlify/functions/file-manager-upload',{method:'GET'});
-      const d=await r.json().catch(()=>({}));
-      if(r.ok&&d&&d.ok&&d.env){
-        const m=[]; if(!d.env.CLOUDINARY_CLOUD_NAME)m.push('CLOUDINARY_CLOUD_NAME');
-        if(!d.env.CLOUDINARY_API_KEY)m.push('CLOUDINARY_API_KEY');
-        if(!d.env.CLOUDINARY_API_SECRET)m.push('CLOUDINARY_API_SECRET');
-        if(!d.env.XANO_API_KEY)m.push('XANO_API_KEY');
-        if(!d.env.XANO_API_BASE_present)m.push('XANO_API_BASE');
-        m.length?bad('Status: Disconnected ('+m.join(', ')+')'):ok('Status: Connected');
-      }else bad('Status: Disconnected (function error)');
-    }catch{bad('Status: Disconnected (network)')}
-  })();
-
   // fetch recent items from Netlify -> Xano and render
   (async function(){
     const box=document.getElementById('recent');
@@ -103,6 +83,7 @@
         const title = safe(item.title || item.filename || 'Untitled');
         const who   = safe(item.submitted_by || '');
         const when  = fmt(item.created_at ?? item.createdAt);
+        const id    = item.id || '';
         return `
           <div class="item">
             <img class="thumb" src="${thumb || ''}" alt="" onerror="this.style.display='none'">
@@ -110,6 +91,7 @@
               <div class="title">${title}</div>
               <div class="sub">${who ? 'By '+who+' · ' : ''}${when || ''}</div>
             </div>
+            <button class="delete-btn" onclick="deleteItem('${id}', this)" style="margin-left:auto;padding:4px 8px;background:#dc2626;color:white;border:none;border-radius:4px;cursor:pointer;font-size:12px">Delete</button>
           </div>
         `;
       }).join('');
@@ -117,6 +99,43 @@
       box.innerHTML = '<div class="empty">Failed to load recent items.</div>';
     }
   })();
+
+  // Delete function
+  window.deleteItem = async function(id, button) {
+    if (!id) {
+      alert('Cannot delete: No ID found');
+      return;
+    }
+    
+    if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
+      return;
+    }
+    
+    button.disabled = true;
+    button.textContent = 'Deleting...';
+    
+    try {
+      const response = await fetch('/.netlify/functions/delete-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id })
+      });
+      
+      if (response.ok) {
+        // Remove the item from the UI
+        button.closest('.item').remove();
+      } else {
+        const error = await response.text();
+        alert('Delete failed: ' + error);
+        button.disabled = false;
+        button.textContent = 'Delete';
+      }
+    } catch (error) {
+      alert('Delete failed: ' + error.message);
+      button.disabled = false;
+      button.textContent = 'Delete';
+    }
+  };
   </script>
 </body>
 </html>
