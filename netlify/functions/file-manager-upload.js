@@ -114,7 +114,7 @@ exports.handler = async (event) => {
     // POST to Xano
     let xanoUrl;
     try {
-      xanoUrl = new URL(XANO_API_BASE.replace(/\/+$/, '') + '/user_submission');
+      xanoUrl = new URL(XANO_API_BASE.replace(/\/+$/, '') + '/media');
     } catch {
       return json(500, { ok: false, stage: 'env', error: 'Invalid XANO_API_BASE' });
     }
