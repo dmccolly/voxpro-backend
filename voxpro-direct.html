@@ -684,7 +684,15 @@
             }
             
             try {
-                await xano(`/playback/play/${assignment.asset_id}`, { method: 'POST' });
+                // Find the media details from the media list
+                const media = mediaList.find(m => m.id == assignment.asset_id);
+                if (!media) {
+                    showMessage(`Media file not found for assignment`, 'error');
+                    return;
+                }
+                
+                // Create and show modal video player
+                showVideoModal(media, assignment);
                 
                 // Update UI
                 document.querySelectorAll('.key-button').forEach(btn => {
@@ -700,21 +708,79 @@
             }
         }
 
-        async function stopPlayback() {
-            try {
-                await xano('/playback/stop', { method: 'POST' });
-                
-                // Update UI
-                document.querySelectorAll('.key-button').forEach(btn => {
-                    btn.classList.remove('playing');
-                });
-                currentlyPlaying = null;
-                
-                showMessage('Playback stopped', 'success');
-            } catch (error) {
-                console.error('Stop error:', error);
-                showMessage(`Stop failed: ${error.message}`, 'error');
+        function showVideoModal(media, assignment) {
+            // Create modal HTML
+            const modalHTML = `
+                <div id="videoModal" style="
+                    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                    background: rgba(0,0,0,0.9); z-index: 1000; display: flex; 
+                    align-items: center; justify-content: center;
+                ">
+                    <div style="
+                        background: var(--bg-secondary); border-radius: 12px; 
+                        padding: 24px; max-width: 90vw; max-height: 90vh; 
+                        position: relative; border: 1px solid var(--border);
+                    ">
+                        <button onclick="closeVideoModal()" style="
+                            position: absolute; top: 12px; right: 12px; 
+                            background: var(--error); color: white; border: none; 
+                            border-radius: 50%; width: 32px; height: 32px; 
+                            cursor: pointer; font-size: 18px;
+                        ">×</button>
+                        
+                        <h3 style="color: var(--text-primary); margin-bottom: 16px;">
+                            ${assignment.title || media.title || 'Untitled'}
+                        </h3>
+                        
+                        <div style="margin-bottom: 16px;">
+                            <p style="color: var(--text-secondary); margin: 4px 0;">
+                                <strong>Station:</strong> ${assignment.station || media.station || 'Unknown'}
+                            </p>
+                            <p style="color: var(--text-secondary); margin: 4px 0;">
+                                <strong>Submitted by:</strong> ${assignment.submitted_by || media.submitted_by || 'Unknown'}
+                            </p>
+                            ${assignment.description ? `<p style="color: var(--text-secondary); margin: 8px 0;">${assignment.description}</p>` : ''}
+                        </div>
+                        
+                        <video controls autoplay style="
+                            width: 100%; max-width: 800px; height: auto; 
+                            border-radius: 8px; background: #000;
+                        ">
+                            <source src="${media.cloudinary_url || media.file_url || '#'}" type="video/mp4">
+                            <p style="color: var(--text-primary);">Your browser doesn't support video playback.</p>
+                        </video>
+                        
+                        <div style="margin-top: 16px; text-align: center;">
+                            <button onclick="closeVideoModal()" style="
+                                background: var(--accent); color: white; border: none; 
+                                padding: 8px 16px; border-radius: 6px; cursor: pointer;
+                            ">Close</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        function closeVideoModal() {
+            const modal = document.getElementById('videoModal');
+            if (modal) {
+                modal.remove();
             }
+            
+            // Update UI
+            document.querySelectorAll('.key-button').forEach(btn => {
+                btn.classList.remove('playing');
+            });
+            currentlyPlaying = null;
+        }
+
+        async function stopPlayback() {
+            // Close video modal if open
+            closeVideoModal();
+            showMessage('Playback stopped', 'success');
         }
 
         // Search function
