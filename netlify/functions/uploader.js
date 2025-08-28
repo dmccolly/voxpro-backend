@@ -101,8 +101,9 @@ exports.handler = async (event) => {
       file_size: String(file.buffer.length),
       filename: fields.filename || file.filename || '',
       is_approved: String(fields.is_approved || 'false') === 'true',
-      file_url: cloudRes.secure_url,
+      media_url: cloudRes.secure_url,
       thumbnail_url: cloudRes.eager?.[0]?.secure_url || '',
+      cloudinary_url: cloudRes.secure_url,
       created_at: Date.now(),
     };
 
