@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxPro File Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border: 3px dashed #667eea;
+            border-radius: 8px;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 80px;
+        }
+
+        .file-input-display:hover {
+            background: #e9ecef;
+            border-color: #5a67d8;
+        }
+
+        .file-input-display.has-file {
+            background: #e8f5e8;
+            border-color: #28a745;
+        }
+
+        .upload-icon {
+            font-size: 2em;
+            margin-right: 15px;
+            color: #667eea;
+        }
+
+        .upload-text {
+            font-size: 1.1em;
+            color: #495057;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .submit-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e9ecef;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+            
+            .container {
+                margin: 10px;
+            }
+            
+            .form-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>VoxPro File Manager</h1>
+            <p>Upload and manage your media files for the VoxPro system</p>
+        </div>
+        
+        <div class="form-container">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="file">Select Media File *</label>
+                    <div class="file-input-wrapper">
+                        <input type="file" id="file" name="file" class="file-input" accept="audio/*,video/*" required>
+                        <div class="file-input-display" id="fileDisplay">
+                            <span class="upload-icon">📁</span>
+                            <span class="upload-text">Click to select a file or drag and drop</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="title">Title *</label>
+                    <input type="text" id="title" name="title" placeholder="Enter media title" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" placeholder="Enter media description"></textarea>
+                </div>
+
+                <div class="two-column">
+                    <div class="form-group">
+                        <label for="category">Category *</label>
+                        <select id="category" name="category" required>
+                            <option value="">Select category</option>
+                            <option value="Audio">Audio</option>
+                            <option value="Video">Video</option>
+                            <option value="Music">Music</option>
+                            <option value="Commercial">Commercial</option>
+                            <option value="News">News</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="station">Station</label>
+                        <select id="station" name="station">
+                            <option value="">Select station</option>
+                            <option value="KIVI">KIVI</option>
+                            <option value="KTFT">KTFT</option>
+                            <option value="KBOI">KBOI</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="two-column">
+                    <div class="form-group">
+                        <label for="submittedBy">Submitted By</label>
+                        <input type="text" id="submittedBy" name="submittedBy" placeholder="Your name or initials">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="priority">Priority</label>
+                        <select id="priority" name="priority">
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="tags">Tags</label>
+                    <input type="text" id="tags" name="tags" placeholder="Enter tags separated by commas">
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes</label>
+                    <textarea id="notes" name="notes" placeholder="Additional notes or comments"></textarea>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    Upload Media File
+                </button>
+
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Uploading... 0%</div>
+                </div>
+
+                <div class="message" id="message"></div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('file');
+        const fileDisplay = document.getElementById('fileDisplay');
+        const uploadForm = document.getElementById('uploadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+        const message = document.getElementById('message');
+
+        // File input handling
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                fileDisplay.classList.add('has-file');
+                fileDisplay.innerHTML = `
+                    <span class="upload-icon">✅</span>
+                    <span class="upload-text">${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
+                `;
+            } else {
+                fileDisplay.classList.remove('has-file');
+                fileDisplay.innerHTML = `
+                    <span class="upload-icon">📁</span>
+                    <span class="upload-text">Click to select a file or drag and drop</span>
+                `;
+            }
+        });
+
+        // Drag and drop handling
+        fileDisplay.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            fileDisplay.style.background = '#e9ecef';
+        });
+
+        fileDisplay.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            fileDisplay.style.background = '#f8f9fa';
+        });
+
+        fileDisplay.addEventListener('drop', function(e) {
+            e.preventDefault();
+            fileDisplay.style.background = '#f8f9fa';
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                fileInput.dispatchEvent(new Event('change'));
+            }
+        });
+
+        // Form submission
+        uploadForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(uploadForm);
+            
+            // Show progress
+            progressContainer.style.display = 'block';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Uploading...';
+            message.style.display = 'none';
+
+            // Create XMLHttpRequest for progress tracking
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener('progress', function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    progressFill.style.width = percentComplete + '%';
+                    progressText.textContent = `Uploading... ${Math.round(percentComplete)}%`;
+                }
+            });
+
+            xhr.addEventListener('load', function() {
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        showMessage('success', 'File uploaded successfully! The media is now available in the VoxPro system.');
+                        uploadForm.reset();
+                        fileDisplay.classList.remove('has-file');
+                        fileDisplay.innerHTML = `
+                            <span class="upload-icon">📁</span>
+                            <span class="upload-text">Click to select a file or drag and drop</span>
+                        `;
+                    } catch (e) {
+                        showMessage('error', 'Upload completed but received invalid response.');
+                    }
+                } else {
+                    showMessage('error', `Upload failed: ${xhr.statusText}`);
+                }
+                
+                resetUploadState();
+            });
+
+            xhr.addEventListener('error', function() {
+                showMessage('error', 'Upload failed due to network error.');
+                resetUploadState();
+            });
+
+            xhr.open('POST', '/.netlify/functions/file-manager-upload');
+            xhr.send(formData);
+        });
+
+        function showMessage(type, text) {
+            message.className = `message ${type}`;
+            message.textContent = text;
+            message.style.display = 'block';
+        }
+
+        function resetUploadState() {
+            progressContainer.style.display = 'none';
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Uploading... 0%';
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Upload Media File';
+        }
+    </script>
+</body>
+</html>
+
