@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxPro Manager</title>
+    <style>
+        :root {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --bg-tertiary: #3a3a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --accent: #00d4aa;
+            --accent-secondary: #00b894;
+            --border: #404040;
+            --error: #ff6b6b;
+            --warning: #feca57;
+            --success: #48dbfb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            min-height: 100vh;
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--border);
+            height: fit-content;
+        }
+
+        .media-player {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .key-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .key-button {
+            padding: 20px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .key-button:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .key-button.assigned {
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .key-button.playing {
+            animation: playing 1s infinite;
+        }
+
+        @keyframes playing {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .stop-button {
+            grid-column: span 2;
+            padding: 16px;
+            background: var(--error);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .stop-button:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+
+        .assignments-section {
+            margin-top: 20px;
+        }
+
+        .assignments-section h3 {
+            color: var(--accent);
+            margin-bottom: 12px;
+            font-size: 18px;
+        }
+
+        .assignment-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .remove-btn {
+            background: var(--error);
+            border: none;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .search-section {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-bottom: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .media-browser {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-bottom: 16px;
+        }
+
+        .media-item {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .media-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .media-item.selected {
+            background: var(--accent);
+            color: white;
+        }
+
+        .media-item:last-child {
+            border-bottom: none;
+        }
+
+        .media-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .assign-button {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .assign-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 212, 170, 0.3);
+        }
+
+        .assign-button:disabled {
+            background: var(--bg-tertiary);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .message.success {
+            background: rgba(72, 219, 251, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .message.error {
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+
+        .upload-link {
+            display: inline-block;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: transform 0.2s ease;
+        }
+
+        .upload-link:hover {
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 16px;
+            }
+            
+            .key-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- VoxPro Media Player -->
+        <div class="panel">
+            <div class="media-player">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="color: var(--accent);">VoxPro Media Player</h2>
+                    <div class="connection-status">
+                        <div class="status-indicator"></div>
+                        <span id="connectionStatus">Connected</span>
+                    </div>
+                </div>
+
+                <div class="key-grid">
+                    <button class="key-button" data-key="1" id="key1">KEY 1</button>
+                    <button class="key-button" data-key="2" id="key2">KEY 2</button>
+                    <button class="key-button" data-key="3" id="key3">KEY 3</button>
+                    <button class="key-button" data-key="4" id="key4">KEY 4</button>
+                    <button class="key-button" data-key="5" id="key5">KEY 5</button>
+                    <button class="stop-button" id="stopButton">STOP</button>
+                </div>
+
+                <div class="assignments-section">
+                    <h3>Current Key Assignments</h3>
+                    <div id="assignmentsList">
+                        <div class="status-text">No assignments yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VoxPro Manager -->
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">VoxPro Manager</h2>
+                <a href="/file-manager.html" target="_blank" class="upload-link">
+                    📁 Upload Files
+                </a>
+            </div>
+            
+            <div class="message" id="messageBox"></div>
+
+            <div class="search-section">
+                <label class="form-label">Search Media (title, description, station, tags)</label>
+                <input type="text" class="form-input" id="searchInput" placeholder="Type to search… or leave empty for recent">
+                
+                <div class="media-browser" id="mediaBrowser">
+                    <div class="media-item" data-id="4" onclick="selectMedia(4)">
+                        <div class="media-icon">🎵</div>
+                        <div>
+                            <div style="font-weight: 500;">Aerosmith test</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                Unknown • Unknown
+                            </div>
+                        </div>
+                    </div>
+                    <div class="media-item" data-id="5" onclick="selectMedia(5)">
+                        <div class="media-icon">🎵</div>
+                        <div>
+                            <div style="font-weight: 500;">Test scary</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                Unknown • Unknown
+                            </div>
+                        </div>
+                    </div>
+                    <div class="media-item" data-id="6" onclick="selectMedia(6)">
+                        <div class="media-icon">🎵</div>
+                        <div>
+                            <div style="font-weight: 500;">bc</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                Unknown • Unknown
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="status-text" id="selectedStatus">No media selected</div>
+            </div>
+
+            <div class="form-section">
+                <label class="form-label">Select Key Slot</label>
+                <select class="form-select" id="keySelect">
+                    <option value="">Choose a key…</option>
+                    <option value="1">Key 1</option>
+                    <option value="2">Key 2</option>
+                    <option value="3">Key 3</option>
+                    <option value="4">Key 4</option>
+                    <option value="5">Key 5</option>
+                </select>
+
+                <label class="form-label">Title</label>
+                <input type="text" class="form-input" id="titleInput" placeholder="Title">
+
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="descriptionInput" placeholder="Description"></textarea>
+
+                <label class="form-label">Station</label>
+                <input type="text" class="form-input" id="stationInput" placeholder="Station">
+
+                <label class="form-label">Tags</label>
+                <input type="text" class="form-input" id="tagsInput" placeholder="Comma-separated">
+
+                <label class="form-label">Submitted By</label>
+                <input type="text" class="form-input" id="submittedByInput" placeholder="Name or initials">
+
+                <button class="assign-button" id="assignButton">Assign / Update Key</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const XANO_PROXY_BASE = 'https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/xano-proxy';
+        
+        // Global variables
+        let selectedMedia = null;
+        let mediaList = [];
+        let assignments = [];
+        let currentlyPlaying = null;
+
+        // Initialize the application
+        function init() {
+            console.log('Initializing VoxPro Manager...');
+            
+            // Get DOM elements
+            const searchInput = document.getElementById('searchInput');
+            const mediaBrowser = document.getElementById('mediaBrowser');
+            const assignButton = document.getElementById('assignButton');
+            const keySelect = document.getElementById('keySelect');
+            const messageBox = document.getElementById('messageBox');
+            
+            // Attach event listeners
+            if (searchInput) {
+                searchInput.addEventListener('input', handleSearch);
+            }
+            
+            if (assignButton) {
+                assignButton.addEventListener('click', handleAssign);
+                console.log('Assignment button click handler attached');
+            }
+            
+            // Attach key button listeners
+            for (let i = 1; i <= 5; i++) {
+                const keyButton = document.getElementById(`key${i}`);
+                if (keyButton) {
+                    keyButton.addEventListener('click', () => playKey(i));
+                }
+            }
+            
+            const stopButton = document.getElementById('stopButton');
+            if (stopButton) {
+                stopButton.addEventListener('click', stopPlayback);
+            }
+            
+            // Load initial data
+            loadMedia();
+            loadAssignments();
+            
+            // Set up periodic refresh
+            setInterval(() => {
+                loadAssignments();
+            }, 10000);
+            
+            console.log('VoxPro Manager initialized successfully');
+        }
+
+        // API functions
+        async function xano(endpoint, options = {}) {
+            try {
+                const url = `${XANO_PROXY_BASE}${endpoint}`;
+                console.log('API call:', url, options);
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('API response:', data);
+                return data;
+            } catch (error) {
+                console.error('API error:', error);
+                throw error;
+            }
+        }
+
+        // Media functions
+        async function loadMedia(searchTerm = '') {
+            try {
+                const endpoint = searchTerm ? 
+                    `/media/search?q=${encodeURIComponent(searchTerm)}` : 
+                    '/media';
+                
+                const data = await xano(endpoint);
+                mediaList = Array.isArray(data) ? data : [];
+                renderMediaBrowser();
+            } catch (error) {
+                console.error('Error loading media:', error);
+                showMessage('Error loading media', 'error');
+            }
+        }
+
+        function renderMediaBrowser() {
+            const mediaBrowser = document.getElementById('mediaBrowser');
+            if (!mediaBrowser) return;
+            
+            if (mediaList.length === 0) {
+                mediaBrowser.innerHTML = '<div class="status-text">No media found</div>';
+                return;
+            }
+            
+            mediaBrowser.innerHTML = mediaList.map(media => `
+                <div class="media-item" data-id="${media.id}" onclick="selectMedia(${media.id})">
+                    <div class="media-icon">🎵</div>
+                    <div>
+                        <div style="font-weight: 500;">${media.title || 'Untitled'}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">
+                            ${media.station || 'Unknown'} • ${media.submitted_by || 'Unknown'}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectMedia(mediaId) {
+            // Hardcoded media data for testing
+            const mediaData = {
+                4: { id: 4, title: 'Aerosmith test', description: 'Test clip', station: 'Unknown', tags: '', submitted_by: 'Unknown' },
+                5: { id: 5, title: 'Test scary', description: 'Scary test', station: 'Unknown', tags: '', submitted_by: 'Unknown' },
+                6: { id: 6, title: 'bc', description: 'BC test', station: 'Unknown', tags: '', submitted_by: 'Unknown' }
+            };
+            
+            selectedMedia = mediaData[mediaId];
+            if (!selectedMedia) return;
+            
+            // Update UI
+            document.querySelectorAll('.media-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            document.querySelector(`[data-id="${mediaId}"]`).classList.add('selected');
+            
+            // Populate form
+            document.getElementById('titleInput').value = selectedMedia.title || '';
+            document.getElementById('descriptionInput').value = selectedMedia.description || '';
+            document.getElementById('stationInput').value = selectedMedia.station || '';
+            document.getElementById('tagsInput').value = selectedMedia.tags || '';
+            document.getElementById('submittedByInput').value = selectedMedia.submitted_by || '';
+            
+            // Update status
+            document.getElementById('selectedStatus').textContent = 
+                `Selected: ${selectedMedia.title || 'Untitled'}`;
+            
+            console.log('Media selected:', selectedMedia);
+        }
+
+        // Assignment functions
+        async function handleAssign() {
+            console.log('Assignment button clicked');
+            
+            if (!selectedMedia) {
+                showMessage('Please select a media item first', 'error');
+                return;
+            }
+            
+            const keySlot = document.getElementById('keySelect').value;
+            if (!keySlot) {
+                showMessage('Please select a key slot', 'error');
+                return;
+            }
+            
+            try {
+                await createAssignment(selectedMedia.id, parseInt(keySlot));
+                showMessage('Assignment created successfully!', 'success');
+                loadAssignments();
+            } catch (error) {
+                console.error('Assignment error:', error);
+                showMessage(`Assignment failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function createAssignment(mediaId, keySlot) {
+            console.log('Creating assignment:', { mediaId, keySlot });
+            
+            const assignmentData = {
+                asset_id: mediaId,
+                key_number: keySlot,
+                title: document.getElementById('titleInput').value,
+                description: document.getElementById('descriptionInput').value,
+                station: document.getElementById('stationInput').value,
+                tags: document.getElementById('tagsInput').value,
+                submitted_by: document.getElementById('submittedByInput').value
+            };
+            
+            return await xano('/voxpro_assignments', {
+                method: 'POST',
+                body: JSON.stringify(assignmentData)
+            });
+        }
+
+        async function loadAssignments() {
+            try {
+                const data = await xano('/voxpro_assignments');
+                assignments = Array.isArray(data) ? data : [];
+                renderAssignments();
+                updateKeyButtons();
+            } catch (error) {
+                console.error('Error loading assignments:', error);
+            }
+        }
+
+        function renderAssignments() {
+            const assignmentsList = document.getElementById('assignmentsList');
+            if (!assignmentsList) return;
+            
+            if (assignments.length === 0) {
+                assignmentsList.innerHTML = '<div class="status-text">No assignments yet</div>';
+                return;
+            }
+            
+            assignmentsList.innerHTML = assignments.map(assignment => `
+                <div class="assignment-item">
+                    <span>Key ${assignment.key_number} — ${assignment.title || 'Unknown'}</span>
+                    <button class="remove-btn" onclick="removeAssignment(${assignment.id})">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function updateKeyButtons() {
+            for (let i = 1; i <= 5; i++) {
+                const keyButton = document.getElementById(`key${i}`);
+                const assignment = assignments.find(a => a.key_number === i);
+                
+                if (assignment) {
+                    keyButton.classList.add('assigned');
+                } else {
+                    keyButton.classList.remove('assigned');
+                }
+            }
+        }
+
+        async function removeAssignment(assignmentId) {
+            if (!confirm('Are you sure you want to remove this assignment?')) return;
+            
+            try {
+                await xano(`/voxpro_assignments/${assignmentId}`, { method: 'DELETE' });
+                showMessage('Assignment removed successfully!', 'success');
+                loadAssignments();
+            } catch (error) {
+                console.error('Remove error:', error);
+                showMessage(`Remove failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Playback functions
+        async function playKey(keySlot) {
+            const assignment = assignments.find(a => a.key_slot === keySlot);
+            if (!assignment) {
+                showMessage(`No media assigned to Key ${keySlot}`, 'error');
+                return;
+            }
+            
+            try {
+                await xano(`/playback/play/${assignment.media_id}`, { method: 'POST' });
+                
+                // Update UI
+                document.querySelectorAll('.key-button').forEach(btn => {
+                    btn.classList.remove('playing');
+                });
+                document.getElementById(`key${keySlot}`).classList.add('playing');
+                currentlyPlaying = keySlot;
+                
+                showMessage(`Playing: ${assignment.title}`, 'success');
+            } catch (error) {
+                console.error('Playback error:', error);
+                showMessage(`Playback failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function stopPlayback() {
+            try {
+                await xano('/playback/stop', { method: 'POST' });
+                
+                // Update UI
+                document.querySelectorAll('.key-button').forEach(btn => {
+                    btn.classList.remove('playing');
+                });
+                currentlyPlaying = null;
+                
+                showMessage('Playback stopped', 'success');
+            } catch (error) {
+                console.error('Stop error:', error);
+                showMessage(`Stop failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Search function
+        function handleSearch() {
+            const searchTerm = document.getElementById('searchInput').value;
+            loadMedia(searchTerm);
+        }
+
+        // Utility functions
+        function showMessage(text, type = 'success') {
+            const messageBox = document.getElementById('messageBox');
+            if (!messageBox) return;
+            
+            messageBox.textContent = text;
+            messageBox.className = `message ${type} show`;
+            
+            setTimeout(() => {
+                messageBox.classList.remove('show');
+            }, 5000);
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+

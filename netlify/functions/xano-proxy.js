@@ -30,6 +30,12 @@ exports.handler = async (event) => {
       endpoint = '/voxpro_assignments';
     } else if (endpoint === '/media/search') {
       endpoint = '/user_submission';
+    } else if (endpoint.startsWith('/voxpro_assignments')) {
+      // Keep voxpro_assignments endpoints as-is (including /voxpro_assignments/45 for DELETE)
+      // No change needed
+    } else if (endpoint.startsWith('/asset')) {
+      // Keep asset endpoints as-is (including /asset/123 for PATCH)
+      // No change needed  
     } else if (!endpoint) {
       endpoint = '/user_submission';
     }
