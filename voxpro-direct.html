@@ -519,7 +519,7 @@
             try {
                 const endpoint = searchTerm ? 
                     `/media/search?q=${encodeURIComponent(searchTerm)}` : 
-                    '/media';
+                    '/user_submission';
                 
                 const data = await xano(endpoint);
                 mediaList = Array.isArray(data) ? data : [];

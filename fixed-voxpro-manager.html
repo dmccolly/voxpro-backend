@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxPro Manager - Fixed</title>
+    <style>
+        :root {
+            --bg-primary: #0b1220;
+            --bg-secondary: #0f172a;
+            --bg-tertiary: #1f2937;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --text-accent: #10b981;
+            --accent: #667eea;
+            --accent-secondary: #764ba2;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .panel h2 {
+            color: var(--text-accent);
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* Media Player Styles */
+        .key-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .key-button {
+            padding: 20px;
+            border: 2px solid var(--bg-tertiary);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .key-button:hover {
+            border-color: var(--accent);
+        }
+
+        .key-button.assigned {
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .key-button.playing {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .key-5 {
+            grid-column: 1 / -1;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .stop-button {
+            grid-column: 1 / -1;
+            padding: 15px;
+            background: var(--error);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+
+        .connection-status.connected {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .connection-status.disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Manager Styles */
+        .search-section {
+            margin-bottom: 25px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-primary);
+            border: 2px solid var(--bg-tertiary);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .media-browser {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 25px;
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 8px;
+        }
+
+        .media-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid var(--bg-tertiary);
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .media-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .media-item.selected {
+            background: rgba(102, 126, 234, 0.2);
+            border-left: 4px solid var(--accent);
+        }
+
+        .media-item:last-child {
+            border-bottom: none;
+        }
+
+        .media-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .media-info {
+            flex: 1;
+        }
+
+        .media-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .media-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .form-section {
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 2px solid var(--bg-tertiary);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .assign-button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--success), #059669);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .assign-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .assign-button:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .assignments-section h3 {
+            color: var(--text-accent);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .assignment-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .assignment-key {
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .remove-button {
+            padding: 4px 8px;
+            background: var(--error);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .message.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .message.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-secondary);
+            font-style: italic;
+            padding: 20px;
+        }
+
+        /* Media Modal */
+        .media-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .media-modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 80%;
+            max-height: 80%;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .current-info {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .current-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .current-meta {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 10px;
+            }
+            
+            .key-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .key-5 {
+                grid-column: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- VoxPro Media Player -->
+        <div class="panel">
+            <h2>VoxPro Media Player</h2>
+            
+            <div class="connection-status" id="connectionStatus">
+                <div class="status-dot"></div>
+                <span id="connectionText">Connecting...</span>
+            </div>
+
+            <div class="key-grid">
+                <button class="key-button" data-key="1" id="key1">KEY 1</button>
+                <button class="key-button" data-key="2" id="key2">KEY 2</button>
+                <button class="key-button" data-key="3" id="key3">KEY 3</button>
+                <button class="key-button" data-key="4" id="key4">KEY 4</button>
+                <button class="key-button key-5" data-key="5" id="key5">KEY 5</button>
+                <button class="stop-button" id="stopButton">STOP</button>
+            </div>
+
+            <div class="current-info" id="currentInfo">
+                <div class="current-title" id="currentTitle"></div>
+                <div class="current-meta" id="currentMeta"></div>
+            </div>
+
+            <div class="assignments-section">
+                <h3>Current Key Assignments</h3>
+                <div id="assignmentsList">
+                    <div class="empty-state">No assignments yet</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VoxPro Manager -->
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">VoxPro Manager</h2>
+                <a href="/file-manager.html" target="_blank" 
+                   style="padding: 8px 16px; background: linear-gradient(135deg, var(--accent), var(--accent-secondary)); 
+                          color: white; text-decoration: none; border-radius: 6px; font-weight: 500; 
+                          transition: transform 0.2s ease;">
+                    📁 Upload Files
+                </a>
+            </div>
+            
+            <div class="message" id="messageBox"></div>
+
+            <div class="search-section">
+                <label class="form-label">Search Media (title, description, station, tags)</label>
+                <input type="text" class="search-input" id="searchInput" placeholder="Type to search... or leave empty for recent">
+            </div>
+
+            <div class="media-browser" id="mediaBrowser">
+                <div class="empty-state">Loading...</div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-group">
+                    <label class="form-label">Select Key Slot</label>
+                    <select class="form-select" id="keySelect">
+                        <option value="">Choose a key...</option>
+                        <option value="1">Key 1</option>
+                        <option value="2">Key 2</option>
+                        <option value="3">Key 3</option>
+                        <option value="4">Key 4</option>
+                        <option value="5">Key 5</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-input" id="titleInput" placeholder="Title">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea" id="descriptionInput" placeholder="Description"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Station</label>
+                    <input type="text" class="form-input" id="stationInput" placeholder="Station">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tags</label>
+                    <input type="text" class="form-input" id="tagsInput" placeholder="Comma-separated">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Submitted By</label>
+                    <input type="text" class="form-input" id="submittedByInput" placeholder="Name or initials">
+                </div>
+
+                <button class="assign-button" id="assignButton">Assign / Update Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Media Modal -->
+    <div class="media-modal" id="mediaModal">
+        <div class="modal-content">
+            <button class="modal-close" id="modalClose">&times;</button>
+            <div id="mediaPlayer">
+                <div style="color: var(--text-secondary);">Media stopped</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const XANO_PROXY_BASE = 'https://majestic-beijinho-cd3d75.netlify.app/.netlify/functions/xano-proxy';
+        const ASSIGNMENTS_REFRESH_MS = 30000;
+
+        // Global variables
+        let selectedUnified = null;
+        let assignments = [];
+        let playing = null;
+
+        // DOM elements
+        let connectionStatus, connectionText, messageBox;
+        let searchInput, mediaBrowser, keySelect, titleInput, descriptionInput, stationInput, tagsInput, submittedByInput;
+        let assignButton, assignmentsList, keyButtons, stopButton, mediaModal, modalClose, mediaPlayer, currentInfo, currentTitle, currentMeta;
+
+        // Utility functions
+        function show(type, message) {
+            messageBox.textContent = message;
+            messageBox.className = `message ${type}`;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 5000);
+        }
+
+        function setConn(connected) {
+            connectionStatus.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
+            connectionText.textContent = connected ? 'Connected' : 'Disconnected';
+        }
+
+        async function xano(endpoint, opts = {}) {
+            try {
+                const response = await fetch(`${XANO_PROXY_BASE}/${endpoint}`, {
+                    headers: { 'Content-Type': 'application/json' },
+                    ...opts
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                setConn(true);
+                return data;
+            } catch (error) {
+                setConn(false);
+                show('error', `Xano: ${error.message}`);
+                return null;
+            }
+        }
+
+        // Media functions
+        async function unifiedSearch(query = '') {
+            try {
+                const data = await xano('user_submission');
+                if (!data) return;
+
+                const results = Array.isArray(data) ? data : [];
+                const filtered = query ? results.filter(item => 
+                    (item.title || '').toLowerCase().includes(query.toLowerCase()) ||
+                    (item.description || '').toLowerCase().includes(query.toLowerCase()) ||
+                    (item.station || '').toLowerCase().includes(query.toLowerCase()) ||
+                    (item.tags || '').toLowerCase().includes(query.toLowerCase())
+                ) : results;
+
+                renderMediaBrowser(filtered);
+            } catch (error) {
+                console.error('Search error:', error);
+                mediaBrowser.innerHTML = '<div class="empty-state">Search failed</div>';
+            }
+        }
+
+        function renderMediaBrowser(results) {
+            if (!results || results.length === 0) {
+                mediaBrowser.innerHTML = '<div class="empty-state">No media found</div>';
+                return;
+            }
+
+            mediaBrowser.innerHTML = results.map(item => {
+                const icon = getMediaIcon(item.file_type || '');
+                return `
+                    <div class="media-item" data-id="${item.id}" onclick="selectMedia(${item.id})">
+                        <div class="media-icon">${icon}</div>
+                        <div class="media-info">
+                            <div class="media-title">${item.title || 'Untitled'}</div>
+                            <div class="media-meta">${item.station || 'Unknown'} • ${item.file_type || ''}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getMediaIcon(fileType) {
+            const type = (fileType || '').toLowerCase();
+            if (type.includes('audio')) return '🎵';
+            if (type.includes('video')) return '🎬';
+            if (type.includes('image')) return '🖼️';
+            if (type.includes('pdf')) return '📄';
+            return '📁';
+        }
+
+        function selectMedia(id) {
+            // Remove previous selection
+            document.querySelectorAll('.media-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+
+            // Add selection to clicked item
+            const selectedItem = document.querySelector(`[data-id="${id}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('selected');
+                
+                // Find the media data
+                const titleEl = selectedItem.querySelector('.media-title');
+                const metaEl = selectedItem.querySelector('.media-meta');
+                
+                if (titleEl && metaEl) {
+                    const title = titleEl.textContent;
+                    const meta = metaEl.textContent.split(' • ');
+                    
+                    selectedUnified = {
+                        id: id,
+                        title: title,
+                        station: meta[0] || '',
+                        file_type: meta[1] || '',
+                        source: 'xano'
+                    };
+
+                    // Populate form
+                    titleInput.value = title;
+                    stationInput.value = selectedUnified.station;
+                }
+            }
+        }
+
+        // Assignment functions
+        async function loadAssignments() {
+            try {
+                const data = await xano('voxpro_assignments');
+                assignments = Array.isArray(data) ? data : [];
+                renderAssignments();
+                updateKeyButtons();
+            } catch (error) {
+                console.error('Load assignments error:', error);
+            }
+        }
+
+        function renderAssignments() {
+            if (!assignments || assignments.length === 0) {
+                assignmentsList.innerHTML = '<div class="empty-state">No assignments yet</div>';
+                return;
+            }
+
+            assignmentsList.innerHTML = assignments.map(assignment => `
+                <div class="assignment-item">
+                    <span class="assignment-key">Key ${assignment.key_number} — ${assignment.asset?.title || 'Unknown'}</span>
+                    <button class="remove-button" onclick="deleteAssignment(${assignment.id})">Remove</button>
+                </div>
+            `).join('');
+        }
+
+        function updateKeyButtons() {
+            keyButtons.forEach(button => {
+                const keyNum = parseInt(button.dataset.key);
+                const assignment = assignments.find(a => parseInt(a.key_number) === keyNum);
+                
+                if (assignment) {
+                    button.classList.add('assigned');
+                } else {
+                    button.classList.remove('assigned');
+                }
+            });
+        }
+
+        async function createAssignment(key, assetId) {
+            const result = await xano('voxpro_assignments', {
+                method: 'POST',
+                body: JSON.stringify({ key_number: key, asset_id: assetId })
+            });
+            
+            if (result) {
+                show('success', 'Assignment created');
+                await loadAssignments();
+            }
+            return result;
+        }
+
+        async function updateAssignment(assignmentId, key, assetId) {
+            const result = await xano(`voxpro_assignments/${assignmentId}`, {
+                method: 'PATCH',
+                body: JSON.stringify({ key_number: key, asset_id: assetId })
+            });
+            
+            if (result) {
+                show('success', 'Assignment updated');
+                await loadAssignments();
+            }
+            return result;
+        }
+
+        async function deleteAssignment(assignmentId) {
+            const ok = confirm('Remove this key assignment?');
+            if (!ok) return;
+            
+            const result = await xano(`voxpro_assignments/${assignmentId}`, { method: 'DELETE' });
+            if (result) {
+                show('success', 'Assignment removed');
+                await loadAssignments();
+            }
+        }
+
+        // Media playback functions
+        async function playForKey(keyNum) {
+            const assignment = assignments.find(a => parseInt(a.key_number) === parseInt(keyNum));
+            if (!assignment || !assignment.asset) {
+                show('error', `No media assigned to Key ${keyNum}`);
+                return;
+            }
+            
+            await playAsset(keyNum, assignment.asset);
+        }
+
+        async function playAsset(key, asset) {
+            const mediaInfo = `
+                <strong>Title:</strong> ${asset.title || 'Unknown'}<br>
+                <strong>Description:</strong> ${asset.description || '—'}<br>
+                <strong>Tags:</strong> ${asset.tags || '—'}<br>
+                <strong>Submitted by:</strong> ${asset.submitted_by || 'Unknown'}
+            `;
+            
+            const type = (asset.file_type || '').toLowerCase();
+            let mediaElement;
+            
+            if (type.includes('audio')) {
+                mediaElement = document.createElement('audio');
+                mediaElement.controls = true;
+                mediaElement.autoplay = true;
+                mediaElement.style.width = '100%';
+            } else if (type.includes('video')) {
+                mediaElement = document.createElement('video');
+                mediaElement.controls = true;
+                mediaElement.autoplay = true;
+                mediaElement.style.width = '100%';
+                mediaElement.style.height = '100%';
+                mediaElement.style.objectFit = 'contain';
+            } else if (type.includes('image')) {
+                mediaElement = document.createElement('img');
+                mediaElement.style.maxWidth = '100%';
+                mediaElement.style.maxHeight = '100%';
+                mediaElement.style.objectFit = 'contain';
+            } else {
+                mediaElement = document.createElement('div');
+                mediaElement.style.color = 'var(--text-secondary)';
+                mediaElement.innerHTML = `
+                    <div style="font-size:44px;margin-bottom:8px">📄</div>
+                    <div>${asset.title || 'Unknown file'}</div>
+                    <a href="${asset.database_url || asset.file_url || '#'}" target="_blank" style="color:var(--accent);display:inline-block;margin-top:8px">Open</a>
+                `;
+            }
+            
+            if (mediaElement.tagName !== 'DIV') {
+                mediaElement.src = asset.database_url || asset.file_url || '';
+            }
+            
+            mediaPlayer.innerHTML = '';
+            mediaPlayer.appendChild(mediaElement);
+            
+            mediaModal.classList.add('show');
+            playing = { key, assetId: asset.id };
+            reflectPlaying();
+            currentInfo.style.display = 'block';
+            currentTitle.textContent = asset.title || 'Untitled';
+            currentMeta.textContent = `${asset.station || 'Unknown'} • ${asset.file_type || ''}`;
+        }
+
+        function reflectPlaying() {
+            keyButtons.forEach(btn => {
+                btn.classList.toggle('playing', playing && parseInt(btn.dataset.key) === playing.key);
+            });
+        }
+
+        function stopPlayback() {
+            playing = null;
+            reflectPlaying();
+            mediaModal.classList.remove('show');
+            mediaPlayer.querySelectorAll('audio, video').forEach(el => {
+                try {
+                    el.pause();
+                    el.currentTime = 0;
+                } catch (e) {}
+            });
+            mediaPlayer.innerHTML = '<div style="color: var(--text-secondary);">Media stopped</div>';
+            currentInfo.style.display = 'none';
+        }
+
+        // Initialization function
+        async function init() {
+            // Get DOM elements
+            connectionStatus = document.getElementById('connectionStatus');
+            connectionText = document.getElementById('connectionText');
+            messageBox = document.getElementById('messageBox');
+            searchInput = document.getElementById('searchInput');
+            mediaBrowser = document.getElementById('mediaBrowser');
+            keySelect = document.getElementById('keySelect');
+            titleInput = document.getElementById('titleInput');
+            descriptionInput = document.getElementById('descriptionInput');
+            stationInput = document.getElementById('stationInput');
+            tagsInput = document.getElementById('tagsInput');
+            submittedByInput = document.getElementById('submittedByInput');
+            assignButton = document.getElementById('assignButton');
+            assignmentsList = document.getElementById('assignmentsList');
+            keyButtons = document.querySelectorAll('.key-button');
+            stopButton = document.getElementById('stopButton');
+            mediaModal = document.getElementById('mediaModal');
+            modalClose = document.getElementById('modalClose');
+            mediaPlayer = document.getElementById('mediaPlayer');
+            currentInfo = document.getElementById('currentInfo');
+            currentTitle = document.getElementById('currentTitle');
+            currentMeta = document.getElementById('currentMeta');
+
+            // Set initial connection status
+            setConn(false);
+
+            // Attach event listeners
+            searchInput.addEventListener('input', e => unifiedSearch(e.target.value));
+            
+            keyButtons.forEach(btn => {
+                btn.addEventListener('click', () => playForKey(btn.dataset.key));
+            });
+            
+            stopButton.addEventListener('click', stopPlayback);
+            modalClose.addEventListener('click', stopPlayback);
+            mediaModal.addEventListener('click', (e) => {
+                if (e.target === mediaModal) stopPlayback();
+            });
+
+            // FIXED: Assignment button event listener properly placed in init function
+            assignButton.addEventListener('click', async () => {
+                if (!selectedUnified) {
+                    show('error', 'Select a media item first');
+                    return;
+                }
+                
+                const key = parseInt(keySelect.value, 10);
+                if (!key) {
+                    show('error', 'Choose a key');
+                    return;
+                }
+
+                try {
+                    // Update asset metadata if it's from Xano
+                    if (selectedUnified.source === 'xano') {
+                        const xanoId = parseInt(selectedUnified.id);
+                        const patchBody = {
+                            title: titleInput.value,
+                            description: descriptionInput.value,
+                            station: stationInput.value,
+                            tags: tagsInput.value,
+                            submitted_by: submittedByInput.value
+                        };
+                        await xano(`asset/${xanoId}`, { method: 'PATCH', body: JSON.stringify(patchBody) });
+                    }
+
+                    const assetId = parseInt(selectedUnified.id);
+                    const existing = assignments.find(a => parseInt(a.key_number) === key);
+                    
+                    if (existing) {
+                        await updateAssignment(existing.id, key, assetId);
+                    } else {
+                        await createAssignment(key, assetId);
+                    }
+
+                    // Clear form
+                    keySelect.value = '';
+                    assignButton.blur();
+                    
+                } catch (error) {
+                    console.error('Assignment error:', error);
+                    show('error', 'Assignment failed: ' + error.message);
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key >= '1' && e.key <= '5') {
+                    const button = document.querySelector(`[data-key="${e.key}"]`);
+                    if (button) button.click();
+                }
+                if (e.key === 'Escape' || e.key === ' ') {
+                    e.preventDefault();
+                    stopPlayback();
+                }
+            });
+
+            // Load initial data
+            await unifiedSearch(''); // Load recent media
+            await loadAssignments(); // Load key assignments
+            
+            // Set up periodic refresh
+            setInterval(loadAssignments, ASSIGNMENTS_REFRESH_MS);
+        }
+
+        // Start the application
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
+

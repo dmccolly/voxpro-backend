@@ -12,3 +12,10 @@
   to = "/.netlify/functions/uploader"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/voxpro-working"
+  to = "/working-voxpro-final.html"
+  status = 200
+  force = true
+

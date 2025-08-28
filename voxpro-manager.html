@@ -294,21 +294,6 @@
             margin-bottom: 16px;
         }
 
-        .upload-link {
-            display: inline-block;
-            padding: 8px 16px;
-            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 500;
-            transition: transform 0.2s ease;
-        }
-
-        .upload-link:hover {
-            transform: translateY(-2px);
-        }
-
         @media (max-width: 768px) {
             .container {
                 grid-template-columns: 1fr;
@@ -356,7 +341,10 @@
         <div class="panel">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h2 style="margin: 0;">VoxPro Manager</h2>
-                <a href="/file-manager.html" target="_blank" class="upload-link">
+                <a href="/file-manager.html" target="_blank" 
+                   style="padding: 8px 16px; background: linear-gradient(135deg, var(--accent), var(--accent-secondary)); 
+                          color: white; text-decoration: none; border-radius: 6px; font-weight: 500; 
+                          transition: transform 0.2s ease;">
                     📁 Upload Files
                 </a>
             </div>
@@ -714,49 +702,4 @@
     </script>
 </body>
 </html>
-            padding: 0.75rem 1.5rem;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: bold;
-            transition: background-color 0.3s ease;
-            margin-top: 1rem;
-        }
-        
-        .button:hover {
-            background-color: #2980b9;
-        }
-        
-        footer {
-            background-color: #2c3e50;
-            color: white;
-            text-align: center;
-            padding: 1rem;
-            margin-top: 2rem;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>VoxPro Manager</h1>
-    </header>
-    
-    <main>
-        <div class="card">
-            <h2>Welcome to VoxPro Manager</h2>
-            <p>VoxPro Manager allows you to organize and manage your media assets efficiently. Assign media to function keys for quick access during broadcasts.</p>
-            <p>This application provides a simple interface for:</p>
-            <ul>
-                <li>Searching and browsing your media assets</li>
-                <li>Assigning media to function keys</li>
-                <li>Playing audio and video with a single keystroke</li>
-                <li>Managing your media assignments</li>
-            </ul>
-            <a href="/voxpro-manager" class="button">Launch VoxPro Manager</a>
-        </div>
-    </main>
-    
-    <footer>
-        &copy; 2025 VoxPro Manager
-    </footer>
-</body>
-</html>
+

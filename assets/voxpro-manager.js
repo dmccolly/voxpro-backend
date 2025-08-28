@@ -883,14 +883,60 @@ function openMediaModal(asset) {
 }
 
 function handleMediaClick(e) {
-  const mediaItem = e.target.closest('.media-item');
+  const mediaItem = e.target.closest('.media-item') || e.target.closest('.row');
   if (!mediaItem) return;
   
-  const index = parseInt(mediaItem.getAttribute('data-index'));
-  if (isNaN(index) || index < 0 || index >= unifiedResults.length) return;
+  debug('Media item clicked:', mediaItem);
   
-  selectedUnified = unifiedResults[index];
-  debug('Selected media:', selectedUnified);
+  // Remove previous selections
+  document.querySelectorAll('.media-item.selected, .row.selected').forEach(item => {
+    item.classList.remove('selected');
+  });
+  
+  // Add selection to clicked item
+  mediaItem.classList.add('selected');
+  
+  // Try to get the media data
+  let mediaData = null;
+  
+  // First try to get from data-index (for search results)
+  const index = parseInt(mediaItem.getAttribute('data-index'));
+  if (!isNaN(index) && index >= 0 && index < unifiedResults.length) {
+    mediaData = unifiedResults[index];
+    debug('Found media from search results index:', index, mediaData);
+  } else {
+    // Try to get from data-id (for other media lists)
+    const dataId = mediaItem.getAttribute('data-id');
+    if (dataId) {
+      // Look in unifiedResults first
+      mediaData = unifiedResults.find(item => item.id == dataId);
+      
+      // If not found in unifiedResults, create a basic media object
+      if (!mediaData) {
+        const titleElement = mediaItem.querySelector('.title') || mediaItem.querySelector('div:nth-child(2)');
+        const title = titleElement ? titleElement.textContent.trim() : 'Unknown';
+        
+        mediaData = {
+          id: parseInt(dataId),
+          title: title,
+          description: '',
+          file_type: 'audio/mpeg', // Default assumption
+          station: '',
+          tags: [],
+          submitted_by: ''
+        };
+        debug('Created basic media object from DOM:', mediaData);
+      }
+    }
+  }
+  
+  if (!mediaData) {
+    debug('Could not determine media data from clicked item');
+    return;
+  }
+  
+  selectedUnified = mediaData;
+  debug('Selected media set to:', selectedUnified);
   
   if (!titleInput || !descriptionInput || !stationInput || 
       !tagsInput || !submittedByInput || !selectedMedia) {
@@ -902,14 +948,14 @@ function handleMediaClick(e) {
   titleInput.value = selectedUnified.title || '';
   descriptionInput.value = selectedUnified.description || '';
   stationInput.value = selectedUnified.station || '';
-  tagsInput.value = selectedUnified.tags?.join(', ') || '';
+  tagsInput.value = Array.isArray(selectedUnified.tags) ? selectedUnified.tags.join(', ') : (selectedUnified.tags || '');
   submittedByInput.value = selectedUnified.submitted_by || '';
   
   // Update selected media preview
   selectedMedia.innerHTML = '';
   
-  const mediaItem = document.createElement('div');
-  mediaItem.className = 'media-item selected';
+  const mediaItemPreview = document.createElement('div');
+  mediaItemPreview.className = 'media-item selected';
   
   const thumbnail = document.createElement('div');
   thumbnail.className = 'thumbnail large';
@@ -922,9 +968,9 @@ function handleMediaClick(e) {
   title.className = 'title';
   title.textContent = selectedUnified.title || 'Untitled';
   
-  mediaItem.appendChild(thumbnail);
+  mediaItemPreview.appendChild(thumbnail);
   thumbnail.appendChild(typeIcon);
-  mediaItem.appendChild(title);
+  mediaItemPreview.appendChild(title);
   
   // Add play button for audio/video/images
   const fileType = selectedUnified.file_type || '';
@@ -939,15 +985,53 @@ function handleMediaClick(e) {
     playBtn.addEventListener('click', () => {
       openMediaModal(selectedUnified);
     });
-    mediaItem.appendChild(playBtn);
+    mediaItemPreview.appendChild(playBtn);
   }
   
-  selectedMedia.appendChild(mediaItem);
+  selectedMedia.appendChild(mediaItemPreview);
+  
+  // Update the selected media display text
+  const selectedMediaText = document.createElement('div');
+  selectedMediaText.textContent = `Selected (undefined): ${selectedUnified.title || 'Unknown'}`;
+  selectedMediaText.style.fontSize = '0.9rem';
+  selectedMediaText.style.color = '#666';
+  selectedMediaText.style.marginTop = '5px';
+  selectedMedia.appendChild(selectedMediaText);
 }
 
 async function handleAssign() {
-  if (!selectedUnified) {
-    showAlert('No media selected');
+  debug('=== ASSIGNMENT BUTTON CLICKED ===');
+  
+  // First try to get selectedUnified, then fall back to finding selected media in DOM
+  let mediaToAssign = selectedUnified;
+  
+  if (!mediaToAssign) {
+    debug('selectedUnified not found, looking for selected media in DOM...');
+    
+    // Look for selected media in the DOM
+    const selectedMediaElement = document.querySelector('.media-item.selected') || 
+                                 document.querySelector('.row.selected');
+    
+    if (selectedMediaElement) {
+      // Try to find the media data from unifiedResults using data-index
+      const index = parseInt(selectedMediaElement.getAttribute('data-index'));
+      if (!isNaN(index) && index >= 0 && index < unifiedResults.length) {
+        mediaToAssign = unifiedResults[index];
+        debug('Found media from DOM selection:', mediaToAssign);
+      } else {
+        // Try to find by data-id
+        const dataId = selectedMediaElement.getAttribute('data-id');
+        if (dataId) {
+          mediaToAssign = unifiedResults.find(item => item.id == dataId);
+          debug('Found media by data-id:', mediaToAssign);
+        }
+      }
+    }
+  }
+  
+  if (!mediaToAssign) {
+    showAlert('No media selected. Please select a media item first.');
+    debug('No media found - selectedUnified:', selectedUnified, 'DOM selection:', document.querySelector('.media-item.selected, .row.selected'));
     return;
   }
   
@@ -963,14 +1047,14 @@ async function handleAssign() {
   }
   
   try {
-    debug('Assigning to key:', key);
+    debug('Assigning media to key:', key, 'Media:', mediaToAssign);
     
     // Get the media URL - use cached URL if available
-    const id = selectedUnified.id || JSON.stringify(selectedUnified).substring(0, 20);
+    const id = mediaToAssign.id || JSON.stringify(mediaToAssign).substring(0, 20);
     let mediaUrl = mediaCache[id];
     
     if (!mediaUrl) {
-      mediaUrl = getAssetUrl(selectedUnified);
+      mediaUrl = getAssetUrl(mediaToAssign);
       
       if (mediaUrl) {
         // Cache for future use
@@ -980,19 +1064,20 @@ async function handleAssign() {
     
     if (!mediaUrl) {
       showAlert('No media URL found');
+      debug('No media URL found for:', mediaToAssign);
       return;
     }
     
     const assignData = {
       key,
-      media_id: selectedUnified.id,
-      title: titleInput?.value || selectedUnified.title || '',
-      description: descriptionInput?.value || selectedUnified.description || '',
-      file_type: selectedUnified.file_type || '',
+      media_id: mediaToAssign.id,
+      title: titleInput?.value || mediaToAssign.title || '',
+      description: descriptionInput?.value || mediaToAssign.description || '',
+      file_type: mediaToAssign.file_type || '',
       media_url: mediaUrl,
-      station: stationInput?.value || selectedUnified.station || '',
-      tags: tagsInput?.value ? tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag) : (selectedUnified.tags || []),
-      submitted_by: submittedByInput?.value || selectedUnified.submitted_by || ''
+      station: stationInput?.value || mediaToAssign.station || '',
+      tags: tagsInput?.value?.split(',').map(t => t.trim()).filter(Boolean) || mediaToAssign.tags || [],
+      submitted_by: submittedByInput?.value || mediaToAssign.submitted_by || ''
     };
     
     debug('Assignment data:', assignData);

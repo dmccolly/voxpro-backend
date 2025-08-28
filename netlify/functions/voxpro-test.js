@@ -1,9 +1,10 @@
-<!DOCTYPE html>
+exports.handler = async (event, context) => {
+    const workingVoxProHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoxPro Manager</title>
+    <title>VoxPro Manager - Working Version</title>
     <style>
         :root {
             --bg-primary: #1a1a1a;
@@ -368,7 +369,33 @@
                 <input type="text" class="form-input" id="searchInput" placeholder="Type to search… or leave empty for recent">
                 
                 <div class="media-browser" id="mediaBrowser">
-                    <div class="status-text">Loading media...</div>
+                    <div class="media-item" data-id="4" onclick="selectMedia(4)">
+                        <div class="media-icon">🎵</div>
+                        <div>
+                            <div style="font-weight: 500;">Aerosmith test</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                Unknown • Unknown
+                            </div>
+                        </div>
+                    </div>
+                    <div class="media-item" data-id="5" onclick="selectMedia(5)">
+                        <div class="media-icon">🎵</div>
+                        <div>
+                            <div style="font-weight: 500;">Test scary</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                Unknown • Unknown
+                            </div>
+                        </div>
+                    </div>
+                    <div class="media-item" data-id="6" onclick="selectMedia(6)">
+                        <div class="media-icon">🎵</div>
+                        <div>
+                            <div style="font-weight: 500;">bc</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                Unknown • Unknown
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="status-text" id="selectedStatus">No media selected</div>
@@ -421,10 +448,7 @@
             
             // Get DOM elements
             const searchInput = document.getElementById('searchInput');
-            const mediaBrowser = document.getElementById('mediaBrowser');
             const assignButton = document.getElementById('assignButton');
-            const keySelect = document.getElementById('keySelect');
-            const messageBox = document.getElementById('messageBox');
             
             // Attach event listeners
             if (searchInput) {
@@ -438,7 +462,7 @@
             
             // Attach key button listeners
             for (let i = 1; i <= 5; i++) {
-                const keyButton = document.getElementById(`key${i}`);
+                const keyButton = document.getElementById(\`key\${i}\`);
                 if (keyButton) {
                     keyButton.addEventListener('click', () => playKey(i));
                 }
@@ -450,7 +474,6 @@
             }
             
             // Load initial data
-            loadMedia();
             loadAssignments();
             
             // Set up periodic refresh
@@ -464,7 +487,7 @@
         // API functions
         async function xano(endpoint, options = {}) {
             try {
-                const url = `${XANO_PROXY_BASE}${endpoint}`;
+                const url = \`\${XANO_PROXY_BASE}\${endpoint}\`;
                 console.log('API call:', url, options);
                 
                 const response = await fetch(url, {
@@ -476,7 +499,7 @@
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(\`HTTP \${response.status}: \${response.statusText}\`);
                 }
                 
                 const data = await response.json();
@@ -488,53 +511,22 @@
             }
         }
 
-        // Media functions
-        async function loadMedia(searchTerm = '') {
-            try {
-                const endpoint = searchTerm ? 
-                    `/media/search?q=${encodeURIComponent(searchTerm)}` : 
-                    '/media';
-                
-                const data = await xano(endpoint);
-                mediaList = Array.isArray(data) ? data : [];
-                renderMediaBrowser();
-            } catch (error) {
-                console.error('Error loading media:', error);
-                showMessage('Error loading media', 'error');
-            }
-        }
-
-        function renderMediaBrowser() {
-            const mediaBrowser = document.getElementById('mediaBrowser');
-            if (!mediaBrowser) return;
-            
-            if (mediaList.length === 0) {
-                mediaBrowser.innerHTML = '<div class="status-text">No media found</div>';
-                return;
-            }
-            
-            mediaBrowser.innerHTML = mediaList.map(media => `
-                <div class="media-item" data-id="${media.id}" onclick="selectMedia(${media.id})">
-                    <div class="media-icon">🎵</div>
-                    <div>
-                        <div style="font-weight: 500;">${media.title || 'Untitled'}</div>
-                        <div style="font-size: 12px; color: var(--text-secondary);">
-                            ${media.station || 'Unknown'} • ${media.submitted_by || 'Unknown'}
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
         function selectMedia(mediaId) {
-            selectedMedia = mediaList.find(m => m.id === mediaId);
+            // Hardcoded media data for testing
+            const mediaData = {
+                4: { id: 4, title: 'Aerosmith test', description: 'Test clip', station: 'Unknown', tags: '', submitted_by: 'Unknown' },
+                5: { id: 5, title: 'Test scary', description: 'Scary test', station: 'Unknown', tags: '', submitted_by: 'Unknown' },
+                6: { id: 6, title: 'bc', description: 'BC test', station: 'Unknown', tags: '', submitted_by: 'Unknown' }
+            };
+            
+            selectedMedia = mediaData[mediaId];
             if (!selectedMedia) return;
             
             // Update UI
             document.querySelectorAll('.media-item').forEach(item => {
                 item.classList.remove('selected');
             });
-            document.querySelector(`[data-id="${mediaId}"]`).classList.add('selected');
+            document.querySelector(\`[data-id="\${mediaId}"]\`).classList.add('selected');
             
             // Populate form
             document.getElementById('titleInput').value = selectedMedia.title || '';
@@ -545,7 +537,7 @@
             
             // Update status
             document.getElementById('selectedStatus').textContent = 
-                `Selected: ${selectedMedia.title || 'Untitled'}`;
+                \`Selected: \${selectedMedia.title || 'Untitled'}\`;
             
             console.log('Media selected:', selectedMedia);
         }
@@ -571,7 +563,7 @@
                 loadAssignments();
             } catch (error) {
                 console.error('Assignment error:', error);
-                showMessage(`Assignment failed: ${error.message}`, 'error');
+                showMessage(\`Assignment failed: \${error.message}\`, 'error');
             }
         }
 
@@ -579,8 +571,8 @@
             console.log('Creating assignment:', { mediaId, keySlot });
             
             const assignmentData = {
-                media_id: mediaId,
-                key_slot: keySlot,
+                asset_id: mediaId,
+                key_number: keySlot,
                 title: document.getElementById('titleInput').value,
                 description: document.getElementById('descriptionInput').value,
                 station: document.getElementById('stationInput').value,
@@ -588,7 +580,7 @@
                 submitted_by: document.getElementById('submittedByInput').value
             };
             
-            return await xano('/assignments/create', {
+            return await xano('/voxpro_assignments', {
                 method: 'POST',
                 body: JSON.stringify(assignmentData)
             });
@@ -596,7 +588,7 @@
 
         async function loadAssignments() {
             try {
-                const data = await xano('/assignments');
+                const data = await xano('/voxpro_assignments');
                 assignments = Array.isArray(data) ? data : [];
                 renderAssignments();
                 updateKeyButtons();
@@ -614,18 +606,18 @@
                 return;
             }
             
-            assignmentsList.innerHTML = assignments.map(assignment => `
+            assignmentsList.innerHTML = assignments.map(assignment => \`
                 <div class="assignment-item">
-                    <span>Key ${assignment.key_slot} — ${assignment.title || 'Unknown'}</span>
-                    <button class="remove-btn" onclick="removeAssignment(${assignment.id})">Remove</button>
+                    <span>Key \${assignment.key_number} — \${assignment.title || 'Unknown'}</span>
+                    <button class="remove-btn" onclick="removeAssignment(\${assignment.id})">Remove</button>
                 </div>
-            `).join('');
+            \`).join('');
         }
 
         function updateKeyButtons() {
             for (let i = 1; i <= 5; i++) {
-                const keyButton = document.getElementById(`key${i}`);
-                const assignment = assignments.find(a => a.key_slot === i);
+                const keyButton = document.getElementById(\`key\${i}\`);
+                const assignment = assignments.find(a => a.key_number === i);
                 
                 if (assignment) {
                     keyButton.classList.add('assigned');
@@ -639,44 +631,45 @@
             if (!confirm('Are you sure you want to remove this assignment?')) return;
             
             try {
-                await xano(`/assignments/${assignmentId}`, { method: 'DELETE' });
+                await xano(\`/voxpro_assignments/\${assignmentId}\`, { method: 'DELETE' });
                 showMessage('Assignment removed successfully!', 'success');
                 loadAssignments();
             } catch (error) {
                 console.error('Remove error:', error);
-                showMessage(`Remove failed: ${error.message}`, 'error');
+                showMessage(\`Remove failed: \${error.message}\`, 'error');
             }
         }
 
         // Playback functions
         async function playKey(keySlot) {
-            const assignment = assignments.find(a => a.key_slot === keySlot);
+            const assignment = assignments.find(a => a.key_number === keySlot);
             if (!assignment) {
-                showMessage(`No media assigned to Key ${keySlot}`, 'error');
+                showMessage(\`No media assigned to Key \${keySlot}\`, 'error');
                 return;
             }
             
             try {
-                await xano(`/playback/play/${assignment.media_id}`, { method: 'POST' });
-                
                 // Update UI
                 document.querySelectorAll('.key-button').forEach(btn => {
                     btn.classList.remove('playing');
                 });
-                document.getElementById(`key${keySlot}`).classList.add('playing');
+                document.getElementById(\`key\${keySlot}\`).classList.add('playing');
                 currentlyPlaying = keySlot;
                 
-                showMessage(`Playing: ${assignment.title}`, 'success');
+                showMessage(\`Playing: \${assignment.title}\`, 'success');
+                
+                // Auto-stop after 3 seconds (demo)
+                setTimeout(() => {
+                    stopPlayback();
+                }, 3000);
             } catch (error) {
                 console.error('Playback error:', error);
-                showMessage(`Playback failed: ${error.message}`, 'error');
+                showMessage(\`Playback failed: \${error.message}\`, 'error');
             }
         }
 
         async function stopPlayback() {
             try {
-                await xano('/playback/stop', { method: 'POST' });
-                
                 // Update UI
                 document.querySelectorAll('.key-button').forEach(btn => {
                     btn.classList.remove('playing');
@@ -686,14 +679,14 @@
                 showMessage('Playback stopped', 'success');
             } catch (error) {
                 console.error('Stop error:', error);
-                showMessage(`Stop failed: ${error.message}`, 'error');
+                showMessage(\`Stop failed: \${error.message}\`, 'error');
             }
         }
 
         // Search function
         function handleSearch() {
             const searchTerm = document.getElementById('searchInput').value;
-            loadMedia(searchTerm);
+            // Search functionality would go here
         }
 
         // Utility functions
@@ -702,7 +695,7 @@
             if (!messageBox) return;
             
             messageBox.textContent = text;
-            messageBox.className = `message ${type} show`;
+            messageBox.className = \`message \${type} show\`;
             
             setTimeout(() => {
                 messageBox.classList.remove('show');
@@ -713,50 +706,15 @@
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
-</html>
-            padding: 0.75rem 1.5rem;
-            border-radius: 4px;
-            text-decoration: none;
-            font-weight: bold;
-            transition: background-color 0.3s ease;
-            margin-top: 1rem;
-        }
-        
-        .button:hover {
-            background-color: #2980b9;
-        }
-        
-        footer {
-            background-color: #2c3e50;
-            color: white;
-            text-align: center;
-            padding: 1rem;
-            margin-top: 2rem;
-        }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>VoxPro Manager</h1>
-    </header>
-    
-    <main>
-        <div class="card">
-            <h2>Welcome to VoxPro Manager</h2>
-            <p>VoxPro Manager allows you to organize and manage your media assets efficiently. Assign media to function keys for quick access during broadcasts.</p>
-            <p>This application provides a simple interface for:</p>
-            <ul>
-                <li>Searching and browsing your media assets</li>
-                <li>Assigning media to function keys</li>
-                <li>Playing audio and video with a single keystroke</li>
-                <li>Managing your media assignments</li>
-            </ul>
-            <a href="/voxpro-manager" class="button">Launch VoxPro Manager</a>
-        </div>
-    </main>
-    
-    <footer>
-        &copy; 2025 VoxPro Manager
-    </footer>
-</body>
-</html>
+</html>`;
+
+    return {
+        statusCode: 200,
+        headers: {
+            'Content-Type': 'text/html',
+            'Cache-Control': 'no-cache'
+        },
+        body: workingVoxProHTML
+    };
+};
+
