@@ -553,14 +553,8 @@
         }
 
         function selectMedia(mediaId) {
-            // Hardcoded media data for testing
-            const mediaData = {
-                4: { id: 4, title: 'Aerosmith test', description: 'Test clip', station: 'Unknown', tags: '', submitted_by: 'Unknown' },
-                5: { id: 5, title: 'Test scary', description: 'Scary test', station: 'Unknown', tags: '', submitted_by: 'Unknown' },
-                6: { id: 6, title: 'bc', description: 'BC test', station: 'Unknown', tags: '', submitted_by: 'Unknown' }
-            };
-            
-            selectedMedia = mediaData[mediaId];
+            // Find media in the actual loaded data
+            selectedMedia = mediaList.find(media => media.id == mediaId);
             if (!selectedMedia) return;
             
             // Update UI
