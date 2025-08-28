@@ -677,14 +677,14 @@
 
         // Playback functions
         async function playKey(keySlot) {
-            const assignment = assignments.find(a => a.key_slot === keySlot);
+            const assignment = assignments.find(a => a.key_number === keySlot);
             if (!assignment) {
                 showMessage(`No media assigned to Key ${keySlot}`, 'error');
                 return;
             }
             
             try {
-                await xano(`/playback/play/${assignment.media_id}`, { method: 'POST' });
+                await xano(`/playback/play/${assignment.asset_id}`, { method: 'POST' });
                 
                 // Update UI
                 document.querySelectorAll('.key-button').forEach(btn => {
