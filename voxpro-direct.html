@@ -699,12 +699,20 @@
             }
             
             try {
-                // Find the media details from the media list
-                const media = mediaList.find(m => m.id == assignment.asset_id);
+                // Fetch the media details directly from API using asset_id
+                console.log('Fetching media for asset_id:', assignment.asset_id);
+                const response = await fetch(`/.netlify/functions/xano-proxy/user_submission`);
+                const allMedia = await response.json();
+                const media = allMedia.find(m => m.id == assignment.asset_id);
+                
                 if (!media) {
-                    showMessage(`Media file not found for assignment`, 'error');
+                    showMessage(`Media file not found for assignment (ID: ${assignment.asset_id})`, 'error');
+                    console.error('Media not found. Available media IDs:', allMedia.map(m => m.id));
                     return;
                 }
+                
+                console.log('Found media for playback:', media);
+                console.log('Media URL:', media.media_url);
                 
                 // Create and show modal video player
                 showVideoModal(media, assignment);
