@@ -132,33 +132,6 @@
             box-shadow: none;
         }
 
-        .progress-container {
-            margin-top: 20px;
-            display: none;
-        }
-
-        .progress-bar {
-            width: 100%;
-            height: 10px;
-            background: #e9ecef;
-            border-radius: 5px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-
-        .progress-text {
-            text-align: center;
-            margin-top: 10px;
-            font-weight: 600;
-            color: #495057;
-        }
-
         .message {
             padding: 15px;
             border-radius: 8px;
@@ -307,13 +280,6 @@
                     Save to VoxPro
                 </button>
 
-                <div class="progress-container" id="progressContainer">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressFill"></div>
-                    </div>
-                    <div class="progress-text" id="progressText">Processing... 0%</div>
-                </div>
-
                 <div class="message" id="message"></div>
             </form>
         </div>
@@ -323,18 +289,15 @@
     <script src="https://widget.cloudinary.com/v2.0/global/all.js" type="text/javascript"></script>
 
     <script>
-        // Cloudinary configuration
-        const cloudName = 'idahobroadcasting'; // Your cloud name
-        const uploadPreset = 'voxpro-uploads'; // Your upload preset
+        // Cloudinary configuration - REPLACE WITH YOUR ACTUAL VALUES
+        const cloudName = 'idahobroadcasting'; // Replace with your cloud name
+        const uploadPreset = 'voxpro-uploads'; // Replace with your upload preset
         
         // DOM Elements
         const uploadForm = document.getElementById('uploadForm');
         const fileInfo = document.getElementById('fileInfo');
         const uploadBtn = document.getElementById('upload_widget');
         const submitBtn = document.getElementById('submitBtn');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
         const message = document.getElementById('message');
         const thumbnailPreview = document.getElementById('thumbnailPreview');
         
@@ -406,9 +369,7 @@
                     
                     // Auto-detect category based on resource type
                     const categorySelect = document.getElementById('category');
-                    if (result.info.resource_type === 'image') {
-                        categorySelect.value = 'Photo';
-                    } else if (result.info.resource_type === 'video') {
+                    if (result.info.resource_type === 'video') {
                         categorySelect.value = 'Video';
                     } else if (result.info.resource_type === 'audio' || 
                               ['mp3', 'wav', 'ogg', 'm4a'].includes(result.info.format)) {
@@ -441,12 +402,10 @@
                 return;
             }
             
-            // Show progress
-            progressContainer.style.display = 'block';
+            // Show processing state
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processing...';
             message.style.display = 'none';
-            progressFill.style.width = '30%';
             
             try {
                 // Prepare data for server
@@ -468,7 +427,6 @@
                 };
                 
                 console.log('Sending data to server:', formData);
-                progressFill.style.width = '60%';
                 
                 // Send to Netlify function
                 const response = await fetch('/.netlify/functions/cloudinary-metadata', {
@@ -479,38 +437,21 @@
                     body: JSON.stringify(formData)
                 });
                 
-                progressFill.style.width = '90%';
-                
-                // Handle response
                 const result = await response.json();
                 
                 if (response.ok) {
-                    progressFill.style.width = '100%';
                     showMessage('File uploaded successfully! The media is now available in the VoxPro system.', 'success');
                     uploadForm.reset();
                     fileInfo.style.display = 'none';
                     thumbnailPreview.style.display = 'none';
                     uploadBtn.textContent = 'Select Media File';
-                    
-                    // Optional: Trigger Webflow sync
-                    try {
-                        await fetch('/.netlify/functions/webflow-sync', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ itemId: result.data?.id })
-                        });
-                    } catch (syncError) {
-                        console.error('Webflow sync error (non-critical):', syncError);
-                    }
                 } else {
                     throw new Error(result.error || 'Upload failed');
                 }
             } catch (error) {
                 console.error('Error:', error);
                 showMessage(`Error: ${error.message}`, 'error');
-                progressFill.style.width = '0%';
             } finally {
-                progressContainer.style.display = 'none';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Save to VoxPro';
             }
