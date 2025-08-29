@@ -1,21 +1,77 @@
+# Fixed netlify.toml configuration with proper timeout and memory settings
+
 [build]
-  functions = "netlify/functions"
+  functions = "functions"
+  publish = "public"
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = true
+# Function-specific configuration
+[functions]
+  # Global function settings
+  node_bundler = "esbuild"
+  
+  # Specific configuration for the uploader function
+  [functions.uploader-fixed]
+    # Set timeout to 5 minutes (300 seconds) to handle large file uploads
+    timeout = 300
+    # Increase memory limit to handle large files in memory
+    memory = 1024
+    # Set runtime to Node.js 18
+    runtime = "nodejs18.x"
 
-[[redirects]]
-  from = "/file-manager"
-  to = "/.netlify/functions/uploader"
-  status = 200
-  force = true
+# Environment variables (these should be set in Netlify dashboard)
+# CLOUDINARY_CLOUD_NAME = "your-cloud-name"
+# CLOUDINARY_API_KEY = "your-api-key"
+# CLOUDINARY_API_SECRET = "your-api-secret"
+# NODE_ENV = "production"
 
+# Headers for CORS support
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
+
+# Redirects for API endpoints
 [[redirects]]
-  from = "/voxpro-working"
-  to = "/working-voxpro-final.html"
+  from = "/api/upload"
+  to = "/.netlify/functions/uploader-fixed"
   status = 200
-  force = true
+
+# Edge functions configuration (if needed for future enhancements)
+[[edge_functions]]
+  function = "upload-middleware"
+  path = "/api/upload"
+
+# Build plugins (optional - for optimization)
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com;"
+
+# File processing settings
+[build.processing]
+  skip_processing = false
+  
+[build.processing.css]
+  bundle = true
+  minify = true
+  
+[build.processing.js]
+  bundle = true
+  minify = true
+  
+[build.processing.html]
+  pretty_urls = true
+  
+[build.processing.images]
+  compress = true
 
