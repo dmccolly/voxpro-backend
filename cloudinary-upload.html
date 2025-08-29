@@ -1,248 +1,494 @@
-// netlify/functions/webflow-sync.js
-const https = require('https');
-
-// Sync uploaded media to Webflow CMS
-exports.handler = async (event, context) => {
-  // CORS headers
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-  };
-
-  // Handle preflight OPTIONS request
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers,
-      body: ''
-    };
-  }
-
-  // Check if it's a trigger request or a manual sync
-  const isManualSync = event.httpMethod === 'GET';
-  let itemId = null;
-  
-  if (event.httpMethod === 'POST') {
-    try {
-      const payload = JSON.parse(event.body);
-      itemId = payload.itemId;
-    } catch (e) {
-      return {
-        statusCode: 400,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Invalid JSON in request body' })
-      };
-    }
-  }
-
-  // Check configuration
-  const { 
-    WEBFLOW_API_TOKEN, 
-    WEBFLOW_SITE_ID, 
-    WEBFLOW_COLLECTION_ID,
-    XANO_API_BASE
-  } = process.env;
-  
-  if (!WEBFLOW_API_TOKEN || !WEBFLOW_SITE_ID || !WEBFLOW_COLLECTION_ID) {
-    return {
-      statusCode: 500,
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Missing Webflow configuration' })
-    };
-  }
-
-  try {
-    // Get data from Xano - either a specific item or all items
-    let xanoEndpoint = `${XANO_API_BASE}/user_submission`;
-    if (itemId) {
-      xanoEndpoint = `${XANO_API_BASE}/user_submission/${itemId}`;
-    }
-
-    // Fetch data from Xano
-    const xanoData = await makeRequest('GET', xanoEndpoint);
-    
-    // Process items to sync
-    const itemsToSync = itemId ? [xanoData] : xanoData;
-    
-    if (!itemsToSync || itemsToSync.length === 0) {
-      return {
-        statusCode: 200,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'No items to sync' })
-      };
-    }
-
-    console.log(`Found ${itemsToSync.length} items to sync to Webflow`);
-
-    // Get existing items from Webflow
-    const webflowItemsUrl = `https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/cms/collections/${WEBFLOW_COLLECTION_ID}/items?limit=100`;
-    const webflowItems = await makeRequest('GET', webflowItemsUrl, null, {
-      'Authorization': `Bearer ${WEBFLOW_API_TOKEN}`,
-      'accept-version': '2.0.0'
-    });
-
-    // Map existing Webflow items by Xano ID
-    const existingItemsMap = new Map();
-    if (webflowItems && webflowItems.items) {
-      webflowItems.items.forEach(item => {
-        if (item.fieldData && item.fieldData['xano-id']) {
-          existingItemsMap.set(String(item.fieldData['xano-id']), item);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxPro File Upload with Cloudinary</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-      });
-    }
-
-    // Process each item
-    const results = [];
-    for (const item of itemsToSync) {
-      try {
-        // Prepare Webflow data
-        const webflowData = {
-          fieldData: {
-            'name': item.title || 'Untitled',
-            'slug': (item.title || 'untitled').toLowerCase()
-              .replace(/[^a-z0-9]+/g, '-')
-              .replace(/^-+|-+$/g, ''),
-            'title': item.title || '',
-            'description': item.description || '',
-            'station': item.station || '',
-            'category': item.category || '',
-            'tags': item.tags || '',
-            'submitted-by': item.submitted_by || '',
-            'priority': item.priority || 'normal',
-            'notes': item.notes || '',
-            'file-type': item.file_type || '',
-            'xano-id': String(item.id),
-            'media-url': item.cloudinary_url || item.file_url || '',
-            'thumbnail': {
-              url: item.thumbnail_url || item.cloudinary_url || '',
-              alt: item.title || 'Media thumbnail'
-            },
-            'upload-date': item.created_at || new Date().toISOString()
-          }
-        };
-
-        // Check if item already exists in Webflow
-        const existingItem = existingItemsMap.get(String(item.id));
-        let result;
-
-        if (existingItem) {
-          // Update existing item
-          console.log(`Updating existing Webflow item for Xano ID ${item.id}`);
-          const updateUrl = `https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/cms/collections/${WEBFLOW_COLLECTION_ID}/items/${existingItem.id}`;
-          result = await makeRequest('PATCH', updateUrl, webflowData, {
-            'Authorization': `Bearer ${WEBFLOW_API_TOKEN}`,
-            'Content-Type': 'application/json',
-            'accept-version': '2.0.0'
-          });
-          results.push({ id: item.id, status: 'updated', webflowItemId: existingItem.id });
-        } else {
-          // Create new item
-          console.log(`Creating new Webflow item for Xano ID ${item.id}`);
-          const createUrl = `https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/cms/collections/${WEBFLOW_COLLECTION_ID}/items`;
-          result = await makeRequest('POST', createUrl, webflowData, {
-            'Authorization': `Bearer ${WEBFLOW_API_TOKEN}`,
-            'Content-Type': 'application/json',
-            'accept-version': '2.0.0'
-          });
-          results.push({ id: item.id, status: 'created', webflowItemId: result.id });
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
-      } catch (itemError) {
-        console.error(`Error syncing item ${item.id}:`, itemError);
-        results.push({ id: item.id, status: 'error', error: itemError.message });
-      }
-    }
-
-    // Publish the changes
-    try {
-      const publishUrl = `https://api.webflow.com/v2/sites/${WEBFLOW_SITE_ID}/publish`;
-      await makeRequest('POST', publishUrl, {
-        domains: ['all']
-      }, {
-        'Authorization': `Bearer ${WEBFLOW_API_TOKEN}`,
-        'Content-Type': 'application/json',
-        'accept-version': '2.0.0'
-      });
-      console.log('Changes published to Webflow');
-    } catch (publishError) {
-      console.error('Error publishing changes:', publishError);
-    }
-
-    return {
-      statusCode: 200,
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        success: true,
-        message: `Synced ${results.length} items to Webflow`,
-        results: results
-      })
-    };
-
-  } catch (error) {
-    console.error('Webflow sync error:', error);
-    return {
-      statusCode: 500,
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        success: false,
-        error: 'Sync failed',
-        message: error.message
-      })
-    };
-  }
-};
-
-// Helper function for making HTTP requests
-function makeRequest(method, url, data = null, headers = {}) {
-  return new Promise((resolve, reject) => {
-    const parsedUrl = new URL(url);
-    const options = {
-      hostname: parsedUrl.hostname,
-      path: parsedUrl.pathname + parsedUrl.search,
-      method: method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let responseData = '';
-      res.on('data', (chunk) => responseData += chunk);
-      res.on('end', () => {
-        try {
-          // If response is empty or not JSON, handle accordingly
-          if (!responseData || responseData.trim() === '') {
-            resolve({});
-          } else {
-            const parsedData = JSON.parse(responseData);
-            if (res.statusCode >= 200 && res.statusCode < 300) {
-              resolve(parsedData);
-            } else {
-              reject(new Error(`API error: ${res.statusCode} - ${JSON.stringify(parsedData)}`));
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .form-container {
+            padding: 40px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 0.95em;
+        }
+        
+        .form-group label.required::after {
+            content: ' *';
+            color: #e74c3c;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            background-color: #fafbfc;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .upload-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        
+        .back-link:hover {
+            color: #764ba2;
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        .cloudinary-thumbnail {
+            width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .preview-container {
+            margin-top: 15px;
+            padding: 15px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+            background-color: #fafbfc;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                flex-direction: column;
+                gap: 0;
             }
-          }
-        } catch (parseError) {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(responseData);
-          } else {
-            reject(new Error(`API error: ${res.statusCode} - ${responseData}`));
-          }
+            
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            
+            .form-container {
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
         }
-      });
-    });
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Idaho Broadcasting Media Upload</h1>
+            <p>Upload media files to the VoxPro system</p>
+        </div>
+        
+        <div class="form-container">
+            <div id="successMessage" class="message success-message"></div>
+            <div id="errorMessage" class="message error-message"></div>
+            
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label for="cloudinaryUpload" class="required">Upload Media File:</label>
+                    <div id="cloudinary-upload-container">
+                        <button type="button" id="cloudinaryUpload" class="upload-btn">Select Media File</button>
+                    </div>
+                    
+                    <div class="preview-container" id="previewContainer" style="display: none;">
+                        <h3>Selected Media:</h3>
+                        <img id="thumbnailPreview" class="cloudinary-thumbnail">
+                        <div id="mediaInfo"></div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="title" class="required">Title:</label>
+                    <input type="text" id="title" name="title" required placeholder="Enter media title">
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" placeholder="Enter media description"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="category">Category:</label>
+                        <select id="category" name="category">
+                            <option value="">Select category</option>
+                            <option value="Audio">Audio</option>
+                            <option value="Video">Video</option>
+                            <option value="Photo">Photo</option>
+                            <option value="Document">Document</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="priority">Priority:</label>
+                        <select id="priority" name="priority">
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="submittedBy">Submitted By:</label>
+                        <input type="text" id="submittedBy" name="submittedBy" placeholder="Your name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="station">Station:</label>
+                        <select id="station" name="station">
+                            <option value="">Select station</option>
+                            <option value="KIVI">KIVI</option>
+                            <option value="KNIN">KNIN</option>
+                            <option value="KGEM">KGEM</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tags">Tags:</label>
+                    <input type="text" id="tags" name="tags" placeholder="Enter tags separated by commas">
+                </div>
+                
+                <div class="form-group">
+                    <label for="notes">Notes:</label>
+                    <textarea id="notes" name="notes" placeholder="Additional notes or comments"></textarea>
+                </div>
+                
+                <input type="hidden" id="cloudinaryUrl" name="cloudinaryUrl">
+                <input type="hidden" id="cloudinaryThumbnailUrl" name="cloudinaryThumbnailUrl">
+                <input type="hidden" id="cloudinaryPublicId" name="cloudinaryPublicId">
+                <input type="hidden" id="fileType" name="fileType">
+                <input type="hidden" id="fileSize" name="fileSize">
+                
+                <button type="submit" class="upload-btn" id="submitBtn">Save to VoxPro</button>
+                
+                <a href="/voxpro-manager" class="back-link">← Back to VoxPro Manager</a>
+            </form>
+        </div>
+    </div>
 
-    req.on('error', reject);
+    <!-- Cloudinary Upload Widget Script -->
+    <script src="https://widget.cloudinary.com/v2.0/global/all.js" type="text/javascript"></script>
     
-    // Set timeout
-    req.setTimeout(15000, () => {
-      req.destroy();
-      reject(new Error('Request timeout'));
-    });
-
-    if (data) {
-      req.write(JSON.stringify(data));
-    }
-    req.end();
-  });
-}
+    <script>
+        // Configuration for Cloudinary Upload Widget
+        const cloudName = 'your-cloud-name'; // REPLACE WITH YOUR CLOUDINARY CLOUD NAME
+        const uploadPreset = 'voxpro-uploads'; // REPLACE WITH YOUR UPLOAD PRESET
+        
+        // DOM Elements
+        const uploadForm = document.getElementById('uploadForm');
+        const cloudinaryUploadBtn = document.getElementById('cloudinaryUpload');
+        const previewContainer = document.getElementById('previewContainer');
+        const thumbnailPreview = document.getElementById('thumbnailPreview');
+        const mediaInfo = document.getElementById('mediaInfo');
+        const cloudinaryUrlInput = document.getElementById('cloudinaryUrl');
+        const cloudinaryThumbnailUrlInput = document.getElementById('cloudinaryThumbnailUrl');
+        const cloudinaryPublicIdInput = document.getElementById('cloudinaryPublicId');
+        const fileTypeInput = document.getElementById('fileType');
+        const fileSizeInput = document.getElementById('fileSize');
+        const submitBtn = document.getElementById('submitBtn');
+        const successMessage = document.getElementById('successMessage');
+        const errorMessage = document.getElementById('errorMessage');
+        
+        // Initialize the Cloudinary Upload Widget
+        const myWidget = cloudinary.createUploadWidget(
+            {
+                cloudName: cloudName,
+                uploadPreset: uploadPreset,
+                sources: ['local', 'url', 'camera', 'google_drive', 'dropbox'],
+                multiple: false,
+                maxFiles: 1,
+                resourceType: 'auto',
+                showAdvancedOptions: false,
+                cropping: false,
+                styles: {
+                    palette: {
+                        window: "#FFFFFF",
+                        sourceBg: "#F4F4F5",
+                        windowBorder: "#90A0B3",
+                        tabIcon: "#764BA2",
+                        inactiveTabIcon: "#667EEA",
+                        menuIcons: "#5A616A",
+                        link: "#667EEA",
+                        action: "#764BA2",
+                        inProgress: "#667EEA",
+                        complete: "#10B981",
+                        error: "#EF4444",
+                        textDark: "#111827",
+                        textLight: "#FFFFFF"
+                    }
+                }
+            },
+            (error, result) => {
+                if (!error && result && result.event === "success") {
+                    console.log('Upload Widget Result:', result.info);
+                    
+                    // Store Cloudinary data in hidden fields
+                    cloudinaryUrlInput.value = result.info.secure_url;
+                    cloudinaryPublicIdInput.value = result.info.public_id;
+                    fileTypeInput.value = result.info.resource_type + '/' + result.info.format;
+                    fileSizeInput.value = result.info.bytes;
+                    
+                    // Set thumbnail URL if available
+                    if (result.info.thumbnail_url) {
+                        cloudinaryThumbnailUrlInput.value = result.info.thumbnail_url;
+                        thumbnailPreview.src = result.info.thumbnail_url;
+                    } else {
+                        cloudinaryThumbnailUrlInput.value = result.info.secure_url;
+                        thumbnailPreview.src = result.info.secure_url;
+                    }
+                    
+                    // Show preview and file info
+                    thumbnailPreview.style.display = 'block';
+                    previewContainer.style.display = 'block';
+                    
+                    const fileSize = (result.info.bytes / (1024 * 1024)).toFixed(2);
+                    mediaInfo.innerHTML = `
+                        <p><strong>File:</strong> ${result.info.original_filename}</p>
+                        <p><strong>Size:</strong> ${fileSize} MB</p>
+                        <p><strong>Type:</strong> ${result.info.resource_type}/${result.info.format}</p>
+                    `;
+                    
+                    // Auto-detect category based on resource type
+                    const categorySelect = document.getElementById('category');
+                    if (result.info.resource_type === 'image') {
+                        categorySelect.value = 'Photo';
+                    } else if (result.info.resource_type === 'video') {
+                        categorySelect.value = 'Video';
+                    } else if (result.info.resource_type === 'audio' || 
+                              ['mp3', 'wav', 'ogg', 'm4a'].includes(result.info.format)) {
+                        categorySelect.value = 'Audio';
+                    }
+                    
+                    // Update button text to show success
+                    cloudinaryUploadBtn.textContent = 'Change Media File';
+                }
+            }
+        );
+        
+        // Attach the widget to the upload button
+        cloudinaryUploadBtn.addEventListener('click', () => {
+            myWidget.open();
+        });
+        
+        // Form submission handler
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Validate required fields
+            if (!cloudinaryUrlInput.value) {
+                showError('Please upload a media file using the selector.');
+                return;
+            }
+            
+            if (!document.getElementById('title').value.trim()) {
+                showError('Please enter a title for the media.');
+                return;
+            }
+            
+            // Disable submit button
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving...';
+            hideMessages();
+            
+            try {
+                // Prepare the data to send to your backend
+                const formData = {
+                    title: document.getElementById('title').value,
+                    description: document.getElementById('description').value,
+                    category: document.getElementById('category').value,
+                    priority: document.getElementById('priority').value,
+                    submitted_by: document.getElementById('submittedBy').value,
+                    station: document.getElementById('station').value,
+                    tags: document.getElementById('tags').value,
+                    notes: document.getElementById('notes').value,
+                    file_url: cloudinaryUrlInput.value,
+                    thumbnail_url: cloudinaryThumbnailUrlInput.value,
+                    public_id: cloudinaryPublicIdInput.value,
+                    file_type: fileTypeInput.value,
+                    file_size: fileSizeInput.value,
+                    created_at: new Date().toISOString()
+                };
+                
+                console.log('Sending data to server:', formData);
+                
+                // Send data to your Netlify function
+                const response = await fetch('/.netlify/functions/cloudinary-metadata', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                // Parse the response
+                const result = await response.json();
+                
+                if (response.ok) {
+                    showSuccess('Media uploaded successfully! You can now find it in VoxPro Manager.');
+                    // Reset form
+                    uploadForm.reset();
+                    previewContainer.style.display = 'none';
+                    thumbnailPreview.style.display = 'none';
+                    cloudinaryUploadBtn.textContent = 'Select Media File';
+                } else {
+                    throw new Error(result.error || 'Failed to save media metadata');
+                }
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                showError('Error: ' + error.message);
+            } finally {
+                // Re-enable submit button
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save to VoxPro';
+            }
+        });
+        
+        // Helper functions for showing messages
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.style.display = 'block';
+            errorMessage.style.display = 'none';
+        }
+        
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            successMessage.style.display = 'none';
+        }
+        
+        function hideMessages() {
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+        }
+    </script>
+</body>
+</html>
