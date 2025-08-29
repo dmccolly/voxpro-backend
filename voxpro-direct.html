@@ -517,13 +517,20 @@
         // Media functions
         async function loadMedia(searchTerm = '') {
             try {
+                console.log('Loading media...');
                 const endpoint = searchTerm ? 
                     `/media/search?q=${encodeURIComponent(searchTerm)}` : 
                     '/user_submission';
                 
+                console.log('Calling endpoint:', endpoint);
                 const data = await xano(endpoint);
+                console.log('Media data received:', data);
+                
                 mediaList = Array.isArray(data) ? data : [];
+                console.log('MediaList updated:', mediaList.length, 'items');
+                
                 renderMediaBrowser();
+                console.log('Media browser rendered');
             } catch (error) {
                 console.error('Error loading media:', error);
                 showMessage('Error loading media', 'error');
