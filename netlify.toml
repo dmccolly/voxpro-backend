@@ -1,20 +1,68 @@
+# Netlify configuration with minimal public directory
+# This configuration creates a minimal static site with the upload function
+
 [build]
-  functions = "netlify/functions"
+  publish = "public"
+  functions = "functions"
+  # Simple build command to create the public directory
+  command = "mkdir -p public && echo 'Upload API is available at /api/upload' > public/index.html"
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = true
+# Function-specific configuration
+[functions]
+  # Global function settings
+  node_bundler = "esbuild"
+  
+  # Specific configuration for the uploader function
+  [functions.uploader-fixed]
+    # Set timeout to 5 minutes (300 seconds) to handle large file uploads
+    timeout = 300
+    # Increase memory limit to handle large files in memory
+    memory = 1024
+    # Set runtime to Node.js 18
+    runtime = "nodejs18.x"
 
-[[redirects]]
-  from = "/file-manager"
-  to = "/.netlify/functions/uploader"
-  status = 200
-  force = true
+# Headers for CORS support
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Headers = "Content-Type, Authorization"
+    Access-Control-Allow-Methods = "GET, POST, PUT, DELETE, OPTIONS"
 
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com;"
+
+# Redirects for API endpoints
 [[redirects]]
-  from = "/voxpro-working"
-  to = "/working-voxpro-final.html"
+  from = "/api/upload"
+  to = "/.netlify/functions/uploader-fixed"
   status = 200
-  force = true
+
+# Build plugins (optional - for optimization)
+[[plugins]]
+  package = "@netlify/plugin-functions-install-core"
+
+# File processing settings
+[build.processing]
+  skip_processing = false
+  
+[build.processing.css]
+  bundle = true
+  minify = true
+  
+[build.processing.js]
+  bundle = true
+  minify = true
+  
+[build.processing.html]
+  pretty_urls = true
+  
+[build.processing.images]
+  compress = true
