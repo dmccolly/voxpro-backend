@@ -1,11 +1,9 @@
-# Netlify configuration with minimal public directory
-# This configuration creates a minimal static site with the upload function
+# Netlify configuration for VoxPro Manager
 
 [build]
   publish = "public"
-  functions = "functions"
-  # Simple build command to create the public directory
-  command = "mkdir -p public && echo 'Upload API is available at /api/upload' > public/index.html"
+  functions = "netlify/functions"
+  # Remove the command that overwrites index.html
 
 # Function-specific configuration
 [functions]
@@ -49,6 +47,12 @@
 [[redirects]]
   from = "/.netlify/functions/cloudinary-metadata"
   to = "/.netlify/functions/cloudinary-metadata"
+  status = 200
+
+# Custom route for Cloudinary upload page
+[[redirects]]
+  from = "/cloud-upload"
+  to = "/file-manager.html"
   status = 200
 
 # Build plugins (optional - for optimization)
