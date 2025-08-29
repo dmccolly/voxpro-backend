@@ -87,52 +87,23 @@
             min-height: 100px;
         }
 
-        .file-input-wrapper {
-            position: relative;
-            display: inline-block;
-            width: 100%;
-        }
-
-        .file-input {
-            position: absolute;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-
-        .file-input-display {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            border: 3px dashed #667eea;
+        .cloudinary-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
             border-radius: 8px;
-            background: #f8f9fa;
+            font-size: 1.1em;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            min-height: 80px;
+            display: inline-block;
+            text-align: center;
         }
 
-        .file-input-display:hover {
-            background: #e9ecef;
-            border-color: #5a67d8;
-        }
-
-        .file-input-display.has-file {
-            background: #e8f5e8;
-            border-color: #28a745;
-        }
-
-        .upload-icon {
-            font-size: 2em;
-            margin-right: 15px;
-            color: #667eea;
-        }
-
-        .upload-text {
-            font-size: 1.1em;
-            color: #495057;
+        .cloudinary-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
 
         .submit-btn {
@@ -213,6 +184,23 @@
             gap: 20px;
         }
 
+        .file-info {
+            background: #f0f8ff;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .thumbnail-preview {
+            width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            object-fit: contain;
+        }
+
         @media (max-width: 768px) {
             .two-column {
                 grid-template-columns: 1fr;
@@ -236,15 +224,13 @@
         </div>
         
         <div class="form-container">
-            <form id="uploadForm" enctype="multipart/form-data">
+            <form id="uploadForm">
                 <div class="form-group">
-                    <label for="file">Select Media File *</label>
-                    <div class="file-input-wrapper">
-                        <input type="file" id="file" name="attachment" class="file-input" accept="audio/*,video/*" required>
-                        <div class="file-input-display" id="fileDisplay">
-                            <span class="upload-icon">📁</span>
-                            <span class="upload-text">Click to select a file or drag and drop</span>
-                        </div>
+                    <label for="mediaUpload">Select Media File *</label>
+                    <div>
+                        <button type="button" id="upload_widget" class="cloudinary-button">Select Media File</button>
+                        <div id="fileInfo" class="file-info"></div>
+                        <img id="thumbnailPreview" class="thumbnail-preview">
                     </div>
                 </div>
 
@@ -310,15 +296,22 @@
                     <textarea id="notes" name="notes" placeholder="Additional notes or comments"></textarea>
                 </div>
 
+                <!-- Hidden fields for Cloudinary data -->
+                <input type="hidden" id="cloudinaryUrl" name="cloudinaryUrl">
+                <input type="hidden" id="cloudinaryThumbnailUrl" name="cloudinaryThumbnailUrl">
+                <input type="hidden" id="cloudinaryPublicId" name="cloudinaryPublicId">
+                <input type="hidden" id="fileType" name="fileType">
+                <input type="hidden" id="fileSize" name="fileSize">
+
                 <button type="submit" class="submit-btn" id="submitBtn">
-                    Upload Media File
+                    Save to VoxPro
                 </button>
 
                 <div class="progress-container" id="progressContainer">
                     <div class="progress-bar">
                         <div class="progress-fill" id="progressFill"></div>
                     </div>
-                    <div class="progress-text" id="progressText">Uploading... 0%</div>
+                    <div class="progress-text" id="progressText">Processing... 0%</div>
                 </div>
 
                 <div class="message" id="message"></div>
@@ -326,123 +319,211 @@
         </div>
     </div>
 
+    <!-- Cloudinary Upload Widget Script -->
+    <script src="https://widget.cloudinary.com/v2.0/global/all.js" type="text/javascript"></script>
+
     <script>
-        const fileInput = document.getElementById('file');
-        const fileDisplay = document.getElementById('fileDisplay');
+        // Cloudinary configuration
+        const cloudName = 'idahobroadcasting'; // Your cloud name
+        const uploadPreset = 'voxpro-uploads'; // Your upload preset
+        
+        // DOM Elements
         const uploadForm = document.getElementById('uploadForm');
+        const fileInfo = document.getElementById('fileInfo');
+        const uploadBtn = document.getElementById('upload_widget');
         const submitBtn = document.getElementById('submitBtn');
         const progressContainer = document.getElementById('progressContainer');
         const progressFill = document.getElementById('progressFill');
         const progressText = document.getElementById('progressText');
         const message = document.getElementById('message');
+        const thumbnailPreview = document.getElementById('thumbnailPreview');
+        
+        // Hidden fields for Cloudinary data
+        const cloudinaryUrlInput = document.getElementById('cloudinaryUrl');
+        const cloudinaryThumbnailUrlInput = document.getElementById('cloudinaryThumbnailUrl');
+        const cloudinaryPublicIdInput = document.getElementById('cloudinaryPublicId');
+        const fileTypeInput = document.getElementById('fileType');
+        const fileSizeInput = document.getElementById('fileSize');
 
-        // File input handling
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                fileDisplay.classList.add('has-file');
-                fileDisplay.innerHTML = `
-                    <span class="upload-icon">✅</span>
-                    <span class="upload-text">${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)</span>
-                `;
-            } else {
-                fileDisplay.classList.remove('has-file');
-                fileDisplay.innerHTML = `
-                    <span class="upload-icon">📁</span>
-                    <span class="upload-text">Click to select a file or drag and drop</span>
-                `;
+        // Initialize the Cloudinary Upload Widget
+        const myWidget = cloudinary.createUploadWidget(
+            {
+                cloudName: cloudName,
+                uploadPreset: uploadPreset,
+                sources: ['local', 'url', 'camera', 'google_drive', 'dropbox'],
+                multiple: false,
+                maxFiles: 1,
+                resourceType: 'auto',
+                showAdvancedOptions: false,
+                cropping: false,
+                styles: {
+                    palette: {
+                        window: "#FFFFFF",
+                        sourceBg: "#F4F4F5",
+                        windowBorder: "#90A0B3",
+                        tabIcon: "#764BA2",
+                        inactiveTabIcon: "#667EEA",
+                        menuIcons: "#5A616A",
+                        link: "#667EEA",
+                        action: "#764BA2",
+                        inProgress: "#667EEA",
+                        complete: "#10B981",
+                        error: "#EF4444",
+                        textDark: "#111827",
+                        textLight: "#FFFFFF"
+                    }
+                }
+            },
+            (error, result) => {
+                if (!error && result && result.event === "success") {
+                    console.log('Upload Widget Result:', result.info);
+                    
+                    // Store Cloudinary data in hidden fields
+                    cloudinaryUrlInput.value = result.info.secure_url;
+                    cloudinaryPublicIdInput.value = result.info.public_id;
+                    fileTypeInput.value = result.info.resource_type + '/' + result.info.format;
+                    fileSizeInput.value = result.info.bytes;
+                    
+                    // Set thumbnail URL if available
+                    if (result.info.thumbnail_url) {
+                        cloudinaryThumbnailUrlInput.value = result.info.thumbnail_url;
+                        thumbnailPreview.src = result.info.thumbnail_url;
+                    } else {
+                        cloudinaryThumbnailUrlInput.value = result.info.secure_url;
+                        thumbnailPreview.src = result.info.secure_url;
+                    }
+                    
+                    // Show preview and file info
+                    thumbnailPreview.style.display = 'block';
+                    
+                    const fileSize = (result.info.bytes / (1024 * 1024)).toFixed(2);
+                    fileInfo.innerHTML = `
+                        <strong>File:</strong> ${result.info.original_filename}<br>
+                        <strong>Size:</strong> ${fileSize} MB<br>
+                        <strong>Type:</strong> ${result.info.resource_type}/${result.info.format}
+                    `;
+                    fileInfo.style.display = 'block';
+                    
+                    // Auto-detect category based on resource type
+                    const categorySelect = document.getElementById('category');
+                    if (result.info.resource_type === 'image') {
+                        categorySelect.value = 'Photo';
+                    } else if (result.info.resource_type === 'video') {
+                        categorySelect.value = 'Video';
+                    } else if (result.info.resource_type === 'audio' || 
+                              ['mp3', 'wav', 'ogg', 'm4a'].includes(result.info.format)) {
+                        categorySelect.value = 'Audio';
+                    }
+                    
+                    // Update button text
+                    uploadBtn.textContent = 'Change Media File';
+                }
             }
-        });
+        );
 
-        // Drag and drop handling
-        fileDisplay.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            fileDisplay.style.background = '#e9ecef';
-        });
-
-        fileDisplay.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            fileDisplay.style.background = '#f8f9fa';
-        });
-
-        fileDisplay.addEventListener('drop', function(e) {
-            e.preventDefault();
-            fileDisplay.style.background = '#f8f9fa';
-            
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                fileInput.files = files;
-                fileInput.dispatchEvent(new Event('change'));
-            }
-        });
+        // Attach widget to button
+        uploadBtn.addEventListener('click', function() {
+            myWidget.open();
+        }, false);
 
         // Form submission
-        uploadForm.addEventListener('submit', function(e) {
+        uploadForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const formData = new FormData(uploadForm);
+            // Validate
+            if (!cloudinaryUrlInput.value) {
+                showMessage('Please upload a file using the media selector', 'error');
+                return;
+            }
+            
+            if (!document.getElementById('title').value.trim()) {
+                showMessage('Please enter a title for the media', 'error');
+                return;
+            }
             
             // Show progress
             progressContainer.style.display = 'block';
             submitBtn.disabled = true;
-            submitBtn.textContent = 'Uploading...';
+            submitBtn.textContent = 'Processing...';
             message.style.display = 'none';
-
-            // Create XMLHttpRequest for progress tracking
-            const xhr = new XMLHttpRequest();
-
-            xhr.upload.addEventListener('progress', function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = (e.loaded / e.total) * 100;
-                    progressFill.style.width = percentComplete + '%';
-                    progressText.textContent = `Uploading... ${Math.round(percentComplete)}%`;
-                }
-            });
-
-            xhr.addEventListener('load', function() {
-                if (xhr.status === 200) {
+            progressFill.style.width = '30%';
+            
+            try {
+                // Prepare data for server
+                const formData = {
+                    title: document.getElementById('title').value,
+                    description: document.getElementById('description').value,
+                    category: document.getElementById('category').value,
+                    station: document.getElementById('station').value,
+                    tags: document.getElementById('tags').value,
+                    submitted_by: document.getElementById('submittedBy').value,
+                    notes: document.getElementById('notes').value,
+                    priority: document.getElementById('priority').value,
+                    cloudinary_url: cloudinaryUrlInput.value,
+                    thumbnail_url: cloudinaryThumbnailUrlInput.value,
+                    public_id: cloudinaryPublicIdInput.value,
+                    file_type: fileTypeInput.value,
+                    file_size: fileSizeInput.value,
+                    created_at: new Date().toISOString()
+                };
+                
+                console.log('Sending data to server:', formData);
+                progressFill.style.width = '60%';
+                
+                // Send to Netlify function
+                const response = await fetch('/.netlify/functions/cloudinary-metadata', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                progressFill.style.width = '90%';
+                
+                // Handle response
+                const result = await response.json();
+                
+                if (response.ok) {
+                    progressFill.style.width = '100%';
+                    showMessage('File uploaded successfully! The media is now available in the VoxPro system.', 'success');
+                    uploadForm.reset();
+                    fileInfo.style.display = 'none';
+                    thumbnailPreview.style.display = 'none';
+                    uploadBtn.textContent = 'Select Media File';
+                    
+                    // Optional: Trigger Webflow sync
                     try {
-                        const response = JSON.parse(xhr.responseText);
-                        showMessage('success', 'File uploaded successfully! The media is now available in the VoxPro system.');
-                        uploadForm.reset();
-                        fileDisplay.classList.remove('has-file');
-                        fileDisplay.innerHTML = `
-                            <span class="upload-icon">📁</span>
-                            <span class="upload-text">Click to select a file or drag and drop</span>
-                        `;
-                    } catch (e) {
-                        showMessage('error', 'Upload completed but received invalid response.');
+                        await fetch('/.netlify/functions/webflow-sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ itemId: result.data?.id })
+                        });
+                    } catch (syncError) {
+                        console.error('Webflow sync error (non-critical):', syncError);
                     }
                 } else {
-                    showMessage('error', `Upload failed: ${xhr.statusText}`);
+                    throw new Error(result.error || 'Upload failed');
                 }
-                
-                resetUploadState();
-            });
-
-            xhr.addEventListener('error', function() {
-                showMessage('error', 'Upload failed due to network error.');
-                resetUploadState();
-            });
-
-            xhr.open('POST', '/.netlify/functions/uploader');
-            xhr.send(formData);
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage(`Error: ${error.message}`, 'error');
+                progressFill.style.width = '0%';
+            } finally {
+                progressContainer.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Save to VoxPro';
+            }
         });
 
-        function showMessage(type, text) {
-            message.className = `message ${type}`;
+        function showMessage(text, type = 'error') {
             message.textContent = text;
+            message.className = `message ${type}`;
             message.style.display = 'block';
-        }
-
-        function resetUploadState() {
-            progressContainer.style.display = 'none';
-            progressFill.style.width = '0%';
-            progressText.textContent = 'Uploading... 0%';
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Upload Media File';
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 5000);
         }
     </script>
 </body>
 </html>
-
