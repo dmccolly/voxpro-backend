@@ -37,12 +37,18 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com;"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://widget.cloudinary.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: https://res.cloudinary.com; connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com;"
 
 # Redirects for API endpoints
 [[redirects]]
   from = "/api/upload"
   to = "/.netlify/functions/uploader-fixed"
+  status = 200
+
+# New redirect for Cloudinary metadata function
+[[redirects]]
+  from = "/.netlify/functions/cloudinary-metadata"
+  to = "/.netlify/functions/cloudinary-metadata"
   status = 200
 
 # Build plugins (optional - for optimization)
