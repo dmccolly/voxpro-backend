@@ -1,6 +1,6 @@
 # Netlify configuration for VoxPro Manager
 [build]
-  publish = "."
+  publish = "public"
   functions = "netlify/functions"
 
 # Function-specific configuration
