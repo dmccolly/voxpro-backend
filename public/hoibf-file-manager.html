@@ -591,7 +591,7 @@
             color: var(--text-primary);
         }
 
-        .details-input {
+        .details-input, .details-select {
             width: 100%;
             padding: 8px 12px;
             background: var(--bg-tertiary);
@@ -681,6 +681,39 @@
             transition: width 0.3s ease;
         }
 
+        /* Modal for full preview */
+        .preview-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .preview-modal.active {
+            display: flex;
+        }
+
+        .preview-modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            position: relative;
+        }
+
+        .preview-modal-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            color: white;
+            font-size: 32px;
+            cursor: pointer;
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .sidebar {
@@ -749,32 +782,9 @@
                     <span class="nav-count" id="documentCount">0</span>
                 </div>
                 
-                <div class="nav-title" style="margin-top: 20px;">Stations</div>
-                <div class="nav-item" data-station="KIVI">
-                    <span class="nav-icon">📡</span>
-                    <span>KIVI</span>
-                </div>
-                <div class="nav-item" data-station="KTFT">
-                    <span class="nav-icon">📡</span>
-                    <span>KTFT</span>
-                </div>
-                <div class="nav-item" data-station="KBOI">
-                    <span class="nav-icon">📡</span>
-                    <span>KBOI</span>
-                </div>
-                
                 <div class="nav-title" style="margin-top: 20px;">Collections</div>
-                <div class="nav-item">
-                    <span class="nav-icon">⭐</span>
-                    <span>Featured</span>
-                </div>
-                <div class="nav-item">
-                    <span class="nav-icon">🕐</span>
-                    <span>Recent</span>
-                </div>
-                <div class="nav-item">
-                    <span class="nav-icon">🗑️</span>
-                    <span>Trash</span>
+                <div id="collectionsContainer">
+                    <!-- Collections will be loaded here dynamically -->
                 </div>
             </nav>
         </aside>
@@ -843,7 +853,7 @@
                         <div>Type</div>
                         <div>Modified</div>
                         <div>Size</div>
-                        <div>Status</div>
+                        <div>Collection</div>
                         <div>Actions</div>
                     </div>
                     <div id="listViewContent">
@@ -865,12 +875,23 @@
                     <span class="file-icon-large">📁</span>
                 </div>
                 
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 20px;" onclick="openFullPreview()">
+                    <span>👁️</span> Full Preview
+                </button>
+                
                 <div class="details-section">
                     <div class="details-section-title">Properties</div>
                     
                     <div class="details-field">
                         <div class="details-label">File Name</div>
                         <input type="text" class="details-input" id="detailsFileName" value="">
+                    </div>
+                    
+                    <div class="details-field">
+                        <div class="details-label">Collection</div>
+                        <select class="details-select" id="detailsCollection">
+                            <option value="">No Collection</option>
+                        </select>
                     </div>
                     
                     <div class="details-field">
@@ -898,32 +919,32 @@
                     </div>
                     
                     <div class="details-field">
-                        <div class="details-label">Modified</div>
-                        <div class="details-value" id="detailsModified">-</div>
+                        <div class="details-label">Dimensions</div>
+                        <div class="details-value" id="detailsDimensions">-</div>
                     </div>
                     
                     <div class="details-field">
-                        <div class="details-label">Status</div>
-                        <span class="status-badge status-synced" id="detailsStatus">Synced</span>
+                        <div class="details-label">Duration</div>
+                        <div class="details-value" id="detailsDuration">-</div>
+                    </div>
+                    
+                    <div class="details-field">
+                        <div class="details-label">Modified</div>
+                        <div class="details-value" id="detailsModified">-</div>
                     </div>
                 </div>
                 
                 <div class="details-section">
-                    <div class="details-section-title">Sync Status</div>
+                    <div class="details-section-title">URLs</div>
                     
                     <div class="details-field">
-                        <div class="details-label">Cloudinary</div>
-                        <span class="status-badge status-synced" id="cloudinaryStatus">✓ Uploaded</span>
+                        <div class="details-label">Direct URL</div>
+                        <input type="text" class="details-input" id="detailsUrl" readonly>
                     </div>
                     
                     <div class="details-field">
-                        <div class="details-label">Xano Database</div>
-                        <span class="status-badge status-synced" id="xanoStatus">✓ Synced</span>
-                    </div>
-                    
-                    <div class="details-field">
-                        <div class="details-label">Webflow CMS</div>
-                        <span class="status-badge status-pending" id="webflowStatus">⏳ Pending</span>
+                        <div class="details-label">Public ID</div>
+                        <input type="text" class="details-input" id="detailsPublicId" readonly>
                     </div>
                 </div>
             </div>
@@ -932,8 +953,11 @@
                 <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="saveFileChanges()">
                     Save Changes
                 </button>
-                <button class="btn btn-secondary" style="width: 100%;" onclick="downloadFile()">
+                <button class="btn btn-secondary" style="width: 100%; margin-bottom: 10px;" onclick="downloadFile()">
                     Download File
+                </button>
+                <button class="btn btn-secondary" style="width: 100%; color: var(--error);" onclick="deleteFile()">
+                    Delete File
                 </button>
             </div>
         </aside>
@@ -951,6 +975,14 @@
             <button class="btn btn-secondary" onclick="closeUploadZone()" style="margin-left: 10px;">
                 Cancel
             </button>
+        </div>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="preview-modal" id="previewModal">
+        <div class="preview-modal-content">
+            <span class="preview-modal-close" onclick="closePreviewModal()">✕</span>
+            <div id="modalPreviewContent"></div>
         </div>
     </div>
 
@@ -1000,14 +1032,16 @@
         let selectedFiles = new Set();
         let currentView = 'grid';
         let allFiles = [];
+        let allCollections = [];
         let filteredFiles = [];
         let cloudinaryWidget = null;
         let currentFile = null;
         let currentFilter = 'all';
+        let currentCollection = null;
 
         // Configuration
         const CLOUDINARY_CLOUD_NAME = 'dzrw8nopf';
-        const CLOUDINARY_UPLOAD_PRESET = 'hoibf-media'; // Change this to your actual preset
+        const CLOUDINARY_UPLOAD_PRESET = 'ml_default'; // Change this to your actual preset
         const XANO_BASE = '/.netlify/functions/xano-proxy';
         const WEBFLOW_SYNC_ENDPOINT = '/.netlify/functions/webflow-sync';
 
@@ -1056,9 +1090,61 @@
             }
         }
 
+        // Load collections from Xano
+        async function loadCollections() {
+            try {
+                const response = await fetch(`${XANO_BASE}/collection`);
+                if (!response.ok) throw new Error('Failed to load collections');
+                
+                const data = await response.json();
+                allCollections = Array.isArray(data) ? data : data.items || [];
+                
+                // Populate sidebar collections
+                const collectionsHTML = allCollections.map(col => {
+                    const count = allFiles.filter(f => f.collection_id === col.id).length;
+                    return `
+                        <div class="nav-item" data-collection="${col.id}">
+                            <span class="nav-icon">📁</span>
+                            <span>${col.name}</span>
+                            <span class="nav-count">${count}</span>
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('collectionsContainer').innerHTML = collectionsHTML;
+                
+                // Populate collection dropdown in details
+                const selectHTML = '<option value="">No Collection</option>' + 
+                    allCollections.map(col => `<option value="${col.id}">${col.name}</option>`).join('');
+                document.getElementById('detailsCollection').innerHTML = selectHTML;
+                
+                // Add click handlers for collections
+                document.querySelectorAll('[data-collection]').forEach(item => {
+                    item.addEventListener('click', function() {
+                        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                        this.classList.add('active');
+                        currentCollection = parseInt(this.dataset.collection);
+                        currentFilter = 'collection';
+                        const collectionName = allCollections.find(c => c.id === currentCollection)?.name;
+                        document.getElementById('currentFolder').textContent = collectionName;
+                        applyFilters();
+                    });
+                });
+                
+            } catch (error) {
+                console.error('Failed to load collections:', error);
+            }
+        }
+
         // Save file metadata to Xano
         async function saveToXano(fileInfo) {
             try {
+                // Generate thumbnail URL for images/videos
+                let thumbnailUrl = fileInfo.secure_url;
+                if (fileInfo.resource_type === 'image' || fileInfo.resource_type === 'video') {
+                    thumbnailUrl = fileInfo.secure_url.replace('/upload/', '/upload/w_200,h_200,c_fill,g_auto/');
+                }
+
                 const metadata = {
                     title: fileInfo.original_filename || 'Untitled',
                     cloudinary_url: fileInfo.secure_url,
@@ -1066,10 +1152,10 @@
                     file_type: fileInfo.resource_type,
                     format: fileInfo.format,
                     file_size: fileInfo.bytes,
-                    width: fileInfo.width,
-                    height: fileInfo.height,
-                    duration: fileInfo.duration,
-                    thumbnail_url: fileInfo.thumbnail_url || fileInfo.secure_url,
+                    width: fileInfo.width || null,
+                    height: fileInfo.height || null,
+                    duration: fileInfo.duration || null,
+                    thumbnail_url: thumbnailUrl,
                     created_at: new Date().toISOString()
                 };
 
@@ -1099,7 +1185,11 @@
                 const data = await response.json();
                 allFiles = Array.isArray(data) ? data : data.items || [];
                 
+                console.log('Loaded files:', allFiles.length, 'files');
+                console.log('Sample file data:', allFiles[0]);
+                
                 updateFileCounts();
+                updateCollectionCounts();
                 applyFilters();
                 
             } catch (error) {
@@ -1112,23 +1202,6 @@
                         file_type: 'audio', 
                         file_size: 4200000,
                         cloudinary_url: '#',
-                        created_at: new Date().toISOString()
-                    },
-                    { 
-                        id: 2, 
-                        title: 'News_Segment_01.mp4', 
-                        file_type: 'video', 
-                        file_size: 45800000,
-                        cloudinary_url: '#',
-                        created_at: new Date().toISOString()
-                    },
-                    { 
-                        id: 3, 
-                        title: 'Station_Logo.png', 
-                        file_type: 'image', 
-                        file_size: 324000,
-                        cloudinary_url: '#',
-                        thumbnail_url: '#',
                         created_at: new Date().toISOString()
                     }
                 ];
@@ -1159,13 +1232,32 @@
             document.querySelector('.storage-used').style.width = `${(totalSize / (10 * 1024 * 1024 * 1024)) * 100}%`;
         }
 
+        // Update collection counts
+        function updateCollectionCounts() {
+            document.querySelectorAll('[data-collection]').forEach(item => {
+                const collectionId = parseInt(item.dataset.collection);
+                const count = allFiles.filter(f => f.collection_id === collectionId).length;
+                item.querySelector('.nav-count').textContent = count;
+            });
+        }
+
         // Apply filters
         function applyFilters() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             
             filteredFiles = allFiles.filter(file => {
-                const matchesFilter = currentFilter === 'all' || file.file_type === currentFilter;
-                const matchesSearch = !searchTerm || file.title.toLowerCase().includes(searchTerm);
+                let matchesFilter = true;
+                
+                if (currentFilter === 'collection' && currentCollection) {
+                    matchesFilter = file.collection_id === currentCollection;
+                } else if (currentFilter !== 'all' && currentFilter !== 'collection') {
+                    matchesFilter = file.file_type === currentFilter;
+                }
+                
+                const matchesSearch = !searchTerm || 
+                    (file.title && file.title.toLowerCase().includes(searchTerm)) ||
+                    (file.description && file.description.toLowerCase().includes(searchTerm));
+                    
                 return matchesFilter && matchesSearch;
             });
             
@@ -1219,6 +1311,7 @@
             listContent.innerHTML = filteredFiles.map(file => {
                 const icon = getFileIcon(file.file_type);
                 const date = new Date(file.created_at).toLocaleDateString();
+                const collection = allCollections.find(c => c.id === file.collection_id);
                 
                 return `
                     <div class="file-list-item" data-id="${file.id}" onclick="selectFile(this, event)">
@@ -1230,7 +1323,7 @@
                         <div>${file.file_type || 'Unknown'}</div>
                         <div>${date}</div>
                         <div>${formatFileSize(file.file_size)}</div>
-                        <div><span class="status-badge status-synced">Synced</span></div>
+                        <div>${collection ? collection.name : '-'}</div>
                         <div>
                             <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="downloadFileById(${file.id}); event.stopPropagation();">
                                 ⬇️
@@ -1255,10 +1348,7 @@
 
         // Get file preview
         function getFilePreview(file) {
-            if (file.file_type === 'image' && file.thumbnail_url) {
-                return `<img src="${file.thumbnail_url}" alt="${file.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <span class="file-icon-large" style="display:none;">${getFileIcon(file.file_type)}</span>`;
-            } else if (file.file_type === 'video' && file.thumbnail_url) {
+            if (file.thumbnail_url && (file.file_type === 'image' || file.file_type === 'video')) {
                 return `<img src="${file.thumbnail_url}" alt="${file.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                         <span class="file-icon-large" style="display:none;">${getFileIcon(file.file_type)}</span>`;
             } else {
@@ -1272,6 +1362,14 @@
             const sizes = ['B', 'KB', 'MB', 'GB'];
             const i = Math.floor(Math.log(bytes) / Math.log(1024));
             return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Format duration
+        function formatDuration(seconds) {
+            if (!seconds) return '-';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
 
         // View switching
@@ -1324,18 +1422,114 @@
             } else if (file.file_type === 'video' && file.cloudinary_url) {
                 preview.innerHTML = `<video src="${file.cloudinary_url}" controls></video>`;
             } else if (file.file_type === 'audio' && file.cloudinary_url) {
-                preview.innerHTML = `<audio src="${file.cloudinary_url}" controls></audio>`;
+                preview.innerHTML = `<audio src="${file.cloudinary_url}" controls style="width: 100%;"></audio>`;
             } else {
                 preview.innerHTML = `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
             }
             
             // Update fields
             document.getElementById('detailsFileName').value = file.title || '';
+            document.getElementById('detailsCollection').value = file.collection_id || '';
             document.getElementById('detailsDescription').value = file.description || '';
             document.getElementById('detailsTags').value = file.tags || '';
-            document.getElementById('detailsType').textContent = `${file.file_type} (${file.format || 'unknown'})`;
+            document.getElementById('detailsType').textContent = `${file.file_type || 'unknown'} (${file.format || 'unknown'})`;
             document.getElementById('detailsSize').textContent = formatFileSize(file.file_size);
+            document.getElementById('detailsDimensions').textContent = file.width && file.height ? `${file.width} × ${file.height}` : '-';
+            document.getElementById('detailsDuration').textContent = formatDuration(file.duration);
             document.getElementById('detailsModified').textContent = new Date(file.created_at).toLocaleString();
+            document.getElementById('detailsUrl').value = file.cloudinary_url || '';
+            document.getElementById('detailsPublicId').value = file.public_id || '';
+        }
+
+        // Save file changes
+        async function saveFileChanges() {
+            if (!currentFile) return;
+            
+            try {
+                const updatedData = {
+                    title: document.getElementById('detailsFileName').value,
+                    collection_id: parseInt(document.getElementById('detailsCollection').value) || null,
+                    description: document.getElementById('detailsDescription').value,
+                    tags: document.getElementById('detailsTags').value
+                };
+                
+                const response = await fetch(`${XANO_BASE}/asset/${currentFile.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+                
+                if (!response.ok) throw new Error('Failed to update file');
+                
+                // Update local data
+                Object.assign(currentFile, updatedData);
+                
+                showNotification('File updated successfully', 'success');
+                renderFiles();
+                updateCollectionCounts();
+                
+            } catch (error) {
+                console.error('Update error:', error);
+                showNotification('Failed to update file', 'error');
+            }
+        }
+
+        // Delete file
+        async function deleteFile() {
+            if (!currentFile) return;
+            
+            if (!confirm(`Delete "${currentFile.title}"?`)) return;
+            
+            try {
+                const response = await fetch(`${XANO_BASE}/asset/${currentFile.id}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('Failed to delete file');
+                
+                // Remove from local data
+                allFiles = allFiles.filter(f => f.id !== currentFile.id);
+                
+                closeDetails();
+                showNotification('File deleted', 'success');
+                updateFileCounts();
+                updateCollectionCounts();
+                applyFilters();
+                
+            } catch (error) {
+                console.error('Delete error:', error);
+                showNotification('Failed to delete file', 'error');
+            }
+        }
+
+        // Open full preview
+        function openFullPreview() {
+            if (!currentFile) return;
+            
+            const modal = document.getElementById('previewModal');
+            const content = document.getElementById('modalPreviewContent');
+            
+            if (currentFile.file_type === 'image') {
+                content.innerHTML = `<img src="${currentFile.cloudinary_url}" style="max-width: 100%; max-height: 90vh;">`;
+            } else if (currentFile.file_type === 'video') {
+                content.innerHTML = `<video src="${currentFile.cloudinary_url}" controls style="max-width: 100%; max-height: 90vh;"></video>`;
+            } else if (currentFile.file_type === 'audio') {
+                content.innerHTML = `
+                    <div style="background: white; padding: 40px; border-radius: 8px;">
+                        <h2 style="color: black; margin-bottom: 20px;">${currentFile.title}</h2>
+                        <audio src="${currentFile.cloudinary_url}" controls style="width: 400px;"></audio>
+                    </div>
+                `;
+            } else {
+                window.open(currentFile.cloudinary_url, '_blank');
+                return;
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closePreviewModal() {
+            document.getElementById('previewModal').classList.remove('active');
         }
 
         // Select all files
@@ -1388,6 +1582,20 @@
             }, 1000);
         }
 
+        // Download file
+        function downloadFile() {
+            if (currentFile && currentFile.cloudinary_url) {
+                window.open(currentFile.cloudinary_url, '_blank');
+            }
+        }
+
+        function downloadFileById(id) {
+            const file = allFiles.find(f => f.id == id);
+            if (file && file.cloudinary_url) {
+                window.open(file.cloudinary_url, '_blank');
+            }
+        }
+
         // Context menu
         document.addEventListener('contextmenu', function(e) {
             e.preventDefault();
@@ -1410,28 +1618,13 @@
                 document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
                 this.classList.add('active');
                 currentFilter = this.dataset.filter;
+                currentCollection = null;
                 document.getElementById('currentFolder').textContent = this.querySelector('span:nth-child(2)').textContent;
                 applyFilters();
             });
         });
 
-        // Notifications
-        function showNotification(message, type = 'info') {
-            console.log(`[${type}] ${message}`);
-            // You can add a toast notification UI here
-        }
-
-        // Placeholder functions for buttons
-        function downloadFile() {
-            if (currentFile && currentFile.cloudinary_url) {
-                window.open(currentFile.cloudinary_url, '_blank');
-            }
-        }
-
-        function saveFileChanges() {
-            showNotification('Changes saved', 'success');
-        }
-
+        // Placeholder functions
         function syncToWebflow() {
             showNotification('Syncing to Webflow...', 'info');
         }
@@ -1449,6 +1642,12 @@
 
         function moveSelected() {
             showNotification('Select destination folder', 'info');
+        }
+
+        // Notifications
+        function showNotification(message, type = 'info') {
+            console.log(`[${type}] ${message}`);
+            // You can add a toast notification UI here
         }
 
         // Drag and drop
@@ -1472,9 +1671,10 @@
         });
 
         // Initialize on load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             initCloudinaryWidget();
-            loadFiles();
+            await loadCollections();
+            await loadFiles();
         });
 
         // Keyboard shortcuts
@@ -1497,6 +1697,7 @@
                 });
                 selectedFiles.clear();
                 closeDetails();
+                closePreviewModal();
             }
         });
     </script>
