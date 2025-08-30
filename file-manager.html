@@ -191,6 +191,19 @@
             transition: width 0.3s ease;
         }
 
+        .fallback-upload {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .fallback-upload input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 2px dashed #e1e5e9;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
         @media (max-width: 768px) {
             .two-column {
                 grid-template-columns: 1fr;
@@ -218,7 +231,12 @@
                 <div class="form-group">
                     <label for="mediaUpload">Select Media File *</label>
                     <div>
-                        <button type="button" id="upload_widget" class="cloudinary-button">Select Media File</button>
+                        <button type="button" id="uploadBtn" class="cloudinary-button">Select Media File</button>
+                        <!-- Fallback upload option in case Cloudinary doesn't load -->
+                        <div class="fallback-upload" id="fallbackUpload">
+                            <p style="margin-bottom: 5px; color: #666;">Or select a file directly:</p>
+                            <input type="file" id="directFileInput" accept="audio/*,video/*,image/*,.pdf,.doc,.docx">
+                        </div>
                         <div id="fileInfo" class="file-info"></div>
                         <img id="thumbnailPreview" class="thumbnail-preview">
                     </div>
@@ -286,7 +304,7 @@
                     <textarea id="notes" name="notes" placeholder="Additional notes or comments"></textarea>
                 </div>
 
-                <!-- Hidden fields for Cloudinary data -->
+                <!-- Hidden fields for media data -->
                 <input type="hidden" id="cloudinaryUrl" name="cloudinaryUrl">
                 <input type="hidden" id="cloudinaryThumbnailUrl" name="cloudinaryThumbnailUrl">
                 <input type="hidden" id="cloudinaryPublicId" name="cloudinaryPublicId">
@@ -312,134 +330,31 @@
         </div>
     </div>
 
-    <!-- Cloudinary Upload Widget Script -->
-    <script src="https://widget.cloudinary.com/v2.0/global/all.js" type="text/javascript"></script>
-
     <script>
-        // Debug mode
-        const debugMode = true;
-        
-        function debugLog(...args) {
-            if (debugMode) console.log('[FileManager]', ...args);
-        }
+        console.log('File manager script started');
         
         // DOM Elements
         const uploadForm = document.getElementById('uploadForm');
         const fileInfo = document.getElementById('fileInfo');
-        const uploadBtn = document.getElementById('upload_widget');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const directFileInput = document.getElementById('directFileInput');
+        const fallbackUpload = document.getElementById('fallbackUpload');
         const submitBtn = document.getElementById('submitBtn');
         const message = document.getElementById('message');
         const thumbnailPreview = document.getElementById('thumbnailPreview');
         const progressBar = document.getElementById('progressBar');
         const progressFill = document.getElementById('progressFill');
         
-        // Hidden fields for Cloudinary data
+        // Hidden fields for media data
         const cloudinaryUrlInput = document.getElementById('cloudinaryUrl');
         const cloudinaryThumbnailUrlInput = document.getElementById('cloudinaryThumbnailUrl');
-        const cloudinaryPublicIdInput = document.getElementById('cloudinaryPublicId');
+        const cloudinaryPublicId = document.getElementById('cloudinaryPublicId');
         const fileTypeInput = document.getElementById('fileType');
         const fileSizeInput = document.getElementById('fileSize');
 
-        // Add error handler to show more detailed errors
-        window.addEventListener('error', function(event) {
-            showMessage(`JavaScript error: ${event.message}`, 'error');
-            console.error('Error details:', event);
-        });
-
-        // Cloudinary configuration - Fallback values if not set in the widget
-        const cloudName = 'drzw8nopf'; // Fallback value
-        const uploadPreset = 'voxpro-uploads'; // Fallback value
-        
-        // Initialize the Cloudinary Upload Widget
-        const myWidget = cloudinary.createUploadWidget(
-            {
-                cloudName: cloudName,
-                uploadPreset: uploadPreset,
-                sources: ['local', 'url', 'camera', 'google_drive', 'dropbox'],
-                multiple: false,
-                maxFiles: 1,
-                resourceType: 'auto',
-                showAdvancedOptions: false,
-                cropping: false,
-                styles: {
-                    palette: {
-                        window: "#FFFFFF",
-                        sourceBg: "#F4F4F5",
-                        windowBorder: "#90A0B3",
-                        tabIcon: "#764BA2",
-                        inactiveTabIcon: "#667EEA",
-                        menuIcons: "#5A616A",
-                        link: "#667EEA",
-                        action: "#764BA2",
-                        inProgress: "#667EEA",
-                        complete: "#10B981",
-                        error: "#EF4444",
-                        textDark: "#111827",
-                        textLight: "#FFFFFF"
-                    }
-                }
-            },
-            (error, result) => {
-                if (error) {
-                    debugLog('Upload widget error:', error);
-                    showMessage(`Upload widget error: ${error.message || 'Unknown error'}`, 'error');
-                    return;
-                }
-                
-                if (result && result.event === "success") {
-                    debugLog('Upload Widget Result:', result.info);
-                    
-                    // Store Cloudinary data in hidden fields
-                    cloudinaryUrlInput.value = result.info.secure_url;
-                    cloudinaryPublicIdInput.value = result.info.public_id;
-                    fileTypeInput.value = result.info.resource_type + '/' + result.info.format;
-                    fileSizeInput.value = result.info.bytes;
-                    
-                    // Set thumbnail URL if available
-                    if (result.info.thumbnail_url) {
-                        cloudinaryThumbnailUrlInput.value = result.info.thumbnail_url;
-                        thumbnailPreview.src = result.info.thumbnail_url;
-                    } else {
-                        cloudinaryThumbnailUrlInput.value = result.info.secure_url;
-                        thumbnailPreview.src = result.info.secure_url;
-                    }
-                    
-                    // Show preview and file info
-                    thumbnailPreview.style.display = 'block';
-                    
-                    const fileSize = (result.info.bytes / (1024 * 1024)).toFixed(2);
-                    fileInfo.innerHTML = `
-                        <strong>File:</strong> ${result.info.original_filename}<br>
-                        <strong>Size:</strong> ${fileSize} MB<br>
-                        <strong>Type:</strong> ${result.info.resource_type}/${result.info.format}
-                    `;
-                    fileInfo.style.display = 'block';
-                    
-                    // Auto-detect category based on resource type
-                    const categorySelect = document.getElementById('category');
-                    if (result.info.resource_type === 'video') {
-                        categorySelect.value = 'Video';
-                    } else if (result.info.resource_type === 'audio' || 
-                              ['mp3', 'wav', 'ogg', 'm4a'].includes(result.info.format)) {
-                        categorySelect.value = 'Audio';
-                    } else if (result.info.resource_type === 'image') {
-                        categorySelect.value = 'Photo';
-                    }
-                    
-                    // Update button text
-                    uploadBtn.textContent = 'Change Media File';
-                }
-            }
-        );
-
-        // Attach widget to button
-        uploadBtn.addEventListener('click', function() {
-            myWidget.open();
-        }, false);
-
-        // Enhanced showMessage function for better visibility
+        // Show message function
         function showMessage(text, type = 'error') {
-            debugLog('Showing message:', type, text);
+            console.log('Showing message:', type, text);
             message.textContent = text;
             message.className = `message ${type}`;
             message.style.display = 'block';
@@ -448,24 +363,169 @@
             message.scrollIntoView({ behavior: 'smooth', block: 'center' });
             
             // Keep error messages visible longer
-            if (type === 'error') {
-                setTimeout(() => {
-                    message.style.display = 'none';
-                }, 10000); // 10 seconds for errors
-            } else {
-                setTimeout(() => {
-                    message.style.display = 'none';
-                }, 5000);
-            }
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, type === 'error' ? 10000 : 5000);
         }
+
+        // Load Cloudinary widget
+        let cloudinaryWidget = null;
+        let cloudinaryLoaded = false;
+
+        function loadCloudinaryWidget() {
+            console.log('Loading Cloudinary widget...');
+            
+            // Create script element
+            const script = document.createElement('script');
+            script.src = 'https://widget.cloudinary.com/v2.0/global/all.js';
+            script.type = 'text/javascript';
+            
+            // Set up loading handlers
+            script.onload = function() {
+                console.log('Cloudinary script loaded successfully');
+                cloudinaryLoaded = true;
+                initCloudinaryWidget();
+            };
+            
+            script.onerror = function() {
+                console.error('Failed to load Cloudinary script');
+                fallbackUpload.style.display = 'block';
+            };
+            
+            // Add to document
+            document.head.appendChild(script);
+            
+            // Set a timeout to show fallback after 5 seconds if Cloudinary doesn't load
+            setTimeout(() => {
+                if (!cloudinaryLoaded) {
+                    console.log('Cloudinary script loading timeout - showing fallback');
+                    fallbackUpload.style.display = 'block';
+                }
+            }, 5000);
+        }
+
+        function initCloudinaryWidget() {
+            console.log('Initializing Cloudinary widget');
+            
+            // Cloudinary configuration
+            cloudinaryWidget = cloudinary.createUploadWidget(
+                {
+                    cloudName: 'idahobroadcasting', 
+                    uploadPreset: 'voxpro-uploads',
+                    sources: ['local', 'url', 'camera', 'google_drive', 'dropbox'],
+                    multiple: false,
+                    maxFiles: 1,
+                    resourceType: 'auto',
+                    showAdvancedOptions: false,
+                    cropping: false
+                },
+                (error, result) => {
+                    if (error) {
+                        console.error('Cloudinary widget error:', error);
+                        showMessage(`Upload error: ${error.message || 'Unknown error'}`, 'error');
+                        return;
+                    }
+                    
+                    if (result && result.event === "success") {
+                        console.log('Cloudinary upload success:', result.info);
+                        
+                        // Store Cloudinary data in hidden fields
+                        cloudinaryUrlInput.value = result.info.secure_url;
+                        cloudinaryThumbnailUrlInput.value = result.info.thumbnail_url || result.info.secure_url;
+                        cloudinaryPublicId.value = result.info.public_id;
+                        fileTypeInput.value = result.info.resource_type + '/' + result.info.format;
+                        fileSizeInput.value = result.info.bytes;
+                        
+                        // Show preview and file info
+                        thumbnailPreview.src = result.info.thumbnail_url || result.info.secure_url;
+                        thumbnailPreview.style.display = 'block';
+                        
+                        const fileSize = (result.info.bytes / (1024 * 1024)).toFixed(2);
+                        fileInfo.innerHTML = `
+                            <strong>File:</strong> ${result.info.original_filename}<br>
+                            <strong>Size:</strong> ${fileSize} MB<br>
+                            <strong>Type:</strong> ${result.info.resource_type}/${result.info.format}
+                        `;
+                        fileInfo.style.display = 'block';
+                        
+                        // Auto-detect category based on resource type
+                        const categorySelect = document.getElementById('category');
+                        if (result.info.resource_type === 'video') {
+                            categorySelect.value = 'Video';
+                        } else if (result.info.resource_type === 'audio' || 
+                                  ['mp3', 'wav', 'ogg', 'm4a'].includes(result.info.format)) {
+                            categorySelect.value = 'Audio';
+                        } else if (result.info.resource_type === 'image') {
+                            categorySelect.value = 'Photo';
+                        }
+                        
+                        // Update button text
+                        uploadBtn.textContent = 'Change Media File';
+                    }
+                }
+            );
+            
+            // Attach widget to button
+            uploadBtn.addEventListener('click', function() {
+                console.log('Upload button clicked');
+                if (cloudinaryWidget) {
+                    cloudinaryWidget.open();
+                } else {
+                    showMessage('Upload widget not available. Please try the direct file upload option.', 'error');
+                }
+            });
+        }
+
+        // Handle direct file input as fallback
+        directFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            console.log('Direct file selected:', file);
+            
+            // Store file information
+            const fileUrl = URL.createObjectURL(file);
+            cloudinaryUrlInput.value = fileUrl;
+            cloudinaryThumbnailUrlInput.value = fileUrl;
+            cloudinaryPublicId.value = '';
+            fileTypeInput.value = file.type;
+            fileSizeInput.value = file.size;
+            
+            // Show preview for images
+            if (file.type.startsWith('image/')) {
+                thumbnailPreview.src = fileUrl;
+                thumbnailPreview.style.display = 'block';
+            } else {
+                thumbnailPreview.style.display = 'none';
+            }
+            
+            // Show file info
+            const fileSize = (file.size / (1024 * 1024)).toFixed(2);
+            fileInfo.innerHTML = `
+                <strong>File:</strong> ${file.name}<br>
+                <strong>Size:</strong> ${fileSize} MB<br>
+                <strong>Type:</strong> ${file.type || 'unknown'}
+            `;
+            fileInfo.style.display = 'block';
+            
+            // Auto-detect category
+            const categorySelect = document.getElementById('category');
+            if (file.type.startsWith('video/')) {
+                categorySelect.value = 'Video';
+            } else if (file.type.startsWith('audio/')) {
+                categorySelect.value = 'Audio';
+            } else if (file.type.startsWith('image/')) {
+                categorySelect.value = 'Photo';
+            }
+        });
 
         // Form submission
         uploadForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            // Validate
-            if (!cloudinaryUrlInput.value) {
-                showMessage('Please upload a file using the media selector', 'error');
+            // Basic validation
+            if (!cloudinaryUrlInput.value && !directFileInput.files[0]) {
+                showMessage('Please select a file to upload', 'error');
                 return;
             }
             
@@ -478,12 +538,15 @@
             submitBtn.disabled = true;
             submitBtn.textContent = 'Processing...';
             message.style.display = 'none';
-            
-            // Show progress bar
             progressBar.style.display = 'block';
             progressFill.style.width = '0%';
             
             try {
+                // If using direct file upload, first upload the file to server
+                if (directFileInput.files[0] && !cloudinaryUrlInput.value.startsWith('http')) {
+                    await uploadDirectFile(directFileInput.files[0]);
+                }
+                
                 // Prepare data for server
                 const formData = {
                     title: document.getElementById('title').value,
@@ -497,87 +560,74 @@
                     file_url: cloudinaryUrlInput.value,
                     cloudinary_url: cloudinaryUrlInput.value,
                     thumbnail_url: cloudinaryThumbnailUrlInput.value,
-                    public_id: cloudinaryPublicIdInput.value,
+                    public_id: cloudinaryPublicId.value,
                     file_type: fileTypeInput.value,
                     file_size: fileSizeInput.value,
                     created_at: new Date().toISOString()
                 };
                 
-                debugLog('Sending data to server:', formData);
+                console.log('Submitting form data:', formData);
                 
                 // Update progress
                 progressFill.style.width = '30%';
                 
-                // Try multiple endpoints
-                let response;
-                const endpoints = [
-                    '/.netlify/functions/cloudinary-metadata',
-                    '/.netlify/functions/file-manager-upload',
-                    '/.netlify/functions/simple-uploader'
-                ];
-                
-                let errorMessages = [];
-                
-                for (const endpoint of endpoints) {
-                    try {
-                        debugLog(`Trying endpoint: ${endpoint}`);
-                        response = await fetch(endpoint, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(formData)
-                        });
-                        
-                        // Update progress
-                        progressFill.style.width = '60%';
-                        
-                        if (response.ok) {
-                            debugLog(`Success with endpoint: ${endpoint}`);
-                            break;
-                        } else {
-                            const errorText = await response.text();
-                            errorMessages.push(`${endpoint}: ${response.status} - ${errorText}`);
-                        }
-                    } catch (endpointError) {
-                        errorMessages.push(`${endpoint}: ${endpointError.message}`);
-                    }
-                }
-                
-                if (!response || !response.ok) {
-                    throw new Error(`All endpoints failed: ${errorMessages.join(' | ')}`);
-                }
+                // Submit to server
+                const response = await fetch('/.netlify/functions/cloudinary-metadata', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
                 
                 // Update progress
-                progressFill.style.width = '90%';
+                progressFill.style.width = '80%';
                 
-                // Try to parse the response
-                let result;
-                try {
-                    result = await response.json();
-                } catch (e) {
-                    debugLog('Response is not JSON:', e);
-                    // If not JSON, still consider it a success if the response was OK
-                    if (response.ok) {
-                        result = { success: true };
-                    } else {
-                        throw new Error('Invalid response from server');
-                    }
-                }
-                
-                // Final progress
-                progressFill.style.width = '100%';
-                
-                // Handle the result
+                // Handle response
                 if (response.ok) {
+                    const result = await response.json();
+                    console.log('Server response:', result);
+                    
+                    // Show success message
                     showMessage('File uploaded successfully! The media is now available in the VoxPro system.', 'success');
+                    
+                    // Reset form
                     uploadForm.reset();
                     fileInfo.style.display = 'none';
                     thumbnailPreview.style.display = 'none';
                     uploadBtn.textContent = 'Select Media File';
+                    
+                    // Final progress
+                    progressFill.style.width = '100%';
                 } else {
-                    throw new Error(result.error || 'Upload failed');
+                    // Try backup endpoint if first one fails
+                    try {
+                        const backupResponse = await fetch('/.netlify/functions/file-manager-upload', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(formData)
+                        });
+                        
+                        if (backupResponse.ok) {
+                            showMessage('File uploaded successfully using backup endpoint!', 'success');
+                            uploadForm.reset();
+                            fileInfo.style.display = 'none';
+                            thumbnailPreview.style.display = 'none';
+                            uploadBtn.textContent = 'Select Media File';
+                            progressFill.style.width = '100%';
+                        } else {
+                            throw new Error('Both primary and backup endpoints failed');
+                        }
+                    } catch (backupError) {
+                        console.error('Backup upload failed:', backupError);
+                        const errorText = await response.text();
+                        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+                    }
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Upload error:', error);
                 showMessage(`Error: ${error.message}`, 'error');
                 progressFill.style.width = '0%';
             } finally {
@@ -589,17 +639,63 @@
             }
         });
 
-        // Test basic connectivity when page loads
-        window.addEventListener('load', async () => {
+        // Function to handle direct file uploads
+        async function uploadDirectFile(file) {
+            console.log('Uploading direct file:', file);
+            
+            // Update progress
+            progressFill.style.width = '15%';
+            
+            // Create a simple form data upload
+            const formData = new FormData();
+            formData.append('file', file);
+            
             try {
-                const response = await fetch('/.netlify/functions/test-function');
+                // Try upload with direct-uploader function
+                const response = await fetch('/.netlify/functions/direct-uploader', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                progressFill.style.width = '40%';
+                
                 if (response.ok) {
-                    debugLog('API connectivity test successful');
+                    const result = await response.json();
+                    console.log('Direct upload result:', result);
+                    
+                    if (result.url) {
+                        cloudinaryUrlInput.value = result.url;
+                        cloudinaryThumbnailUrlInput.value = result.url;
+                    }
+                    
+                    return true;
                 } else {
-                    debugLog('API connectivity test failed:', await response.text());
+                    throw new Error('Direct file upload failed');
                 }
             } catch (error) {
-                debugLog('API connectivity error:', error);
+                console.error('Direct upload error:', error);
+                // Continue anyway - we'll use the object URL as fallback
+                return false;
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded - initializing file manager');
+            loadCloudinaryWidget();
+            
+            // Show fallback upload initially so users have an option right away
+            fallbackUpload.style.display = 'block';
+        });
+
+        // Attach upload button click handler directly (as a backup)
+        uploadBtn.addEventListener('click', function() {
+            console.log('Upload button clicked directly');
+            if (cloudinaryWidget && cloudinaryLoaded) {
+                cloudinaryWidget.open();
+            } else {
+                // If Cloudinary didn't load, focus the direct file input
+                directFileInput.click();
             }
         });
     </script>
