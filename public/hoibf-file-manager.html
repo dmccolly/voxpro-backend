@@ -1297,18 +1297,32 @@ if (url && typeof url === 'string' && url.startsWith('http')) {
             // Dates
             document.getElementById('detailsOriginalDate').value = file.original_creation_date || file.created_at?.split('T')[0] || '';
             
-            // Convert timestamps to datetime-local format
-            if (file.scheduled_publish_date) {
-                document.getElementById('detailsPublishDate').value = file.scheduled_publish_date.slice(0, 16);
-            } else {
-                document.getElementById('detailsPublishDate').value = '';
-            }
-            
-            if (file.scheduled_unpublish_date) {
-                document.getElementById('detailsUnpublishDate').value = file.scheduled_unpublish_date.slice(0, 16);
-            } else {
-                document.getElementById('detailsUnpublishDate').value = '';
-            }
+           // Convert timestamps to datetime-local format
+if (file.scheduled_publish_date) {
+    try {
+        const date = typeof file.scheduled_publish_date === 'string' 
+            ? new Date(file.scheduled_publish_date) 
+            : new Date(file.scheduled_publish_date);
+        document.getElementById('detailsPublishDate').value = date.toISOString().slice(0, 16);
+    } catch(e) {
+        document.getElementById('detailsPublishDate').value = '';
+    }
+} else {
+    document.getElementById('detailsPublishDate').value = '';
+}
+
+if (file.scheduled_unpublish_date) {
+    try {
+        const date = typeof file.scheduled_unpublish_date === 'string'
+            ? new Date(file.scheduled_unpublish_date)
+            : new Date(file.scheduled_unpublish_date);
+        document.getElementById('detailsUnpublishDate').value = date.toISOString().slice(0, 16);
+    } catch(e) {
+        document.getElementById('detailsUnpublishDate').value = '';
+    }
+} else {
+    document.getElementById('detailsUnpublishDate').value = '';
+}
             
             // File info
             document.getElementById('detailsType').textContent = file.file_type || 'Unknown';
