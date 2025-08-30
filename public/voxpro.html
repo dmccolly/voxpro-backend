@@ -597,12 +597,50 @@
         }
         
         // Load media from API
-        async function loadMedia() {
+        async function loadMedia(forceRefresh = false) {
             try {
-                const response = await fetch('/.netlify/functions/list-media');
+                // Add cache-busting parameter to force fresh data
+                const cacheBuster = forceRefresh ? `?t=${Date.now()}` : '';
+                const response = await fetch(`/.netlify/functions/list-media${cacheBuster}`, {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 
-                allMedia = await response.json();
+                let data = await response.json();
+                
+                // FILTER OUT EMPTY/TEST DATA
+                // Only keep items that have:
+                // 1. A valid file_size > 0
+                // 2. A media_url (actual uploaded content)
+                // 3. Not just test/placeholder data
+                allMedia = data.filter(item => {
+                    // Must have actual file size
+                    if (!item.file_size || item.file_size === 0 || item.file_size < 100) {
+                        console.log(`Filtering out: ${item.title || 'Untitled'} - No/small file size`);
+                        return false;
+                    }
+                    
+                    // Must have a media URL
+                    if (!item.media_url || item.media_url === '') {
+                        console.log(`Filtering out: ${item.title || 'Untitled'} - No media URL`);
+                        return false;
+                    }
+                    
+                    // Filter out obvious test data from early entries
+                    if (item.id <= 10 && !item.media_url.includes('cloudinary')) {
+                        console.log(`Filtering out: ${item.title || 'Untitled'} - Old test data`);
+                        return false;
+                    }
+                    
+                    return true;
+                });
+                
+                console.log(`Loaded ${data.length} total items, kept ${allMedia.length} valid media files`);
                 
                 // Sort by newest first
                 allMedia.sort((a, b) => b.created_at - a.created_at);
@@ -650,11 +688,43 @@
             }
         });
         
+        
+        // Add a refresh button to the header
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add refresh button to header
+            const header = document.querySelector('.header');
+            const refreshBtn = document.createElement('button');
+            refreshBtn.innerHTML = '🔄 Refresh & Clean Data';
+            refreshBtn.style.cssText = `
+                position: absolute;
+                top: 30px;
+                right: 30px;
+                padding: 10px 20px;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: background 0.3s;
+            `;
+            refreshBtn.onmouseover = () => refreshBtn.style.background = '#5a67d8';
+            refreshBtn.onmouseout = () => refreshBtn.style.background = '#667eea';
+            refreshBtn.onclick = () => {
+                refreshBtn.innerHTML = '⏳ Loading...';
+                loadMedia(true).then(() => {
+                    refreshBtn.innerHTML = '🔄 Refresh & Clean Data';
+                });
+            };
+            header.style.position = 'relative';
+            header.appendChild(refreshBtn);
+        });
+        
         // Load media on page load
-        loadMedia();
+        loadMedia(true); // Force fresh load on initial page load
         
         // Refresh every 30 seconds
-        setInterval(loadMedia, 30000);
+        setInterval(() => loadMedia(true), 30000);
     </script>
 </body>
 </html>
