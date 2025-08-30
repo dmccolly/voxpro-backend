@@ -1080,7 +1080,7 @@
                     created_at: new Date().toISOString()
                 };
 
-                const response = await fetch(`${XANO_BASE}/media`, {
+                const response = await fetch(`${XANO_BASE}/asset`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(metadata)
@@ -1120,7 +1120,7 @@
         // Load files from Xano
         async function loadFiles() {
             try {
-                const response = await fetch(`${XANO_BASE}/media`);
+                const response = await fetch(`${XANO_BASE}/asset`);
                 if (!response.ok) throw new Error('Failed to load files');
                 
                 allFiles = await response.json();
