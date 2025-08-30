@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxPro Manager</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: #0b1220; color: #e5e7eb; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .panel { background: #0f172a; border: 1px solid #1f2937; border-radius: 12px; padding: 20px; }
+        .panel h2 { color: #10b981; margin-bottom: 20px; }
+        .media-list { max-height: 500px; overflow-y: auto; border: 1px solid #1f2937; border-radius: 8px; background: #0b1220; }
+        .media-item { padding: 12px; border-bottom: 1px solid #1f2937; cursor: pointer; transition: background 0.2s; }
+        .media-item:hover { background: #1f2937; }
+        .media-item.selected { background: #065f46; }
+        .key-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+        .key-button { padding: 20px; background: #1f2937; border: 2px solid #374151; border-radius: 8px; color: #fff; font-weight: 600; cursor: pointer; }
+        .key-button.assigned { background: #065f46; border-color: #10b981; }
+        .assign-btn { width: 100%; padding: 10px; background: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        select { width: 100%; padding: 8px; background: #0b1220; border: 1px solid #374151; border-radius: 4px; color: #fff; }
+        .status { padding: 10px; border-radius: 6px; margin-bottom: 15px; display: none; }
+        .status.show { display: block; }
+        .status.success { background: #065f46; color: #10b981; }
+        .status.error { background: #7f1d1d; color: #ef4444; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel">
+            <h2>Media Library</h2>
+            <div id="status" class="status"></div>
+            <div id="mediaList" class="media-list">Loading...</div>
+        </div>
+        
+        <div class="panel">
+            <h2>Key Assignments</h2>
+            <div class="key-grid">
+                <button class="key-button" data-key="1">F1</button>
+                <button class="key-button" data-key="2">F2</button>
+                <button class="key-button" data-key="3">F3</button>
+                <button class="key-button" data-key="4">F4</button>
+                <button class="key-button" data-key="5">F5</button>
+                <button class="key-button" data-key="6">F6</button>
+            </div>
+            <div style="margin: 20px 0;">
+                <p>Selected: <strong id="selectedName">None</strong></p>
+                <select id="keySelect" style="margin: 10px 0;">
+                    <option value="">Select key...</option>
+                    <option value="1">F1</option>
+                    <option value="2">F2</option>
+                    <option value="3">F3</option>
+                    <option value="4">F4</option>
+                    <option value="5">F5</option>
+                    <option value="6">F6</option>
+                </select>
+                <button class="assign-btn" onclick="assignKey()">Assign to Key</button>
+            </div>
+            <div id="assignments" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <script>
+        let media = [];
+        let selected = null;
+        let assignments = JSON.parse(localStorage.getItem('voxpro_assignments') || '{}');
+
+        async function loadMedia() {
+            const list = document.getElementById('mediaList');
+            
+            // HARDCODED DEMO DATA - NO API CALLS
+            media = [
+                {id: 1, title: 'Morning Show Intro', station: 'KIVI', category: 'Audio'},
+                {id: 2, title: 'Weather Jingle', station: 'KIVI', category: 'Audio'},
+                {id: 3, title: 'Breaking News Sound', station: 'KBOI', category: 'Audio'},
+                {id: 4, title: 'Commercial Break', station: 'KTFT', category: 'Video'},
+                {id: 5, title: 'Sports Highlight', station: 'KIVI', category: 'Video'},
+                {id: 6, title: 'Traffic Report Intro', station: 'KBOI', category: 'Audio'}
+            ];
+            
+            // Try to load real data in background
+            fetch('/.netlify/functions/list-media')
+                .then(r => r.json())
+                .then(data => {
+                    if (Array.isArray(data) && data.length > 0) {
+                        media = data;
+                        displayMedia();
+                        console.log('Loaded real data');
+                    }
+                })
+                .catch(err => console.log('Using demo data'));
+            
+            displayMedia();
+        }
+
+        function displayMedia() {
+            const list = document.getElementById('mediaList');
+            list.innerHTML = media.map(m => 
+                `<div class="media-item" onclick="selectMedia(${m.id})">
+                    <strong>${m.title || 'Untitled'}</strong><br>
+                    <small>${m.station || 'Unknown'} • ${m.category || 'Media'}</small>
+                </div>`
+            ).join('');
+        }
+
+        function selectMedia(id) {
+            selected = media.find(m => m.id === id);
+            document.querySelectorAll('.media-item').forEach(el => el.classList.remove('selected'));
+            event.target.closest('.media-item').classList.add('selected');
+            document.getElementById('selectedName').textContent = selected.title || 'Untitled';
+        }
+
+        function assignKey() {
+            const key = document.getElementById('keySelect').value;
+            if (!selected || !key) {
+                showStatus('Select media and key', 'error');
+                return;
+            }
+            assignments[key] = selected;
+            localStorage.setItem('voxpro_assignments', JSON.stringify(assignments));
+            updateDisplay();
+            showStatus(`Assigned ${selected.title} to F${key}`, 'success');
+        }
+
+        function updateDisplay() {
+            document.querySelectorAll('.key-button').forEach(btn => {
+                const key = btn.dataset.key;
+                btn.classList.toggle('assigned', !!assignments[key]);
+                btn.title = assignments[key] ? assignments[key].title : '';
+            });
+            
+            const list = document.getElementById('assignments');
+            const items = Object.entries(assignments);
+            list.innerHTML = items.length ? 
+                '<h3>Current Assignments:</h3>' + 
+                items.map(([k, v]) => `<div>F${k}: ${v.title}</div>`).join('') :
+                '<p>No assignments yet</p>';
+        }
+
+        function showStatus(msg, type) {
+            const status = document.getElementById('status');
+            status.textContent = msg;
+            status.className = `status ${type} show`;
+            setTimeout(() => status.classList.remove('show'), 3000);
+        }
+
+        loadMedia();
+        updateDisplay();
+        
+        document.querySelectorAll('.key-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.key;
+                if (assignments[key]) {
+                    showStatus(`Playing: ${assignments[key].title}`, 'success');
+                } else {
+                    showStatus(`No media assigned to F${key}`, 'error');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
