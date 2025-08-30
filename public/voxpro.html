@@ -109,6 +109,7 @@
             box-shadow: 0 5px 20px rgba(0,0,0,0.1);
             transition: transform 0.3s, box-shadow 0.3s;
             cursor: pointer;
+            position: relative;
         }
         
         .media-card:hover {
@@ -130,10 +131,12 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
+            pointer-events: none;
         }
         
         .media-preview audio {
             width: 90%;
+            pointer-events: none;
         }
         
         .media-icon {
@@ -229,6 +232,61 @@
             margin-bottom: 20px;
             opacity: 0.3;
         }
+
+        /* Modal styles for media detail view */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            position: relative;
+            animation: slideIn 0.3s;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 30px;
+            font-weight: bold;
+            color: #aaa;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .modal-close:hover {
+            color: #000;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -297,6 +355,14 @@
             <div class="loading">⏳ Loading media...</div>
         </div>
     </div>
+
+    <!-- Modal for media details -->
+    <div id="mediaModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
     
     <script>
         let allMedia = [];
@@ -349,7 +415,75 @@
             return `<div class="media-icon">${getMediaIcon(item.category)}</div>`;
         }
         
-        // Render media cards
+        // View media details - FIXED VERSION
+        window.viewMedia = function(id) {
+            console.log('Viewing media ID:', id);
+            const item = allMedia.find(m => m.id === id);
+            
+            if (!item) {
+                alert('Media not found');
+                return;
+            }
+            
+            const modal = document.getElementById('mediaModal');
+            const modalBody = document.getElementById('modalBody');
+            
+            // Create detailed view
+            let mediaContent = '';
+            if (item.media_url) {
+                if (item.category === 'Video') {
+                    mediaContent = `
+                        <video controls style="width: 100%; max-height: 400px;">
+                            <source src="${item.media_url}" type="${item.file_type || 'video/mp4'}">
+                            Your browser does not support the video tag.
+                        </video>`;
+                } else if (item.category === 'Audio') {
+                    mediaContent = `
+                        <audio controls style="width: 100%; margin: 20px 0;">
+                            <source src="${item.media_url}" type="${item.file_type || 'audio/mpeg'}">
+                            Your browser does not support the audio tag.
+                        </audio>`;
+                } else if (item.category === 'Photo') {
+                    mediaContent = `<img src="${item.media_url}" alt="${item.title}" style="width: 100%; max-height: 500px; object-fit: contain;">`;
+                }
+            }
+            
+            modalBody.innerHTML = `
+                <h2>${item.title || 'Untitled Media'}</h2>
+                <p style="color: #666; margin: 10px 0;">${item.description || 'No description'}</p>
+                
+                ${mediaContent}
+                
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                    <h3>Details</h3>
+                    <table style="width: 100%; margin-top: 10px;">
+                        <tr><td style="padding: 5px; font-weight: bold;">ID:</td><td>${item.id}</td></tr>
+                        <tr><td style="padding: 5px; font-weight: bold;">Category:</td><td>${item.category || 'N/A'}</td></tr>
+                        <tr><td style="padding: 5px; font-weight: bold;">Status:</td><td>${item.is_approved ? 'Approved ✅' : 'Pending Review ⏳'}</td></tr>
+                        <tr><td style="padding: 5px; font-weight: bold;">Submitted By:</td><td>${item.submitted_by || 'Anonymous'}</td></tr>
+                        <tr><td style="padding: 5px; font-weight: bold;">Station:</td><td>${item.station || 'N/A'}</td></tr>
+                        <tr><td style="padding: 5px; font-weight: bold;">Priority:</td><td>${item.priority || 'Normal'}</td></tr>
+                        <tr><td style="padding: 5px; font-weight: bold;">File:</td><td>${item.filename || 'N/A'}</td></tr>
+                        <tr><td style="padding: 5px; font-weight: bold;">Size:</td><td>${formatFileSize(item.file_size)}</td></tr>
+                        <tr><td style="padding: 5px; font-weight: bold;">Created:</td><td>${formatDate(item.created_at)}</td></tr>
+                        ${item.tags ? `<tr><td style="padding: 5px; font-weight: bold;">Tags:</td><td>${item.tags}</td></tr>` : ''}
+                        ${item.notes ? `<tr><td style="padding: 5px; font-weight: bold;">Notes:</td><td>${item.notes}</td></tr>` : ''}
+                    </table>
+                </div>
+                
+                ${item.media_url ? `
+                    <div style="margin-top: 20px;">
+                        <a href="${item.media_url}" target="_blank" style="display: inline-block; padding: 10px 20px; background: #667eea; color: white; text-decoration: none; border-radius: 5px;">
+                            Open in New Tab →
+                        </a>
+                    </div>
+                ` : ''}
+            `;
+            
+            modal.classList.add('active');
+        }
+        
+        // Render media cards - FIXED VERSION with proper event binding
         function renderMedia(media) {
             const container = document.getElementById('mediaContainer');
             
@@ -364,8 +498,9 @@
                 return;
             }
             
+            // Create cards with data attributes instead of onclick
             const cards = media.map(item => `
-                <div class="media-card" onclick="viewMedia(${item.id})">
+                <div class="media-card" data-media-id="${item.id}">
                     <div class="media-preview">
                         ${createMediaPreview(item)}
                     </div>
@@ -401,16 +536,18 @@
             `).join('');
             
             container.innerHTML = `<div class="media-grid">${cards}</div>`;
-        }
-        
-        // View media details
-        function viewMedia(id) {
-            const item = allMedia.find(m => m.id === id);
-            if (item && item.media_url) {
-                window.open(item.media_url, '_blank');
-            } else {
-                alert('Media preview not available');
-            }
+            
+            // Add click event listeners to all cards
+            document.querySelectorAll('.media-card').forEach(card => {
+                card.addEventListener('click', function(e) {
+                    // Don't trigger if clicking on controls
+                    if (e.target.tagName === 'VIDEO' || e.target.tagName === 'AUDIO') {
+                        return;
+                    }
+                    const mediaId = parseInt(this.getAttribute('data-media-id'));
+                    viewMedia(mediaId);
+                });
+            });
         }
         
         // Apply filters
@@ -493,6 +630,25 @@
         document.getElementById('statusFilter').addEventListener('change', applyFilters);
         document.getElementById('stationFilter').addEventListener('change', applyFilters);
         document.getElementById('searchFilter').addEventListener('input', applyFilters);
+        
+        // Modal close functionality
+        document.querySelector('.modal-close').addEventListener('click', function() {
+            document.getElementById('mediaModal').classList.remove('active');
+        });
+        
+        // Close modal when clicking outside
+        document.getElementById('mediaModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.remove('active');
+            }
+        });
+        
+        // ESC key to close modal
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.getElementById('mediaModal').classList.remove('active');
+            }
+        });
         
         // Load media on page load
         loadMedia();
