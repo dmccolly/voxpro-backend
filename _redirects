@@ -1,4 +1,3 @@
-/* /templates/voxpro-manager.html 200
-/voxpro-manager /templates/voxpro-manager.html 200
-/cloud-upload /file-manager.html 200
-/assets/* /assets/:splat 200
+/voxpro /voxpro.html 200
+/upload /file-manager.html 200
+/.netlify/functions/* /.netlify/functions/:splat 200
