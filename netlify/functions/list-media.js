@@ -7,54 +7,82 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Headers': '*',
     'Access-Control-Allow-Methods': 'GET, OPTIONS'
   };
-  const out = (code, body) => ({
-    statusCode: code,
-    headers: { ...cors, 'content-type': 'application/json' },
-    body: JSON.stringify(body)
-  });
 
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors, body: '' };
-  if (event.httpMethod !== 'GET') return out(405, { ok: false, error: 'Method not allowed' });
-
-  const { XANO_API_BASE, XANO_API_KEY } = process.env;
-  if (!XANO_API_BASE || !XANO_API_KEY) {
-    return out(500, { ok: false, stage: 'env', error: 'Missing XANO_API_BASE or XANO_API_KEY' });
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers: cors, body: '' };
   }
 
-  let url;
+  if (event.httpMethod !== 'GET') {
+    return {
+      statusCode: 405,
+      headers: { ...cors, 'content-type': 'application/json' },
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
+  }
+
   try {
-    // GET list endpoint (same collection we POST to)
-    const base = XANO_API_BASE.replace(/\/+$/, '');
-    url = new URL(base + '/user_submission'); // adjust here if your list endpoint differs
-  } catch {
-    return out(500, { ok: false, stage: 'env', error: 'Invalid XANO_API_BASE', value: XANO_API_BASE });
+    // Use environment variable or fallback to your Xano API
+    const XANO_API_BASE = process.env.XANO_API_BASE || 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
+    const XANO_API_KEY = process.env.XANO_API_KEY || '';
+    
+    // Fetch from user_submission endpoint
+    const url = `${XANO_API_BASE}/user_submission`;
+    console.log('Fetching from:', url);
+    
+    const response = await makeRequest(url, XANO_API_KEY);
+    
+    return {
+      statusCode: 200,
+      headers: { ...cors, 'content-type': 'application/json' },
+      body: JSON.stringify(response)
+    };
+  } catch (error) {
+    console.error('List media error:', error);
+    return {
+      statusCode: 500,
+      headers: { ...cors, 'content-type': 'application/json' },
+      body: JSON.stringify({ 
+        error: 'Failed to fetch media',
+        message: error.message 
+      })
+    };
   }
+};
 
-  // fetch from Xano
-  const res = await new Promise((resolve) => {
-    const req = https.request(
-      {
-        protocol: url.protocol,
-        hostname: url.hostname,
-        path: url.pathname + url.search,
-        method: 'GET',
-        headers: {
-          Authorization: 'Bearer ' + XANO_API_KEY,
-          Accept: 'application/json'
-        }
-      },
-      (r) => {
-        let data = '';
-        r.on('data', (c) => (data += c));
-        r.on('end', () => resolve({ status: r.statusCode, data }));
+function makeRequest(url, apiKey) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    
+    const options = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
       }
-    );
-    req.on('error', (e) => resolve({ status: 500, data: JSON.stringify({ ok: false, error: e.message }) }));
+    };
+    
+    // Add API key if provided
+    if (apiKey) {
+      options.headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+    
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(data);
+          resolve(parsed);
+        } catch (e) {
+          // If parsing fails, return empty array
+          resolve([]);
+        }
+      });
+    });
+    
+    req.on('error', reject);
     req.end();
   });
-
-  // try to parse
-  let payload = res.data;
-  try { payload = JSON.parse(res.data); } catch {}
-  return out(res.status, { ok: res.status === 200, data: payload });
-};
+}
