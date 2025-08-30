@@ -1,6 +1,6 @@
 # Netlify configuration for VoxPro Manager
-
 [build]
+  publish = "."
   functions = "netlify/functions"
 
 # Function-specific configuration
@@ -39,21 +39,3 @@
 # Build plugins (optional - for optimization)
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
-
-# File processing settings
-[build.processing]
-  skip_processing = false
-  
-[build.processing.css]
-  bundle = true
-  minify = true
-  
-[build.processing.js]
-  bundle = true
-  minify = true
-  
-[build.processing.html]
-  pretty_urls = true
-  
-[build.processing.images]
-  compress = true
