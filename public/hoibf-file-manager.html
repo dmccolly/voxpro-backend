@@ -557,6 +557,13 @@
             overflow: hidden;
         }
 
+        .details-preview img,
+        .details-preview video,
+        .details-preview audio {
+            max-width: 100%;
+            max-height: 100%;
+        }
+
         .details-section {
             margin-bottom: 24px;
         }
@@ -710,48 +717,48 @@
                     <div class="storage-bar">
                         <div class="storage-used"></div>
                     </div>
-                    <div class="storage-text">3.5 GB of 10 GB</div>
+                    <div class="storage-text" id="storageText">Calculating...</div>
                 </div>
             </div>
             
             <nav class="nav-section">
                 <div class="nav-title">Quick Access</div>
-                <div class="nav-item active">
+                <div class="nav-item active" data-filter="all">
                     <span class="nav-icon">📂</span>
                     <span>All Files</span>
-                    <span class="nav-count">247</span>
+                    <span class="nav-count" id="allCount">0</span>
                 </div>
-                <div class="nav-item">
+                <div class="nav-item" data-filter="audio">
                     <span class="nav-icon">🎵</span>
                     <span>Audio</span>
-                    <span class="nav-count">89</span>
+                    <span class="nav-count" id="audioCount">0</span>
                 </div>
-                <div class="nav-item">
+                <div class="nav-item" data-filter="video">
                     <span class="nav-icon">🎬</span>
                     <span>Video</span>
-                    <span class="nav-count">45</span>
+                    <span class="nav-count" id="videoCount">0</span>
                 </div>
-                <div class="nav-item">
+                <div class="nav-item" data-filter="image">
                     <span class="nav-icon">🖼️</span>
                     <span>Images</span>
-                    <span class="nav-count">72</span>
+                    <span class="nav-count" id="imageCount">0</span>
                 </div>
-                <div class="nav-item">
+                <div class="nav-item" data-filter="document">
                     <span class="nav-icon">📄</span>
                     <span>Documents</span>
-                    <span class="nav-count">41</span>
+                    <span class="nav-count" id="documentCount">0</span>
                 </div>
                 
                 <div class="nav-title" style="margin-top: 20px;">Stations</div>
-                <div class="nav-item">
+                <div class="nav-item" data-station="KIVI">
                     <span class="nav-icon">📡</span>
                     <span>KIVI</span>
                 </div>
-                <div class="nav-item">
+                <div class="nav-item" data-station="KTFT">
                     <span class="nav-icon">📡</span>
                     <span>KTFT</span>
                 </div>
-                <div class="nav-item">
+                <div class="nav-item" data-station="KBOI">
                     <span class="nav-icon">📡</span>
                     <span>KBOI</span>
                 </div>
@@ -781,12 +788,12 @@
                     <span class="breadcrumb-separator">/</span>
                     <span class="breadcrumb-item">Media Library</span>
                     <span class="breadcrumb-separator">/</span>
-                    <span class="breadcrumb-item">All Files</span>
+                    <span class="breadcrumb-item" id="currentFolder">All Files</span>
                 </div>
                 
                 <div class="search-bar">
                     <span>🔍</span>
-                    <input type="text" class="search-input" placeholder="Search files...">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search files...">
                 </div>
                 
                 <button class="btn btn-primary" onclick="showUploadZone()">
@@ -797,27 +804,27 @@
             <!-- Toolbar -->
             <div class="toolbar">
                 <div class="btn-group">
-                    <button class="btn btn-secondary">
+                    <button class="btn btn-secondary" onclick="selectAll()">
                         <span>✓</span> Select All
                     </button>
-                    <button class="btn btn-secondary">
+                    <button class="btn btn-secondary" onclick="copySelected()">
                         <span>📋</span> Copy
                     </button>
-                    <button class="btn btn-secondary">
+                    <button class="btn btn-secondary" onclick="moveSelected()">
                         <span>✂️</span> Move
                     </button>
-                    <button class="btn btn-secondary">
+                    <button class="btn btn-secondary" onclick="deleteSelected()">
                         <span>🗑️</span> Delete
                     </button>
                 </div>
                 
-                <button class="btn btn-secondary">
+                <button class="btn btn-secondary" onclick="syncToWebflow()">
                     <span>🔄</span> Sync to Webflow
                 </button>
                 
                 <div class="view-toggle">
-                    <div class="view-btn active" onclick="setView('grid')">⊞</div>
-                    <div class="view-btn" onclick="setView('list')">☰</div>
+                    <div class="view-btn active" onclick="setView('grid', this)">⊞</div>
+                    <div class="view-btn" onclick="setView('list', this)">☰</div>
                 </div>
             </div>
 
@@ -825,33 +832,7 @@
             <div class="file-container" id="fileContainer">
                 <!-- Grid View (Default) -->
                 <div class="file-grid" id="gridView">
-                    <!-- Sample File Cards -->
-                    <div class="file-card" onclick="selectFile(this)">
-                        <input type="checkbox" class="file-checkbox">
-                        <div class="file-preview">
-                            <span class="file-icon-large">🎵</span>
-                        </div>
-                        <div class="file-name">Morning_Show_Intro.mp3</div>
-                        <div class="file-meta">4.2 MB • Audio</div>
-                    </div>
-                    
-                    <div class="file-card" onclick="selectFile(this)">
-                        <input type="checkbox" class="file-checkbox">
-                        <div class="file-preview">
-                            <span class="file-icon-large">🎬</span>
-                        </div>
-                        <div class="file-name">News_Segment_01.mp4</div>
-                        <div class="file-meta">45.8 MB • Video</div>
-                    </div>
-                    
-                    <div class="file-card" onclick="selectFile(this)">
-                        <input type="checkbox" class="file-checkbox">
-                        <div class="file-preview">
-                            <span class="file-icon-large">🖼️</span>
-                        </div>
-                        <div class="file-name">Station_Logo.png</div>
-                        <div class="file-meta">324 KB • Image</div>
-                    </div>
+                    <!-- Files will be dynamically loaded here -->
                 </div>
 
                 <!-- List View (Hidden by default) -->
@@ -865,7 +846,9 @@
                         <div>Status</div>
                         <div>Actions</div>
                     </div>
-                    <!-- File items will be dynamically added here -->
+                    <div id="listViewContent">
+                        <!-- File items will be dynamically added here -->
+                    </div>
                 </div>
             </div>
         </main>
@@ -878,7 +861,7 @@
             </div>
             
             <div class="details-content">
-                <div class="details-preview">
+                <div class="details-preview" id="detailsPreview">
                     <span class="file-icon-large">📁</span>
                 </div>
                 
@@ -887,17 +870,17 @@
                     
                     <div class="details-field">
                         <div class="details-label">File Name</div>
-                        <input type="text" class="details-input" value="Morning_Show_Intro.mp3">
+                        <input type="text" class="details-input" id="detailsFileName" value="">
                     </div>
                     
                     <div class="details-field">
                         <div class="details-label">Description</div>
-                        <input type="text" class="details-input" placeholder="Add description...">
+                        <input type="text" class="details-input" id="detailsDescription" placeholder="Add description...">
                     </div>
                     
                     <div class="details-field">
                         <div class="details-label">Tags</div>
-                        <input type="text" class="details-input" placeholder="Add tags...">
+                        <input type="text" class="details-input" id="detailsTags" placeholder="Add tags...">
                     </div>
                 </div>
                 
@@ -906,22 +889,22 @@
                     
                     <div class="details-field">
                         <div class="details-label">Type</div>
-                        <div class="details-value">Audio File (MP3)</div>
+                        <div class="details-value" id="detailsType">-</div>
                     </div>
                     
                     <div class="details-field">
                         <div class="details-label">Size</div>
-                        <div class="details-value">4.2 MB</div>
+                        <div class="details-value" id="detailsSize">-</div>
                     </div>
                     
                     <div class="details-field">
                         <div class="details-label">Modified</div>
-                        <div class="details-value">Dec 14, 2024</div>
+                        <div class="details-value" id="detailsModified">-</div>
                     </div>
                     
                     <div class="details-field">
                         <div class="details-label">Status</div>
-                        <span class="status-badge status-synced">Synced</span>
+                        <span class="status-badge status-synced" id="detailsStatus">Synced</span>
                     </div>
                 </div>
                 
@@ -930,26 +913,26 @@
                     
                     <div class="details-field">
                         <div class="details-label">Cloudinary</div>
-                        <span class="status-badge status-synced">✓ Uploaded</span>
+                        <span class="status-badge status-synced" id="cloudinaryStatus">✓ Uploaded</span>
                     </div>
                     
                     <div class="details-field">
                         <div class="details-label">Xano Database</div>
-                        <span class="status-badge status-synced">✓ Synced</span>
+                        <span class="status-badge status-synced" id="xanoStatus">✓ Synced</span>
                     </div>
                     
                     <div class="details-field">
                         <div class="details-label">Webflow CMS</div>
-                        <span class="status-badge status-pending">⏳ Pending</span>
+                        <span class="status-badge status-pending" id="webflowStatus">⏳ Pending</span>
                     </div>
                 </div>
             </div>
             
             <div class="details-actions">
-                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;">
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="saveFileChanges()">
                     Save Changes
                 </button>
-                <button class="btn btn-secondary" style="width: 100%;">
+                <button class="btn btn-secondary" style="width: 100%;" onclick="downloadFile()">
                     Download File
                 </button>
             </div>
@@ -973,27 +956,27 @@
 
     <!-- Context Menu -->
     <div class="context-menu" id="contextMenu">
-        <div class="context-item">
+        <div class="context-item" onclick="previewFile()">
             <span>👁️</span> Preview
         </div>
-        <div class="context-item">
+        <div class="context-item" onclick="renameFile()">
             <span>✏️</span> Rename
         </div>
-        <div class="context-item">
+        <div class="context-item" onclick="copyFile()">
             <span>📋</span> Copy
         </div>
-        <div class="context-item">
+        <div class="context-item" onclick="cutFile()">
             <span>✂️</span> Cut
         </div>
         <div class="context-separator"></div>
-        <div class="context-item">
+        <div class="context-item" onclick="downloadFile()">
             <span>⬇️</span> Download
         </div>
-        <div class="context-item">
+        <div class="context-item" onclick="syncFile()">
             <span>🔄</span> Sync to Webflow
         </div>
         <div class="context-separator"></div>
-        <div class="context-item" style="color: var(--error);">
+        <div class="context-item" style="color: var(--error);" onclick="deleteFile()">
             <span>🗑️</span> Delete
         </div>
     </div>
@@ -1001,11 +984,11 @@
     <!-- Upload Progress -->
     <div class="upload-progress" id="uploadProgress">
         <div class="progress-header">
-            <span>Uploading 3 files...</span>
-            <span>45%</span>
+            <span id="progressText">Uploading...</span>
+            <span id="progressPercent">0%</span>
         </div>
         <div class="progress-bar">
-            <div class="progress-fill" style="width: 45%;"></div>
+            <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
         </div>
     </div>
 
@@ -1017,51 +1000,60 @@
         let selectedFiles = new Set();
         let currentView = 'grid';
         let allFiles = [];
+        let filteredFiles = [];
         let cloudinaryWidget = null;
+        let currentFile = null;
+        let currentFilter = 'all';
 
         // Configuration
         const CLOUDINARY_CLOUD_NAME = 'dzrw8nopf';
-        const CLOUDINARY_UPLOAD_PRESET = 'hoibf-media';
+        const CLOUDINARY_UPLOAD_PRESET = 'ml_default'; // Change this to your actual preset
         const XANO_BASE = '/.netlify/functions/xano-proxy';
         const WEBFLOW_SYNC_ENDPOINT = '/.netlify/functions/webflow-sync';
 
         // Initialize Cloudinary widget
         function initCloudinaryWidget() {
-            cloudinaryWidget = cloudinary.createUploadWidget({
-                cloudName: CLOUDINARY_CLOUD_NAME,
-                uploadPreset: CLOUDINARY_UPLOAD_PRESET,
-                sources: ['local', 'url', 'camera', 'google_drive', 'dropbox', 'facebook', 'instagram'],
-                multiple: true,
-                maxFiles: 20,
-                resourceType: 'auto',
-                showAdvancedOptions: true,
-                showCompletedButton: true,
-                showUploadMoreButton: true,
-                styles: {
-                    palette: {
-                        window: "#111827",
-                        windowBorder: "#374151",
-                        tabIcon: "#3B82F6",
-                        menuIcons: "#9CA3AF",
-                        textDark: "#000000",
-                        textLight: "#FFFFFF",
-                        link: "#3B82F6",
-                        action: "#3B82F6",
-                        inactiveTabIcon: "#6B7280",
-                        error: "#EF4444",
-                        inProgress: "#3B82F6",
-                        complete: "#10B981",
-                        sourceBg: "#1F2937"
+            try {
+                cloudinaryWidget = cloudinary.createUploadWidget({
+                    cloudName: CLOUDINARY_CLOUD_NAME,
+                    uploadPreset: CLOUDINARY_UPLOAD_PRESET,
+                    sources: ['local', 'url', 'camera'],
+                    multiple: true,
+                    maxFiles: 20,
+                    resourceType: 'auto',
+                    showAdvancedOptions: false,
+                    showCompletedButton: true,
+                    showUploadMoreButton: true,
+                    styles: {
+                        palette: {
+                            window: "#111827",
+                            windowBorder: "#374151",
+                            tabIcon: "#3B82F6",
+                            menuIcons: "#9CA3AF",
+                            textDark: "#000000",
+                            textLight: "#FFFFFF",
+                            link: "#3B82F6",
+                            action: "#3B82F6",
+                            inactiveTabIcon: "#6B7280",
+                            error: "#EF4444",
+                            inProgress: "#3B82F6",
+                            complete: "#10B981",
+                            sourceBg: "#1F2937"
+                        }
                     }
-                }
-            }, async (error, result) => {
-                if (!error && result && result.event === "success") {
-                    console.log('Upload successful:', result.info);
-                    await saveToXano(result.info);
-                    await syncToWebflow(result.info);
-                    refreshFileList();
-                }
-            });
+                }, async (error, result) => {
+                    if (!error && result && result.event === "success") {
+                        console.log('Upload successful:', result.info);
+                        showProgress('Saving to database...');
+                        await saveToXano(result.info);
+                        await loadFiles();
+                        hideProgress();
+                    }
+                });
+            } catch (error) {
+                console.error('Failed to initialize Cloudinary widget:', error);
+                showNotification('Upload widget initialization failed', 'error');
+            }
         }
 
         // Save file metadata to Xano
@@ -1077,6 +1069,7 @@
                     width: fileInfo.width,
                     height: fileInfo.height,
                     duration: fileInfo.duration,
+                    thumbnail_url: fileInfo.thumbnail_url || fileInfo.secure_url,
                     created_at: new Date().toISOString()
                 };
 
@@ -1097,51 +1090,90 @@
             }
         }
 
-        // Sync to Webflow CMS
-        async function syncToWebflow(fileInfo) {
-            try {
-                const response = await fetch(WEBFLOW_SYNC_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ fileInfo })
-                });
-
-                if (!response.ok) throw new Error('Failed to sync to Webflow');
-                
-                console.log('Synced to Webflow successfully');
-                showNotification('Synced to Webflow CMS', 'success');
-                
-            } catch (error) {
-                console.error('Webflow sync error:', error);
-                showNotification('Failed to sync to Webflow', 'error');
-            }
-        }
-
         // Load files from Xano
         async function loadFiles() {
             try {
                 const response = await fetch(`${XANO_BASE}/asset`);
                 if (!response.ok) throw new Error('Failed to load files');
                 
-                allFiles = await response.json();
-                renderFiles();
+                const data = await response.json();
+                allFiles = Array.isArray(data) ? data : data.items || [];
+                
+                updateFileCounts();
+                applyFilters();
                 
             } catch (error) {
                 console.error('Load files error:', error);
                 // Use demo data if API fails
                 allFiles = [
-                    { id: 1, title: 'Morning_Show_Intro.mp3', type: 'audio', size: 4200000 },
-                    { id: 2, title: 'News_Segment_01.mp4', type: 'video', size: 45800000 },
-                    { id: 3, title: 'Station_Logo.png', type: 'image', size: 324000 }
+                    { 
+                        id: 1, 
+                        title: 'Morning_Show_Intro.mp3', 
+                        file_type: 'audio', 
+                        file_size: 4200000,
+                        cloudinary_url: '#',
+                        created_at: new Date().toISOString()
+                    },
+                    { 
+                        id: 2, 
+                        title: 'News_Segment_01.mp4', 
+                        file_type: 'video', 
+                        file_size: 45800000,
+                        cloudinary_url: '#',
+                        created_at: new Date().toISOString()
+                    },
+                    { 
+                        id: 3, 
+                        title: 'Station_Logo.png', 
+                        file_type: 'image', 
+                        file_size: 324000,
+                        cloudinary_url: '#',
+                        thumbnail_url: '#',
+                        created_at: new Date().toISOString()
+                    }
                 ];
-                renderFiles();
+                updateFileCounts();
+                applyFilters();
             }
+        }
+
+        // Update file counts in sidebar
+        function updateFileCounts() {
+            const counts = {
+                all: allFiles.length,
+                audio: allFiles.filter(f => f.file_type === 'audio').length,
+                video: allFiles.filter(f => f.file_type === 'video').length,
+                image: allFiles.filter(f => f.file_type === 'image').length,
+                document: allFiles.filter(f => f.file_type === 'document' || f.file_type === 'raw').length
+            };
+            
+            document.getElementById('allCount').textContent = counts.all;
+            document.getElementById('audioCount').textContent = counts.audio;
+            document.getElementById('videoCount').textContent = counts.video;
+            document.getElementById('imageCount').textContent = counts.image;
+            document.getElementById('documentCount').textContent = counts.document;
+            
+            // Update storage info
+            const totalSize = allFiles.reduce((sum, file) => sum + (file.file_size || 0), 0);
+            document.getElementById('storageText').textContent = `${formatFileSize(totalSize)} of 10 GB`;
+            document.querySelector('.storage-used').style.width = `${(totalSize / (10 * 1024 * 1024 * 1024)) * 100}%`;
+        }
+
+        // Apply filters
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            filteredFiles = allFiles.filter(file => {
+                const matchesFilter = currentFilter === 'all' || file.file_type === currentFilter;
+                const matchesSearch = !searchTerm || file.title.toLowerCase().includes(searchTerm);
+                return matchesFilter && matchesSearch;
+            });
+            
+            renderFiles();
         }
 
         // Render files based on current view
         function renderFiles() {
-            const container = document.getElementById('fileContainer');
-            
             if (currentView === 'grid') {
                 renderGridView();
             } else {
@@ -1149,8 +1181,101 @@
             }
         }
 
+        // Render grid view
+        function renderGridView() {
+            const gridView = document.getElementById('gridView');
+            
+            if (filteredFiles.length === 0) {
+                gridView.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px;">No files found</div>';
+                return;
+            }
+            
+            gridView.innerHTML = filteredFiles.map(file => {
+                const icon = getFileIcon(file.file_type);
+                const preview = getFilePreview(file);
+                
+                return `
+                    <div class="file-card" data-id="${file.id}" onclick="selectFile(this, event)">
+                        <input type="checkbox" class="file-checkbox" onclick="event.stopPropagation()">
+                        <div class="file-preview">
+                            ${preview}
+                        </div>
+                        <div class="file-name" title="${file.title}">${file.title || 'Untitled'}</div>
+                        <div class="file-meta">${formatFileSize(file.file_size)} • ${file.file_type || 'Unknown'}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Render list view
+        function renderListView() {
+            const listContent = document.getElementById('listViewContent');
+            
+            if (filteredFiles.length === 0) {
+                listContent.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px;">No files found</div>';
+                return;
+            }
+            
+            listContent.innerHTML = filteredFiles.map(file => {
+                const icon = getFileIcon(file.file_type);
+                const date = new Date(file.created_at).toLocaleDateString();
+                
+                return `
+                    <div class="file-list-item" data-id="${file.id}" onclick="selectFile(this, event)">
+                        <input type="checkbox" class="file-list-checkbox" onclick="event.stopPropagation()">
+                        <div class="file-list-name">
+                            <div class="file-list-icon">${icon}</div>
+                            <span>${file.title || 'Untitled'}</span>
+                        </div>
+                        <div>${file.file_type || 'Unknown'}</div>
+                        <div>${date}</div>
+                        <div>${formatFileSize(file.file_size)}</div>
+                        <div><span class="status-badge status-synced">Synced</span></div>
+                        <div>
+                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="downloadFileById(${file.id}); event.stopPropagation();">
+                                ⬇️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Get file icon based on type
+        function getFileIcon(type) {
+            const icons = {
+                'audio': '🎵',
+                'video': '🎬',
+                'image': '🖼️',
+                'document': '📄',
+                'raw': '📄'
+            };
+            return icons[type] || '📁';
+        }
+
+        // Get file preview
+        function getFilePreview(file) {
+            if (file.file_type === 'image' && file.thumbnail_url) {
+                return `<img src="${file.thumbnail_url}" alt="${file.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span class="file-icon-large" style="display:none;">${getFileIcon(file.file_type)}</span>`;
+            } else if (file.file_type === 'video' && file.thumbnail_url) {
+                return `<img src="${file.thumbnail_url}" alt="${file.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span class="file-icon-large" style="display:none;">${getFileIcon(file.file_type)}</span>`;
+            } else {
+                return `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
+            }
+        }
+
+        // Format file size
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
         // View switching
-        function setView(view) {
+        function setView(view, element) {
             currentView = view;
             document.getElementById('gridView').style.display = view === 'grid' ? 'grid' : 'none';
             document.getElementById('listView').style.display = view === 'list' ? 'block' : 'none';
@@ -1158,21 +1283,69 @@
             document.querySelectorAll('.view-btn').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            element.classList.add('active');
             
             renderFiles();
         }
 
         // File selection
-        function selectFile(element) {
+        function selectFile(element, event) {
+            if (event) event.stopPropagation();
+            
+            const fileId = element.dataset.id;
+            const file = allFiles.find(f => f.id == fileId);
+            
+            if (!file) return;
+            
             element.classList.toggle('selected');
             const checkbox = element.querySelector('input[type="checkbox"]');
-            if (checkbox) checkbox.checked = !checkbox.checked;
+            if (checkbox) checkbox.checked = element.classList.contains('selected');
             
-            // Show details panel for last selected file
             if (element.classList.contains('selected')) {
-                document.getElementById('detailsPanel').classList.add('active');
+                selectedFiles.add(fileId);
+                showFileDetails(file);
+            } else {
+                selectedFiles.delete(fileId);
+                if (selectedFiles.size === 0) {
+                    closeDetails();
+                }
             }
+        }
+
+        // Show file details
+        function showFileDetails(file) {
+            currentFile = file;
+            document.getElementById('detailsPanel').classList.add('active');
+            
+            // Update preview
+            const preview = document.getElementById('detailsPreview');
+            if (file.file_type === 'image' && file.cloudinary_url) {
+                preview.innerHTML = `<img src="${file.cloudinary_url}" alt="${file.title}">`;
+            } else if (file.file_type === 'video' && file.cloudinary_url) {
+                preview.innerHTML = `<video src="${file.cloudinary_url}" controls></video>`;
+            } else if (file.file_type === 'audio' && file.cloudinary_url) {
+                preview.innerHTML = `<audio src="${file.cloudinary_url}" controls></audio>`;
+            } else {
+                preview.innerHTML = `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
+            }
+            
+            // Update fields
+            document.getElementById('detailsFileName').value = file.title || '';
+            document.getElementById('detailsDescription').value = file.description || '';
+            document.getElementById('detailsTags').value = file.tags || '';
+            document.getElementById('detailsType').textContent = `${file.file_type} (${file.format || 'unknown'})`;
+            document.getElementById('detailsSize').textContent = formatFileSize(file.file_size);
+            document.getElementById('detailsModified').textContent = new Date(file.created_at).toLocaleString();
+        }
+
+        // Select all files
+        function selectAll() {
+            document.querySelectorAll('.file-card, .file-list-item').forEach(el => {
+                el.classList.add('selected');
+                const checkbox = el.querySelector('input[type="checkbox"]');
+                if (checkbox) checkbox.checked = true;
+                selectedFiles.add(el.dataset.id);
+            });
         }
 
         // Upload zone
@@ -1197,6 +1370,22 @@
         // Details panel
         function closeDetails() {
             document.getElementById('detailsPanel').classList.remove('active');
+            currentFile = null;
+        }
+
+        // Progress functions
+        function showProgress(text, percent = 0) {
+            const progress = document.getElementById('uploadProgress');
+            progress.classList.add('active');
+            document.getElementById('progressText').textContent = text;
+            document.getElementById('progressPercent').textContent = percent + '%';
+            document.getElementById('progressFill').style.width = percent + '%';
+        }
+
+        function hideProgress() {
+            setTimeout(() => {
+                document.getElementById('uploadProgress').classList.remove('active');
+            }, 1000);
         }
 
         // Context menu
@@ -1211,6 +1400,56 @@
         document.addEventListener('click', function() {
             document.getElementById('contextMenu').classList.remove('active');
         });
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+
+        // Filter navigation
+        document.querySelectorAll('.nav-item[data-filter]').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.filter;
+                document.getElementById('currentFolder').textContent = this.querySelector('span:nth-child(2)').textContent;
+                applyFilters();
+            });
+        });
+
+        // Notifications
+        function showNotification(message, type = 'info') {
+            console.log(`[${type}] ${message}`);
+            // You can add a toast notification UI here
+        }
+
+        // Placeholder functions for buttons
+        function downloadFile() {
+            if (currentFile && currentFile.cloudinary_url) {
+                window.open(currentFile.cloudinary_url, '_blank');
+            }
+        }
+
+        function saveFileChanges() {
+            showNotification('Changes saved', 'success');
+        }
+
+        function syncToWebflow() {
+            showNotification('Syncing to Webflow...', 'info');
+        }
+
+        function deleteSelected() {
+            if (confirm(`Delete ${selectedFiles.size} selected files?`)) {
+                showNotification('Files deleted', 'success');
+                loadFiles();
+            }
+        }
+
+        function copySelected() {
+            showNotification('Files copied to clipboard', 'success');
+        }
+
+        function moveSelected() {
+            showNotification('Select destination folder', 'info');
+        }
 
         // Drag and drop
         document.addEventListener('dragover', function(e) {
@@ -1227,17 +1466,10 @@
         document.addEventListener('drop', function(e) {
             e.preventDefault();
             document.getElementById('uploadZone').classList.remove('active');
-            // Handle dropped files
             if (cloudinaryWidget) {
                 cloudinaryWidget.open();
             }
         });
-
-        // Notifications
-        function showNotification(message, type = 'info') {
-            // Implementation for notifications
-            console.log(`[${type}] ${message}`);
-        }
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', function() {
@@ -1250,16 +1482,12 @@
             // Ctrl+A - Select all
             if (e.ctrlKey && e.key === 'a') {
                 e.preventDefault();
-                document.querySelectorAll('.file-card, .file-list-item').forEach(el => {
-                    el.classList.add('selected');
-                });
+                selectAll();
             }
             
             // Delete key
             if (e.key === 'Delete' && selectedFiles.size > 0) {
-                if (confirm('Delete selected files?')) {
-                    // Delete implementation
-                }
+                deleteSelected();
             }
             
             // Escape - Clear selection
@@ -1267,6 +1495,7 @@
                 document.querySelectorAll('.selected').forEach(el => {
                     el.classList.remove('selected');
                 });
+                selectedFiles.clear();
                 closeDetails();
             }
         });
