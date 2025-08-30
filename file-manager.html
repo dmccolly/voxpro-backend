@@ -174,6 +174,23 @@
             object-fit: contain;
         }
 
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background-color: #e1e5e9;
+            border-radius: 5px;
+            margin-top: 15px;
+            display: none;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
         @media (max-width: 768px) {
             .two-column {
                 grid-template-columns: 1fr;
@@ -276,12 +293,22 @@
                 <input type="hidden" id="fileType" name="fileType">
                 <input type="hidden" id="fileSize" name="fileSize">
 
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+
                 <button type="submit" class="submit-btn" id="submitBtn">
                     Save to VoxPro
                 </button>
 
                 <div class="message" id="message"></div>
             </form>
+
+            <div style="margin-top: 20px; text-align: center;">
+                <a href="/voxpro-manager" style="color: #667eea; text-decoration: none; font-weight: 600;">
+                    ← Back to VoxPro Manager
+                </a>
+            </div>
         </div>
     </div>
 
@@ -289,9 +316,12 @@
     <script src="https://widget.cloudinary.com/v2.0/global/all.js" type="text/javascript"></script>
 
     <script>
-        // Cloudinary configuration - REPLACE WITH YOUR ACTUAL VALUES
-        const cloudName = 'idahobroadcasting'; // Replace with your cloud name
-        const uploadPreset = 'voxpro-uploads'; // Replace with your upload preset
+        // Debug mode
+        const debugMode = true;
+        
+        function debugLog(...args) {
+            if (debugMode) console.log('[FileManager]', ...args);
+        }
         
         // DOM Elements
         const uploadForm = document.getElementById('uploadForm');
@@ -300,6 +330,8 @@
         const submitBtn = document.getElementById('submitBtn');
         const message = document.getElementById('message');
         const thumbnailPreview = document.getElementById('thumbnailPreview');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
         
         // Hidden fields for Cloudinary data
         const cloudinaryUrlInput = document.getElementById('cloudinaryUrl');
@@ -308,6 +340,16 @@
         const fileTypeInput = document.getElementById('fileType');
         const fileSizeInput = document.getElementById('fileSize');
 
+        // Add error handler to show more detailed errors
+        window.addEventListener('error', function(event) {
+            showMessage(`JavaScript error: ${event.message}`, 'error');
+            console.error('Error details:', event);
+        });
+
+        // Cloudinary configuration - Fallback values if not set in the widget
+        const cloudName = 'drzw8nopf'; // Fallback value
+        const uploadPreset = 'voxpro-uploads'; // Fallback value
+        
         // Initialize the Cloudinary Upload Widget
         const myWidget = cloudinary.createUploadWidget(
             {
@@ -338,8 +380,14 @@
                 }
             },
             (error, result) => {
-                if (!error && result && result.event === "success") {
-                    console.log('Upload Widget Result:', result.info);
+                if (error) {
+                    debugLog('Upload widget error:', error);
+                    showMessage(`Upload widget error: ${error.message || 'Unknown error'}`, 'error');
+                    return;
+                }
+                
+                if (result && result.event === "success") {
+                    debugLog('Upload Widget Result:', result.info);
                     
                     // Store Cloudinary data in hidden fields
                     cloudinaryUrlInput.value = result.info.secure_url;
@@ -374,6 +422,8 @@
                     } else if (result.info.resource_type === 'audio' || 
                               ['mp3', 'wav', 'ogg', 'm4a'].includes(result.info.format)) {
                         categorySelect.value = 'Audio';
+                    } else if (result.info.resource_type === 'image') {
+                        categorySelect.value = 'Photo';
                     }
                     
                     // Update button text
@@ -386,6 +436,28 @@
         uploadBtn.addEventListener('click', function() {
             myWidget.open();
         }, false);
+
+        // Enhanced showMessage function for better visibility
+        function showMessage(text, type = 'error') {
+            debugLog('Showing message:', type, text);
+            message.textContent = text;
+            message.className = `message ${type}`;
+            message.style.display = 'block';
+            
+            // Scroll to message
+            message.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Keep error messages visible longer
+            if (type === 'error') {
+                setTimeout(() => {
+                    message.style.display = 'none';
+                }, 10000); // 10 seconds for errors
+            } else {
+                setTimeout(() => {
+                    message.style.display = 'none';
+                }, 5000);
+            }
+        }
 
         // Form submission
         uploadForm.addEventListener('submit', async function(e) {
@@ -407,6 +479,10 @@
             submitBtn.textContent = 'Processing...';
             message.style.display = 'none';
             
+            // Show progress bar
+            progressBar.style.display = 'block';
+            progressFill.style.width = '0%';
+            
             try {
                 // Prepare data for server
                 const formData = {
@@ -418,6 +494,7 @@
                     submitted_by: document.getElementById('submittedBy').value,
                     notes: document.getElementById('notes').value,
                     priority: document.getElementById('priority').value,
+                    file_url: cloudinaryUrlInput.value,
                     cloudinary_url: cloudinaryUrlInput.value,
                     thumbnail_url: cloudinaryThumbnailUrlInput.value,
                     public_id: cloudinaryPublicIdInput.value,
@@ -426,19 +503,70 @@
                     created_at: new Date().toISOString()
                 };
                 
-                console.log('Sending data to server:', formData);
+                debugLog('Sending data to server:', formData);
                 
-                // Send to Netlify function
-                const response = await fetch('/.netlify/functions/cloudinary-metadata', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
+                // Update progress
+                progressFill.style.width = '30%';
                 
-                const result = await response.json();
+                // Try multiple endpoints
+                let response;
+                const endpoints = [
+                    '/.netlify/functions/cloudinary-metadata',
+                    '/.netlify/functions/file-manager-upload',
+                    '/.netlify/functions/simple-uploader'
+                ];
                 
+                let errorMessages = [];
+                
+                for (const endpoint of endpoints) {
+                    try {
+                        debugLog(`Trying endpoint: ${endpoint}`);
+                        response = await fetch(endpoint, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(formData)
+                        });
+                        
+                        // Update progress
+                        progressFill.style.width = '60%';
+                        
+                        if (response.ok) {
+                            debugLog(`Success with endpoint: ${endpoint}`);
+                            break;
+                        } else {
+                            const errorText = await response.text();
+                            errorMessages.push(`${endpoint}: ${response.status} - ${errorText}`);
+                        }
+                    } catch (endpointError) {
+                        errorMessages.push(`${endpoint}: ${endpointError.message}`);
+                    }
+                }
+                
+                if (!response || !response.ok) {
+                    throw new Error(`All endpoints failed: ${errorMessages.join(' | ')}`);
+                }
+                
+                // Update progress
+                progressFill.style.width = '90%';
+                
+                // Try to parse the response
+                let result;
+                try {
+                    result = await response.json();
+                } catch (e) {
+                    debugLog('Response is not JSON:', e);
+                    // If not JSON, still consider it a success if the response was OK
+                    if (response.ok) {
+                        result = { success: true };
+                    } else {
+                        throw new Error('Invalid response from server');
+                    }
+                }
+                
+                // Final progress
+                progressFill.style.width = '100%';
+                
+                // Handle the result
                 if (response.ok) {
                     showMessage('File uploaded successfully! The media is now available in the VoxPro system.', 'success');
                     uploadForm.reset();
@@ -451,20 +579,29 @@
             } catch (error) {
                 console.error('Error:', error);
                 showMessage(`Error: ${error.message}`, 'error');
+                progressFill.style.width = '0%';
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Save to VoxPro';
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                }, 2000);
             }
         });
 
-        function showMessage(text, type = 'error') {
-            message.textContent = text;
-            message.className = `message ${type}`;
-            message.style.display = 'block';
-            setTimeout(() => {
-                message.style.display = 'none';
-            }, 5000);
-        }
+        // Test basic connectivity when page loads
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('/.netlify/functions/test-function');
+                if (response.ok) {
+                    debugLog('API connectivity test successful');
+                } else {
+                    debugLog('API connectivity test failed:', await response.text());
+                }
+            } catch (error) {
+                debugLog('API connectivity error:', error);
+            }
+        });
     </script>
 </body>
 </html>
