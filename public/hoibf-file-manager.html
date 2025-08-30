@@ -1262,21 +1262,24 @@
             currentFile = file;
             document.getElementById('detailsPanel').classList.add('active');
             
-            // Preview
-            const preview = document.getElementById('detailsPreview');
-            if (file.database_url) {
-                if (file.file_type === 'image') {
-                    preview.innerHTML = `<img src="${file.database_url}" alt="${file.title}">`;
-                } else if (file.file_type === 'video') {
-                    preview.innerHTML = `<video src="${file.database_url}" controls style="width: 100%;"></video>`;
-                } else if (file.file_type === 'audio') {
-                    preview.innerHTML = `<audio src="${file.database_url}" controls style="width: 100%;"></audio>`;
-                } else {
-                    preview.innerHTML = `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
-                }
-            } else {
-                preview.innerHTML = `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
-            }
+           // Preview
+const preview = document.getElementById('detailsPreview');
+const url = file.database_url?.path || file.database_url;
+const thumbUrl = file.thumbnail?.path || file.thumbnail;
+
+if (url && typeof url === 'string' && url.startsWith('http')) {
+    if (file.file_type === 'image') {
+        preview.innerHTML = `<img src="${url}" alt="${file.title}">`;
+    } else if (file.file_type === 'video') {
+        preview.innerHTML = `<video src="${url}" controls style="width: 100%;"></video>`;
+    } else if (file.file_type === 'audio') {
+        preview.innerHTML = `<audio src="${url}" controls style="width: 100%;"></audio>`;
+    } else {
+        preview.innerHTML = `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
+    }
+} else {
+    preview.innerHTML = `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
+}
             
             // Basic fields
             document.getElementById('detailsTitle').value = file.title || '';
