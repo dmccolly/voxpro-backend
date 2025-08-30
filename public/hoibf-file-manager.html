@@ -20,6 +20,7 @@
             --warning: #f59e0b;
             --error: #ef4444;
             --purple: #8b5cf6;
+            --gold: #fbbf24;
             --sidebar-width: 280px;
             --header-height: 60px;
         }
@@ -122,6 +123,11 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
             margin-bottom: 10px;
+            margin-top: 20px;
+        }
+
+        .nav-title:first-child {
+            margin-top: 0;
         }
 
         .nav-item {
@@ -290,92 +296,12 @@
             color: var(--text-primary);
         }
 
-        /* File Grid/List Container */
+        /* File Container */
         .file-container {
             flex: 1;
             overflow-y: auto;
             padding: 24px;
             background: var(--bg-primary);
-        }
-
-        /* Grid View */
-        .file-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 16px;
-        }
-
-        .file-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 16px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            position: relative;
-        }
-
-        .file-card:hover {
-            border-color: var(--accent);
-            transform: translateY(-2px);
-        }
-
-        .file-card.selected {
-            border-color: var(--accent);
-            background: var(--bg-tertiary);
-        }
-
-        .file-checkbox {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            width: 18px;
-            height: 18px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .file-card:hover .file-checkbox,
-        .file-card.selected .file-checkbox {
-            opacity: 1;
-        }
-
-        .file-preview {
-            width: 100%;
-            height: 120px;
-            background: var(--bg-tertiary);
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 12px;
-            overflow: hidden;
-        }
-
-        .file-preview img,
-        .file-preview video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .file-icon-large {
-            font-size: 48px;
-            color: var(--text-muted);
-        }
-
-        .file-name {
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 4px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .file-meta {
-            font-size: 12px;
-            color: var(--text-secondary);
         }
 
         /* List View */
@@ -387,7 +313,7 @@
 
         .file-list-header {
             display: grid;
-            grid-template-columns: 40px 1fr 150px 150px 100px 100px 120px;
+            grid-template-columns: 40px 60px 1fr 120px 100px 100px 150px 120px 80px;
             padding: 12px 16px;
             background: var(--bg-tertiary);
             border-bottom: 1px solid var(--border);
@@ -395,11 +321,16 @@
             font-weight: 600;
             color: var(--text-secondary);
             text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .file-list-header > div:hover {
+            color: var(--text-primary);
         }
 
         .file-list-item {
             display: grid;
-            grid-template-columns: 40px 1fr 150px 150px 100px 100px 120px;
+            grid-template-columns: 40px 60px 1fr 120px 100px 100px 150px 120px 80px;
             padding: 12px 16px;
             border-bottom: 1px solid var(--border);
             cursor: pointer;
@@ -415,99 +346,55 @@
             background: var(--bg-tertiary);
         }
 
-        .file-list-checkbox {
+        .file-checkbox {
             width: 18px;
             height: 18px;
         }
 
-        .file-list-name {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .file-list-icon {
-            width: 32px;
-            height: 32px;
+        .file-thumbnail {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
             background: var(--bg-tertiary);
-            border-radius: 6px;
         }
 
-        /* Status Badges */
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
+        .file-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
-        .status-synced {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
+        .file-icon-small {
+            font-size: 20px;
+            color: var(--text-muted);
         }
 
-        .status-pending {
-            background: rgba(245, 158, 11, 0.2);
-            color: var(--warning);
+        .file-name {
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding-right: 10px;
         }
 
-        .status-error {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--error);
-        }
-
-        /* Upload Zone */
-        .upload-zone {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.9);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-
-        .upload-zone.active {
+        .file-name.featured {
             display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        .upload-box {
-            background: var(--bg-secondary);
-            border: 2px dashed var(--accent);
-            border-radius: 12px;
-            padding: 60px;
-            text-align: center;
-            max-width: 500px;
-        }
-
-        .upload-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-            color: var(--accent);
-        }
-
-        .upload-title {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-
-        .upload-subtitle {
-            color: var(--text-secondary);
-            margin-bottom: 30px;
+        .star-icon {
+            color: var(--gold);
+            font-size: 14px;
         }
 
         /* Details Panel */
         .details-panel {
-            width: 320px;
+            width: 400px;
             background: var(--bg-secondary);
             border-left: 1px solid var(--border);
             display: none;
@@ -547,7 +434,7 @@
 
         .details-preview {
             width: 100%;
-            height: 180px;
+            height: 200px;
             background: var(--bg-tertiary);
             border-radius: 8px;
             margin-bottom: 20px;
@@ -562,6 +449,11 @@
         .details-preview audio {
             max-width: 100%;
             max-height: 100%;
+        }
+
+        .file-icon-large {
+            font-size: 48px;
+            color: var(--text-muted);
         }
 
         .details-section {
@@ -591,7 +483,9 @@
             color: var(--text-primary);
         }
 
-        .details-input, .details-select {
+        .details-input, 
+        .details-select,
+        .details-textarea {
             width: 100%;
             padding: 8px 12px;
             background: var(--bg-tertiary);
@@ -599,6 +493,23 @@
             border-radius: 6px;
             color: var(--text-primary);
             font-size: 14px;
+            font-family: inherit;
+        }
+
+        .details-textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .details-checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .details-checkbox {
+            width: 20px;
+            height: 20px;
         }
 
         .details-actions {
@@ -606,45 +517,73 @@
             border-top: 1px solid var(--border);
         }
 
-        /* Context Menu */
-        .context-menu {
-            position: fixed;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 8px;
-            display: none;
-            z-index: 1000;
-            min-width: 200px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        /* Station autocomplete */
+        .autocomplete-container {
+            position: relative;
         }
 
-        .context-menu.active {
+        .autocomplete-suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-top: 4px;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+            z-index: 100;
+        }
+
+        .autocomplete-suggestions.active {
             display: block;
         }
 
-        .context-item {
-            padding: 10px 12px;
-            border-radius: 4px;
+        .autocomplete-item {
+            padding: 8px 12px;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 14px;
             transition: background 0.2s;
         }
 
-        .context-item:hover {
-            background: var(--bg-tertiary);
+        .autocomplete-item:hover {
+            background: var(--bg-hover);
         }
 
-        .context-separator {
-            height: 1px;
-            background: var(--border);
-            margin: 8px 0;
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
         }
 
-        /* Progress Bar */
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        /* Progress */
         .upload-progress {
             position: fixed;
             bottom: 20px;
@@ -681,39 +620,6 @@
             transition: width 0.3s ease;
         }
 
-        /* Modal for full preview */
-        .preview-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.95);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 2000;
-        }
-
-        .preview-modal.active {
-            display: flex;
-        }
-
-        .preview-modal-content {
-            max-width: 90%;
-            max-height: 90%;
-            position: relative;
-        }
-
-        .preview-modal-close {
-            position: absolute;
-            top: -40px;
-            right: 0;
-            color: white;
-            font-size: 32px;
-            cursor: pointer;
-        }
-
         /* Responsive */
         @media (max-width: 1024px) {
             .sidebar {
@@ -721,17 +627,13 @@
             }
             
             .details-panel {
-                width: 280px;
+                width: 350px;
             }
         }
 
         @media (max-width: 768px) {
             .sidebar {
                 display: none;
-            }
-            
-            .file-grid {
-                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
             }
         }
     </style>
@@ -776,15 +678,20 @@
                     <span>Images</span>
                     <span class="nav-count" id="imageCount">0</span>
                 </div>
-                <div class="nav-item" data-filter="document">
+                <div class="nav-item" data-filter="raw">
                     <span class="nav-icon">📄</span>
                     <span>Documents</span>
                     <span class="nav-count" id="documentCount">0</span>
                 </div>
                 
-                <div class="nav-title" style="margin-top: 20px;">Collections</div>
+                <div class="nav-title">Categories</div>
+                <div id="categoriesContainer">
+                    <!-- Categories will be loaded here -->
+                </div>
+                
+                <div class="nav-title">Collections</div>
                 <div id="collectionsContainer">
-                    <!-- Collections will be loaded here dynamically -->
+                    <!-- Collections will be loaded here -->
                 </div>
             </nav>
         </aside>
@@ -817,47 +724,36 @@
                     <button class="btn btn-secondary" onclick="selectAll()">
                         <span>✓</span> Select All
                     </button>
-                    <button class="btn btn-secondary" onclick="copySelected()">
-                        <span>📋</span> Copy
-                    </button>
-                    <button class="btn btn-secondary" onclick="moveSelected()">
-                        <span>✂️</span> Move
-                    </button>
                     <button class="btn btn-secondary" onclick="deleteSelected()">
-                        <span>🗑️</span> Delete
+                        <span>🗑️</span> Delete Selected
                     </button>
                 </div>
                 
-                <button class="btn btn-secondary" onclick="syncToWebflow()">
-                    <span>🔄</span> Sync to Webflow
+                <button class="btn btn-secondary" onclick="refreshFiles()">
+                    <span>🔄</span> Refresh
                 </button>
                 
                 <div class="view-toggle">
-                    <div class="view-btn active" onclick="setView('grid', this)">⊞</div>
-                    <div class="view-btn" onclick="setView('list', this)">☰</div>
+                    <div class="view-btn active" onclick="setView('list', this)">☰</div>
                 </div>
             </div>
 
             <!-- File Container -->
             <div class="file-container" id="fileContainer">
-                <!-- Grid View (Default) -->
-                <div class="file-grid" id="gridView">
-                    <!-- Files will be dynamically loaded here -->
-                </div>
-
-                <!-- List View (Hidden by default) -->
-                <div class="file-list" id="listView" style="display: none;">
+                <div class="file-list" id="listView">
                     <div class="file-list-header">
                         <div></div>
-                        <div>Name</div>
-                        <div>Type</div>
-                        <div>Modified</div>
-                        <div>Size</div>
-                        <div>Collection</div>
+                        <div></div>
+                        <div onclick="sortBy('title')">Title</div>
+                        <div onclick="sortBy('file_type')">Type</div>
+                        <div onclick="sortBy('file_size')">Size</div>
+                        <div onclick="sortBy('duration')">Duration</div>
+                        <div onclick="sortBy('station')">Station</div>
+                        <div onclick="sortBy('created_at')">Modified</div>
                         <div>Actions</div>
                     </div>
                     <div id="listViewContent">
-                        <!-- File items will be dynamically added here -->
+                        <!-- Files will be loaded here -->
                     </div>
                 </div>
             </div>
@@ -880,11 +776,34 @@
                 </button>
                 
                 <div class="details-section">
-                    <div class="details-section-title">Properties</div>
+                    <div class="details-section-title">Basic Information</div>
                     
                     <div class="details-field">
-                        <div class="details-label">File Name</div>
-                        <input type="text" class="details-input" id="detailsFileName" value="">
+                        <div class="details-label">Title</div>
+                        <input type="text" class="details-input" id="detailsTitle">
+                    </div>
+                    
+                    <div class="details-field">
+                        <div class="details-label">Description</div>
+                        <textarea class="details-textarea" id="detailsDescription"></textarea>
+                    </div>
+                    
+                    <div class="details-field autocomplete-container">
+                        <div class="details-label">Station</div>
+                        <input type="text" class="details-input" id="detailsStation" oninput="handleStationInput(this)">
+                        <div class="autocomplete-suggestions" id="stationSuggestions"></div>
+                    </div>
+                    
+                    <div class="details-field">
+                        <div class="details-label">Submitted By</div>
+                        <input type="text" class="details-input" id="detailsSubmittedBy">
+                    </div>
+                    
+                    <div class="details-field">
+                        <div class="details-label">Category</div>
+                        <select class="details-select" id="detailsCategory">
+                            <option value="">No Category</option>
+                        </select>
                     </div>
                     
                     <div class="details-field">
@@ -895,18 +814,47 @@
                     </div>
                     
                     <div class="details-field">
-                        <div class="details-label">Description</div>
-                        <input type="text" class="details-input" id="detailsDescription" placeholder="Add description...">
+                        <div class="details-label">Tags</div>
+                        <input type="text" class="details-input" id="detailsTags" placeholder="Comma-separated tags">
                     </div>
                     
                     <div class="details-field">
-                        <div class="details-label">Tags</div>
-                        <input type="text" class="details-input" id="detailsTags" placeholder="Add tags...">
+                        <div class="details-checkbox-container">
+                            <input type="checkbox" class="details-checkbox" id="detailsFeatured">
+                            <label for="detailsFeatured">Featured Content</label>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="details-section">
-                    <div class="details-section-title">Information</div>
+                    <div class="details-section-title">Dates & Scheduling</div>
+                    
+                    <div class="details-field">
+                        <div class="details-label">Original Creation Date</div>
+                        <input type="date" class="details-input" id="detailsOriginalDate">
+                    </div>
+                    
+                    <div class="details-field">
+                        <div class="details-label">Scheduled Publish Date</div>
+                        <input type="datetime-local" class="details-input" id="detailsPublishDate">
+                    </div>
+                    
+                    <div class="details-field">
+                        <div class="details-label">Scheduled Unpublish Date</div>
+                        <input type="datetime-local" class="details-input" id="detailsUnpublishDate">
+                    </div>
+                </div>
+                
+                <div class="details-section">
+                    <div class="details-section-title">Notes</div>
+                    
+                    <div class="details-field">
+                        <textarea class="details-textarea" id="detailsNotes" placeholder="Add notes..." style="min-height: 120px;"></textarea>
+                    </div>
+                </div>
+                
+                <div class="details-section">
+                    <div class="details-section-title">File Information</div>
                     
                     <div class="details-field">
                         <div class="details-label">Type</div>
@@ -919,32 +867,13 @@
                     </div>
                     
                     <div class="details-field">
-                        <div class="details-label">Dimensions</div>
-                        <div class="details-value" id="detailsDimensions">-</div>
-                    </div>
-                    
-                    <div class="details-field">
                         <div class="details-label">Duration</div>
                         <div class="details-value" id="detailsDuration">-</div>
                     </div>
                     
                     <div class="details-field">
-                        <div class="details-label">Modified</div>
-                        <div class="details-value" id="detailsModified">-</div>
-                    </div>
-                </div>
-                
-                <div class="details-section">
-                    <div class="details-section-title">URLs</div>
-                    
-                    <div class="details-field">
-                        <div class="details-label">Direct URL</div>
-                        <input type="text" class="details-input" id="detailsUrl" readonly>
-                    </div>
-                    
-                    <div class="details-field">
-                        <div class="details-label">Public ID</div>
-                        <input type="text" class="details-input" id="detailsPublicId" readonly>
+                        <div class="details-label">Uploaded</div>
+                        <div class="details-value" id="detailsUploaded">-</div>
                     </div>
                 </div>
             </div>
@@ -963,13 +892,12 @@
         </aside>
     </div>
 
-    <!-- Upload Zone -->
-    <div class="upload-zone" id="uploadZone">
-        <div class="upload-box">
-            <div class="upload-icon">☁️</div>
-            <div class="upload-title">Drop files to upload</div>
-            <div class="upload-subtitle">or click to browse</div>
-            <button class="btn btn-primary" onclick="openFileBrowser()">
+    <!-- Upload Zone Modal -->
+    <div class="modal" id="uploadZone">
+        <div class="modal-content">
+            <div class="modal-title">Upload Files</div>
+            <p style="margin-bottom: 20px;">Click the button below to select files from your computer.</p>
+            <button class="btn btn-primary" onclick="openCloudinaryWidget()">
                 Choose Files
             </button>
             <button class="btn btn-secondary" onclick="closeUploadZone()" style="margin-left: 10px;">
@@ -978,38 +906,11 @@
         </div>
     </div>
 
-    <!-- Preview Modal -->
-    <div class="preview-modal" id="previewModal">
-        <div class="preview-modal-content">
-            <span class="preview-modal-close" onclick="closePreviewModal()">✕</span>
+    <!-- Full Preview Modal -->
+    <div class="modal" id="previewModal">
+        <div style="position: relative; max-width: 90%; max-height: 90%;">
+            <button class="details-close" style="position: absolute; top: -40px; right: 0; background: white;" onclick="closePreviewModal()">✕</button>
             <div id="modalPreviewContent"></div>
-        </div>
-    </div>
-
-    <!-- Context Menu -->
-    <div class="context-menu" id="contextMenu">
-        <div class="context-item" onclick="previewFile()">
-            <span>👁️</span> Preview
-        </div>
-        <div class="context-item" onclick="renameFile()">
-            <span>✏️</span> Rename
-        </div>
-        <div class="context-item" onclick="copyFile()">
-            <span>📋</span> Copy
-        </div>
-        <div class="context-item" onclick="cutFile()">
-            <span>✂️</span> Cut
-        </div>
-        <div class="context-separator"></div>
-        <div class="context-item" onclick="downloadFile()">
-            <span>⬇️</span> Download
-        </div>
-        <div class="context-item" onclick="syncFile()">
-            <span>🔄</span> Sync to Webflow
-        </div>
-        <div class="context-separator"></div>
-        <div class="context-item" style="color: var(--error);" onclick="deleteFile()">
-            <span>🗑️</span> Delete
         </div>
     </div>
 
@@ -1029,21 +930,29 @@
 
     <script>
         // Global state
-        let selectedFiles = new Set();
-        let currentView = 'grid';
         let allFiles = [];
-        let allCollections = [];
         let filteredFiles = [];
-        let cloudinaryWidget = null;
+        let allCollections = [];
+        let allCategories = [];
+        let selectedFiles = new Set();
         let currentFile = null;
         let currentFilter = 'all';
-        let currentCollection = null;
+        let currentSort = { field: 'created_at', ascending: false };
+        let cloudinaryWidget = null;
+        let stationHistory = ['KIVI', 'KTFT', 'KBOI'];
 
         // Configuration
         const CLOUDINARY_CLOUD_NAME = 'dzrw8nopf';
-        const CLOUDINARY_UPLOAD_PRESET = 'hoibf-media'; // Change this to your actual preset
+        const CLOUDINARY_UPLOAD_PRESET = 'hoibf-media';
         const XANO_BASE = '/.netlify/functions/xano-proxy';
-        const WEBFLOW_SYNC_ENDPOINT = '/.netlify/functions/webflow-sync';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            initCloudinaryWidget();
+            await loadCollections();
+            await loadCategories();
+            await loadFiles();
+        });
 
         // Initialize Cloudinary widget
         function initCloudinaryWidget() {
@@ -1086,76 +995,26 @@
                 });
             } catch (error) {
                 console.error('Failed to initialize Cloudinary widget:', error);
-                showNotification('Upload widget initialization failed', 'error');
             }
         }
 
-        // Load collections from Xano
-        async function loadCollections() {
-            try {
-                const response = await fetch(`${XANO_BASE}/collection`);
-                if (!response.ok) throw new Error('Failed to load collections');
-                
-                const data = await response.json();
-                allCollections = Array.isArray(data) ? data : data.items || [];
-                
-                // Populate sidebar collections
-                const collectionsHTML = allCollections.map(col => {
-                    const count = allFiles.filter(f => f.collection_id === col.id).length;
-                    return `
-                        <div class="nav-item" data-collection="${col.id}">
-                            <span class="nav-icon">📁</span>
-                            <span>${col.name}</span>
-                            <span class="nav-count">${count}</span>
-                        </div>
-                    `;
-                }).join('');
-                
-                document.getElementById('collectionsContainer').innerHTML = collectionsHTML;
-                
-                // Populate collection dropdown in details
-                const selectHTML = '<option value="">No Collection</option>' + 
-                    allCollections.map(col => `<option value="${col.id}">${col.name}</option>`).join('');
-                document.getElementById('detailsCollection').innerHTML = selectHTML;
-                
-                // Add click handlers for collections
-                document.querySelectorAll('[data-collection]').forEach(item => {
-                    item.addEventListener('click', function() {
-                        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                        this.classList.add('active');
-                        currentCollection = parseInt(this.dataset.collection);
-                        currentFilter = 'collection';
-                        const collectionName = allCollections.find(c => c.id === currentCollection)?.name;
-                        document.getElementById('currentFolder').textContent = collectionName;
-                        applyFilters();
-                    });
-                });
-                
-            } catch (error) {
-                console.error('Failed to load collections:', error);
-            }
-        }
-
-        // Save file metadata to Xano
+        // Save to Xano with correct field mapping
         async function saveToXano(fileInfo) {
             try {
-                // Generate thumbnail URL for images/videos
-                let thumbnailUrl = fileInfo.secure_url;
+                // Generate thumbnail URL
+                let thumbnailUrl = '';
                 if (fileInfo.resource_type === 'image' || fileInfo.resource_type === 'video') {
                     thumbnailUrl = fileInfo.secure_url.replace('/upload/', '/upload/w_200,h_200,c_fill,g_auto/');
                 }
 
                 const metadata = {
                     title: fileInfo.original_filename || 'Untitled',
-                    cloudinary_url: fileInfo.secure_url,
-                    public_id: fileInfo.public_id,
+                    database_url: fileInfo.secure_url,  // Correct field name
+                    thumbnail: thumbnailUrl,            // Correct field name
                     file_type: fileInfo.resource_type,
-                    format: fileInfo.format,
-                    file_size: fileInfo.bytes,
-                    width: fileInfo.width || null,
-                    height: fileInfo.height || null,
+                    file_size: fileInfo.bytes || 0,
                     duration: fileInfo.duration || null,
-                    thumbnail_url: thumbnailUrl,
+                    original_creation_date: new Date().toISOString().split('T')[0],
                     created_at: new Date().toISOString()
                 };
 
@@ -1165,15 +1024,77 @@
                     body: JSON.stringify(metadata)
                 });
 
-                if (!response.ok) throw new Error('Failed to save to Xano');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Xano response:', errorText);
+                    throw new Error('Failed to save to Xano');
+                }
                 
                 console.log('Saved to Xano successfully');
-                showNotification('File saved to database', 'success');
+                showNotification('File saved successfully', 'success');
                 
             } catch (error) {
                 console.error('Xano save error:', error);
                 showNotification('Failed to save to database', 'error');
             }
+        }
+
+        // Load collections
+        async function loadCollections() {
+            try {
+                const response = await fetch(`${XANO_BASE}/collection`);
+                if (!response.ok) throw new Error('Failed to load collections');
+                
+                const data = await response.json();
+                allCollections = Array.isArray(data) ? data : data.items || [];
+                
+                // Populate sidebar
+                const html = allCollections.map(col => `
+                    <div class="nav-item" data-collection="${col.id}" onclick="filterByCollection(${col.id})">
+                        <span class="nav-icon">📁</span>
+                        <span>${col.name}</span>
+                        <span class="nav-count collection-count" data-id="${col.id}">0</span>
+                    </div>
+                `).join('');
+                
+                document.getElementById('collectionsContainer').innerHTML = html;
+                
+                // Populate dropdown
+                const selectHTML = '<option value="">No Collection</option>' + 
+                    allCollections.map(col => `<option value="${col.id}">${col.name}</option>`).join('');
+                document.getElementById('detailsCollection').innerHTML = selectHTML;
+                
+            } catch (error) {
+                console.error('Failed to load collections:', error);
+            }
+        }
+
+        // Load categories (you'll need to create this in Xano like collections)
+        async function loadCategories() {
+            // For now, use hardcoded categories
+            allCategories = [
+                { id: 1, name: 'News' },
+                { id: 2, name: 'Sports' },
+                { id: 3, name: 'Weather' },
+                { id: 4, name: 'Entertainment' },
+                { id: 5, name: 'Commercial' }
+            ];
+            
+            // Populate sidebar
+            const html = allCategories.map(cat => `
+                <div class="nav-item" data-category="${cat.id}" onclick="filterByCategory(${cat.id})">
+                    <span class="nav-icon">🏷️</span>
+                    <span>${cat.name}</span>
+                    <span class="nav-count category-count" data-id="${cat.id}">0</span>
+                </div>
+            `).join('');
+            
+            document.getElementById('categoriesContainer').innerHTML = html;
+            
+            // Populate dropdown
+            const selectHTML = '<option value="">No Category</option>' + 
+                allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+            document.getElementById('detailsCategory').innerHTML = selectHTML;
         }
 
         // Load files from Xano
@@ -1185,147 +1106,125 @@
                 const data = await response.json();
                 allFiles = Array.isArray(data) ? data : data.items || [];
                 
-                console.log('Loaded files:', allFiles.length, 'files');
-                console.log('Sample file data:', allFiles[0]);
+                console.log('Loaded files:', allFiles.length);
                 
-                updateFileCounts();
-                updateCollectionCounts();
+                updateCounts();
                 applyFilters();
                 
             } catch (error) {
                 console.error('Load files error:', error);
-                // Use demo data if API fails
-                allFiles = [
-                    { 
-                        id: 1, 
-                        title: 'Morning_Show_Intro.mp3', 
-                        file_type: 'audio', 
-                        file_size: 4200000,
-                        cloudinary_url: '#',
-                        created_at: new Date().toISOString()
-                    }
-                ];
-                updateFileCounts();
-                applyFilters();
+                allFiles = [];
+                renderFiles();
             }
         }
 
-        // Update file counts in sidebar
-        function updateFileCounts() {
+        // Update counts in sidebar
+        function updateCounts() {
+            // File type counts
             const counts = {
                 all: allFiles.length,
                 audio: allFiles.filter(f => f.file_type === 'audio').length,
                 video: allFiles.filter(f => f.file_type === 'video').length,
                 image: allFiles.filter(f => f.file_type === 'image').length,
-                document: allFiles.filter(f => f.file_type === 'document' || f.file_type === 'raw').length
+                raw: allFiles.filter(f => f.file_type === 'raw' || f.file_type === 'document').length
             };
             
             document.getElementById('allCount').textContent = counts.all;
             document.getElementById('audioCount').textContent = counts.audio;
             document.getElementById('videoCount').textContent = counts.video;
             document.getElementById('imageCount').textContent = counts.image;
-            document.getElementById('documentCount').textContent = counts.document;
+            document.getElementById('documentCount').textContent = counts.raw;
             
-            // Update storage info
-            const totalSize = allFiles.reduce((sum, file) => sum + (file.file_size || 0), 0);
-            document.getElementById('storageText').textContent = `${formatFileSize(totalSize)} of 10 GB`;
-            document.querySelector('.storage-used').style.width = `${(totalSize / (10 * 1024 * 1024 * 1024)) * 100}%`;
-        }
-
-        // Update collection counts
-        function updateCollectionCounts() {
-            document.querySelectorAll('[data-collection]').forEach(item => {
-                const collectionId = parseInt(item.dataset.collection);
-                const count = allFiles.filter(f => f.collection_id === collectionId).length;
-                item.querySelector('.nav-count').textContent = count;
+            // Collection counts
+            document.querySelectorAll('.collection-count').forEach(el => {
+                const id = parseInt(el.dataset.id);
+                el.textContent = allFiles.filter(f => f.collection_id === id).length;
             });
+            
+            // Category counts
+            document.querySelectorAll('.category-count').forEach(el => {
+                const id = parseInt(el.dataset.id);
+                el.textContent = allFiles.filter(f => f.category_id === id).length;
+            });
+            
+            // Storage
+            const totalSize = allFiles.reduce((sum, file) => sum + (file.file_size || 0), 0);
+            document.getElementById('storageText').textContent = formatFileSize(totalSize) + ' of 10 GB';
+            document.querySelector('.storage-used').style.width = (totalSize / (10 * 1024 * 1024 * 1024) * 100) + '%';
         }
 
-        // Apply filters
+        // Apply filters and sorting
         function applyFilters() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             
             filteredFiles = allFiles.filter(file => {
-                let matchesFilter = true;
-                
-                if (currentFilter === 'collection' && currentCollection) {
-                    matchesFilter = file.collection_id === currentCollection;
-                } else if (currentFilter !== 'all' && currentFilter !== 'collection') {
-                    matchesFilter = file.file_type === currentFilter;
-                }
+                const matchesFilter = currentFilter === 'all' || 
+                    (currentFilter.type === 'type' && file.file_type === currentFilter.value) ||
+                    (currentFilter.type === 'collection' && file.collection_id === currentFilter.value) ||
+                    (currentFilter.type === 'category' && file.category_id === currentFilter.value);
                 
                 const matchesSearch = !searchTerm || 
                     (file.title && file.title.toLowerCase().includes(searchTerm)) ||
-                    (file.description && file.description.toLowerCase().includes(searchTerm));
-                    
+                    (file.description && file.description.toLowerCase().includes(searchTerm)) ||
+                    (file.tags && file.tags.toLowerCase().includes(searchTerm));
+                
                 return matchesFilter && matchesSearch;
+            });
+            
+            // Sort
+            filteredFiles.sort((a, b) => {
+                let aVal = a[currentSort.field];
+                let bVal = b[currentSort.field];
+                
+                if (aVal === null || aVal === undefined) aVal = '';
+                if (bVal === null || bVal === undefined) bVal = '';
+                
+                if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+                if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+                
+                if (aVal < bVal) return currentSort.ascending ? -1 : 1;
+                if (aVal > bVal) return currentSort.ascending ? 1 : -1;
+                return 0;
             });
             
             renderFiles();
         }
 
-        // Render files based on current view
+        // Render file list
         function renderFiles() {
-            if (currentView === 'grid') {
-                renderGridView();
-            } else {
-                renderListView();
-            }
-        }
-
-        // Render grid view
-        function renderGridView() {
-            const gridView = document.getElementById('gridView');
+            const container = document.getElementById('listViewContent');
             
             if (filteredFiles.length === 0) {
-                gridView.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px;">No files found</div>';
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-secondary);">No files found</div>';
                 return;
             }
             
-            gridView.innerHTML = filteredFiles.map(file => {
-                const icon = getFileIcon(file.file_type);
-                const preview = getFilePreview(file);
-                
-                return `
-                    <div class="file-card" data-id="${file.id}" onclick="selectFile(this, event)">
-                        <input type="checkbox" class="file-checkbox" onclick="event.stopPropagation()">
-                        <div class="file-preview">
-                            ${preview}
-                        </div>
-                        <div class="file-name" title="${file.title}">${file.title || 'Untitled'}</div>
-                        <div class="file-meta">${formatFileSize(file.file_size)} • ${file.file_type || 'Unknown'}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // Render list view
-        function renderListView() {
-            const listContent = document.getElementById('listViewContent');
-            
-            if (filteredFiles.length === 0) {
-                listContent.innerHTML = '<div style="text-align: center; color: var(--text-secondary); padding: 40px;">No files found</div>';
-                return;
-            }
-            
-            listContent.innerHTML = filteredFiles.map(file => {
+            container.innerHTML = filteredFiles.map(file => {
                 const icon = getFileIcon(file.file_type);
                 const date = new Date(file.created_at).toLocaleDateString();
-                const collection = allCollections.find(c => c.id === file.collection_id);
+                const hasStar = file.is_featured ? '<span class="star-icon">⭐</span>' : '';
                 
                 return `
                     <div class="file-list-item" data-id="${file.id}" onclick="selectFile(this, event)">
-                        <input type="checkbox" class="file-list-checkbox" onclick="event.stopPropagation()">
-                        <div class="file-list-name">
-                            <div class="file-list-icon">${icon}</div>
-                            <span>${file.title || 'Untitled'}</span>
+                        <input type="checkbox" class="file-checkbox" onclick="event.stopPropagation()">
+                        <div class="file-thumbnail">
+                            ${file.thumbnail ? 
+                                `<img src="${file.thumbnail}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                                 <span class="file-icon-small" style="display:none;">${icon}</span>` : 
+                                `<span class="file-icon-small">${icon}</span>`}
                         </div>
-                        <div>${file.file_type || 'Unknown'}</div>
-                        <div>${date}</div>
+                        <div class="file-name ${file.is_featured ? 'featured' : ''}">
+                            ${hasStar}
+                            <span title="${file.title || 'Untitled'}">${file.title || 'Untitled'}</span>
+                        </div>
+                        <div>${file.file_type || '-'}</div>
                         <div>${formatFileSize(file.file_size)}</div>
-                        <div>${collection ? collection.name : '-'}</div>
+                        <div>${formatDuration(file.duration)}</div>
+                        <div>${file.station || '-'}</div>
+                        <div>${date}</div>
                         <div>
-                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="downloadFileById(${file.id}); event.stopPropagation();">
+                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" 
+                                    onclick="downloadFileById(${file.id}); event.stopPropagation();">
                                 ⬇️
                             </button>
                         </div>
@@ -1334,69 +1233,17 @@
             }).join('');
         }
 
-        // Get file icon based on type
-        function getFileIcon(type) {
-            const icons = {
-                'audio': '🎵',
-                'video': '🎬',
-                'image': '🖼️',
-                'document': '📄',
-                'raw': '📄'
-            };
-            return icons[type] || '📁';
-        }
-
-        // Get file preview
-        function getFilePreview(file) {
-            if (file.thumbnail_url && (file.file_type === 'image' || file.file_type === 'video')) {
-                return `<img src="${file.thumbnail_url}" alt="${file.title}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                        <span class="file-icon-large" style="display:none;">${getFileIcon(file.file_type)}</span>`;
-            } else {
-                return `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
-            }
-        }
-
-        // Format file size
-        function formatFileSize(bytes) {
-            if (!bytes || bytes === 0) return '0 B';
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(1024));
-            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-        }
-
-        // Format duration
-        function formatDuration(seconds) {
-            if (!seconds) return '-';
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return `${mins}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        // View switching
-        function setView(view, element) {
-            currentView = view;
-            document.getElementById('gridView').style.display = view === 'grid' ? 'grid' : 'none';
-            document.getElementById('listView').style.display = view === 'list' ? 'block' : 'none';
-            
-            document.querySelectorAll('.view-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            element.classList.add('active');
-            
-            renderFiles();
-        }
-
         // File selection
         function selectFile(element, event) {
             if (event) event.stopPropagation();
             
-            const fileId = element.dataset.id;
-            const file = allFiles.find(f => f.id == fileId);
+            const fileId = parseInt(element.dataset.id);
+            const file = allFiles.find(f => f.id === fileId);
             
             if (!file) return;
             
             element.classList.toggle('selected');
-            const checkbox = element.querySelector('input[type="checkbox"]');
+            const checkbox = element.querySelector('.file-checkbox');
             if (checkbox) checkbox.checked = element.classList.contains('selected');
             
             if (element.classList.contains('selected')) {
@@ -1415,30 +1262,62 @@
             currentFile = file;
             document.getElementById('detailsPanel').classList.add('active');
             
-            // Update preview
+            // Preview
             const preview = document.getElementById('detailsPreview');
-            if (file.file_type === 'image' && file.cloudinary_url) {
-                preview.innerHTML = `<img src="${file.cloudinary_url}" alt="${file.title}">`;
-            } else if (file.file_type === 'video' && file.cloudinary_url) {
-                preview.innerHTML = `<video src="${file.cloudinary_url}" controls></video>`;
-            } else if (file.file_type === 'audio' && file.cloudinary_url) {
-                preview.innerHTML = `<audio src="${file.cloudinary_url}" controls style="width: 100%;"></audio>`;
+            if (file.database_url) {
+                if (file.file_type === 'image') {
+                    preview.innerHTML = `<img src="${file.database_url}" alt="${file.title}">`;
+                } else if (file.file_type === 'video') {
+                    preview.innerHTML = `<video src="${file.database_url}" controls style="width: 100%;"></video>`;
+                } else if (file.file_type === 'audio') {
+                    preview.innerHTML = `<audio src="${file.database_url}" controls style="width: 100%;"></audio>`;
+                } else {
+                    preview.innerHTML = `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
+                }
             } else {
                 preview.innerHTML = `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
             }
             
-            // Update fields
-            document.getElementById('detailsFileName').value = file.title || '';
-            document.getElementById('detailsCollection').value = file.collection_id || '';
+            // Basic fields
+            document.getElementById('detailsTitle').value = file.title || '';
             document.getElementById('detailsDescription').value = file.description || '';
+            document.getElementById('detailsStation').value = file.station || '';
+            document.getElementById('detailsSubmittedBy').value = file.submitted_by || '';
+            document.getElementById('detailsCategory').value = file.category_id || '';
+            document.getElementById('detailsCollection').value = file.collection_id || '';
             document.getElementById('detailsTags').value = file.tags || '';
-            document.getElementById('detailsType').textContent = `${file.file_type || 'unknown'} (${file.format || 'unknown'})`;
+            document.getElementById('detailsFeatured').checked = file.is_featured || false;
+            
+            // Notes (combined)
+            document.getElementById('detailsNotes').value = file.notes1 || '';
+            
+            // Dates
+            document.getElementById('detailsOriginalDate').value = file.original_creation_date || file.created_at?.split('T')[0] || '';
+            
+            // Convert timestamps to datetime-local format
+            if (file.scheduled_publish_date) {
+                document.getElementById('detailsPublishDate').value = file.scheduled_publish_date.slice(0, 16);
+            } else {
+                document.getElementById('detailsPublishDate').value = '';
+            }
+            
+            if (file.scheduled_unpublish_date) {
+                document.getElementById('detailsUnpublishDate').value = file.scheduled_unpublish_date.slice(0, 16);
+            } else {
+                document.getElementById('detailsUnpublishDate').value = '';
+            }
+            
+            // File info
+            document.getElementById('detailsType').textContent = file.file_type || 'Unknown';
             document.getElementById('detailsSize').textContent = formatFileSize(file.file_size);
-            document.getElementById('detailsDimensions').textContent = file.width && file.height ? `${file.width} × ${file.height}` : '-';
             document.getElementById('detailsDuration').textContent = formatDuration(file.duration);
-            document.getElementById('detailsModified').textContent = new Date(file.created_at).toLocaleString();
-            document.getElementById('detailsUrl').value = file.cloudinary_url || '';
-            document.getElementById('detailsPublicId').value = file.public_id || '';
+            document.getElementById('detailsUploaded').textContent = new Date(file.created_at).toLocaleString();
+            
+            // Update station history
+            if (file.station && !stationHistory.includes(file.station)) {
+                stationHistory.unshift(file.station);
+                stationHistory = stationHistory.slice(0, 10); // Keep last 10
+            }
         }
 
         // Save file changes
@@ -1446,11 +1325,22 @@
             if (!currentFile) return;
             
             try {
+                const publishDate = document.getElementById('detailsPublishDate').value;
+                const unpublishDate = document.getElementById('detailsUnpublishDate').value;
+                
                 const updatedData = {
-                    title: document.getElementById('detailsFileName').value,
-                    collection_id: parseInt(document.getElementById('detailsCollection').value) || null,
+                    title: document.getElementById('detailsTitle').value,
                     description: document.getElementById('detailsDescription').value,
-                    tags: document.getElementById('detailsTags').value
+                    station: document.getElementById('detailsStation').value,
+                    submitted_by: document.getElementById('detailsSubmittedBy').value,
+                    category_id: parseInt(document.getElementById('detailsCategory').value) || null,
+                    collection_id: parseInt(document.getElementById('detailsCollection').value) || null,
+                    tags: document.getElementById('detailsTags').value,
+                    is_featured: document.getElementById('detailsFeatured').checked,
+                    notes1: document.getElementById('detailsNotes').value,
+                    original_creation_date: document.getElementById('detailsOriginalDate').value,
+                    scheduled_publish_date: publishDate ? new Date(publishDate).toISOString() : null,
+                    scheduled_unpublish_date: unpublishDate ? new Date(unpublishDate).toISOString() : null
                 };
                 
                 const response = await fetch(`${XANO_BASE}/asset/${currentFile.id}`, {
@@ -1461,12 +1351,11 @@
                 
                 if (!response.ok) throw new Error('Failed to update file');
                 
-                // Update local data
                 Object.assign(currentFile, updatedData);
                 
                 showNotification('File updated successfully', 'success');
                 renderFiles();
-                updateCollectionCounts();
+                updateCounts();
                 
             } catch (error) {
                 console.error('Update error:', error);
@@ -1485,15 +1374,12 @@
                     method: 'DELETE'
                 });
                 
-                if (!response.ok) throw new Error('Failed to delete file');
+                if (!response.ok) throw new Error('Failed to delete');
                 
-                // Remove from local data
                 allFiles = allFiles.filter(f => f.id !== currentFile.id);
-                
                 closeDetails();
                 showNotification('File deleted', 'success');
-                updateFileCounts();
-                updateCollectionCounts();
+                updateCounts();
                 applyFilters();
                 
             } catch (error) {
@@ -1502,26 +1388,163 @@
             }
         }
 
-        // Open full preview
+        // Delete selected files
+        async function deleteSelected() {
+            if (selectedFiles.size === 0) {
+                showNotification('No files selected', 'warning');
+                return;
+            }
+            
+            if (!confirm(`Delete ${selectedFiles.size} selected files?`)) return;
+            
+            let deleted = 0;
+            for (const fileId of selectedFiles) {
+                try {
+                    const response = await fetch(`${XANO_BASE}/asset/${fileId}`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        deleted++;
+                        allFiles = allFiles.filter(f => f.id !== fileId);
+                    }
+                } catch (error) {
+                    console.error(`Failed to delete file ${fileId}:`, error);
+                }
+            }
+            
+            selectedFiles.clear();
+            closeDetails();
+            showNotification(`Deleted ${deleted} files`, 'success');
+            updateCounts();
+            applyFilters();
+        }
+
+        // Station autocomplete
+        function handleStationInput(input) {
+            const value = input.value.toLowerCase();
+            const suggestions = document.getElementById('stationSuggestions');
+            
+            if (value.length < 1) {
+                suggestions.classList.remove('active');
+                return;
+            }
+            
+            const matches = stationHistory.filter(s => s.toLowerCase().includes(value));
+            
+            if (matches.length > 0) {
+                suggestions.innerHTML = matches.map(s => 
+                    `<div class="autocomplete-item" onclick="selectStation('${s}')">${s}</div>`
+                ).join('');
+                suggestions.classList.add('active');
+            } else {
+                suggestions.classList.remove('active');
+            }
+        }
+
+        function selectStation(station) {
+            document.getElementById('detailsStation').value = station;
+            document.getElementById('stationSuggestions').classList.remove('active');
+        }
+
+        // Utility functions
+        function getFileIcon(type) {
+            const icons = {
+                'audio': '🎵',
+                'video': '🎬',
+                'image': '🖼️',
+                'raw': '📄',
+                'document': '📄'
+            };
+            return icons[type] || '📁';
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes || bytes === 0) return '0 B';
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(1024));
+            return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function formatDuration(seconds) {
+            if (!seconds) return '-';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Sorting
+        function sortBy(field) {
+            if (currentSort.field === field) {
+                currentSort.ascending = !currentSort.ascending;
+            } else {
+                currentSort.field = field;
+                currentSort.ascending = true;
+            }
+            applyFilters();
+        }
+
+        // Filtering
+        function filterByType(type) {
+            currentFilter = type === 'all' ? 'all' : { type: 'type', value: type };
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.target.closest('.nav-item').classList.add('active');
+            applyFilters();
+        }
+
+        function filterByCollection(id) {
+            currentFilter = { type: 'collection', value: id };
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            applyFilters();
+        }
+
+        function filterByCategory(id) {
+            currentFilter = { type: 'category', value: id };
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            applyFilters();
+        }
+
+        // UI functions
+        function showUploadZone() {
+            document.getElementById('uploadZone').classList.add('active');
+        }
+
+        function closeUploadZone() {
+            document.getElementById('uploadZone').classList.remove('active');
+        }
+
+        function openCloudinaryWidget() {
+            if (cloudinaryWidget) {
+                cloudinaryWidget.open();
+                closeUploadZone();
+            }
+        }
+
+        function closeDetails() {
+            document.getElementById('detailsPanel').classList.remove('active');
+            currentFile = null;
+        }
+
         function openFullPreview() {
-            if (!currentFile) return;
+            if (!currentFile || !currentFile.database_url) return;
             
             const modal = document.getElementById('previewModal');
             const content = document.getElementById('modalPreviewContent');
             
             if (currentFile.file_type === 'image') {
-                content.innerHTML = `<img src="${currentFile.cloudinary_url}" style="max-width: 100%; max-height: 90vh;">`;
+                content.innerHTML = `<img src="${currentFile.database_url}" style="max-width: 100%; max-height: 90vh;">`;
             } else if (currentFile.file_type === 'video') {
-                content.innerHTML = `<video src="${currentFile.cloudinary_url}" controls style="max-width: 100%; max-height: 90vh;"></video>`;
+                content.innerHTML = `<video src="${currentFile.database_url}" controls style="max-width: 100%; max-height: 90vh;"></video>`;
             } else if (currentFile.file_type === 'audio') {
                 content.innerHTML = `
                     <div style="background: white; padding: 40px; border-radius: 8px;">
                         <h2 style="color: black; margin-bottom: 20px;">${currentFile.title}</h2>
-                        <audio src="${currentFile.cloudinary_url}" controls style="width: 400px;"></audio>
+                        <audio src="${currentFile.database_url}" controls style="width: 400px;"></audio>
                     </div>
                 `;
             } else {
-                window.open(currentFile.cloudinary_url, '_blank');
+                window.open(currentFile.database_url, '_blank');
                 return;
             }
             
@@ -1532,42 +1555,38 @@
             document.getElementById('previewModal').classList.remove('active');
         }
 
-        // Select all files
         function selectAll() {
-            document.querySelectorAll('.file-card, .file-list-item').forEach(el => {
+            document.querySelectorAll('.file-list-item').forEach(el => {
                 el.classList.add('selected');
-                const checkbox = el.querySelector('input[type="checkbox"]');
+                const checkbox = el.querySelector('.file-checkbox');
                 if (checkbox) checkbox.checked = true;
-                selectedFiles.add(el.dataset.id);
+                selectedFiles.add(parseInt(el.dataset.id));
             });
         }
 
-        // Upload zone
-        function showUploadZone() {
-            if (cloudinaryWidget) {
-                cloudinaryWidget.open();
-            } else {
-                document.getElementById('uploadZone').classList.add('active');
+        function downloadFile() {
+            if (currentFile && currentFile.database_url) {
+                window.open(currentFile.database_url, '_blank');
             }
         }
 
-        function closeUploadZone() {
-            document.getElementById('uploadZone').classList.remove('active');
-        }
-
-        function openFileBrowser() {
-            if (cloudinaryWidget) {
-                cloudinaryWidget.open();
+        function downloadFileById(id) {
+            const file = allFiles.find(f => f.id === id);
+            if (file && file.database_url) {
+                window.open(file.database_url, '_blank');
             }
         }
 
-        // Details panel
-        function closeDetails() {
-            document.getElementById('detailsPanel').classList.remove('active');
-            currentFile = null;
+        function refreshFiles() {
+            loadFiles();
         }
 
-        // Progress functions
+        function setView(view, element) {
+            // Currently only list view
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            element.classList.add('active');
+        }
+
         function showProgress(text, percent = 0) {
             const progress = document.getElementById('uploadProgress');
             progress.classList.add('active');
@@ -1582,122 +1601,41 @@
             }, 1000);
         }
 
-        // Download file
-        function downloadFile() {
-            if (currentFile && currentFile.cloudinary_url) {
-                window.open(currentFile.cloudinary_url, '_blank');
-            }
+        function showNotification(message, type = 'info') {
+            console.log(`[${type}] ${message}`);
+            // You could add a toast notification here
         }
 
-        function downloadFileById(id) {
-            const file = allFiles.find(f => f.id == id);
-            if (file && file.cloudinary_url) {
-                window.open(file.cloudinary_url, '_blank');
-            }
-        }
-
-        // Context menu
-        document.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            const contextMenu = document.getElementById('contextMenu');
-            contextMenu.style.left = e.pageX + 'px';
-            contextMenu.style.top = e.pageY + 'px';
-            contextMenu.classList.add('active');
-        });
-
-        document.addEventListener('click', function() {
-            document.getElementById('contextMenu').classList.remove('active');
-        });
-
-        // Search functionality
+        // Search
         document.getElementById('searchInput').addEventListener('input', applyFilters);
 
         // Filter navigation
-        document.querySelectorAll('.nav-item[data-filter]').forEach(item => {
+        document.querySelectorAll('[data-filter]').forEach(item => {
             item.addEventListener('click', function() {
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                this.classList.add('active');
-                currentFilter = this.dataset.filter;
-                currentCollection = null;
-                document.getElementById('currentFolder').textContent = this.querySelector('span:nth-child(2)').textContent;
-                applyFilters();
+                filterByType(this.dataset.filter);
             });
         });
 
-        // Placeholder functions
-        function syncToWebflow() {
-            showNotification('Syncing to Webflow...', 'info');
-        }
-
-        function deleteSelected() {
-            if (confirm(`Delete ${selectedFiles.size} selected files?`)) {
-                showNotification('Files deleted', 'success');
-                loadFiles();
+        // Click outside to close autocomplete
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.autocomplete-container')) {
+                document.getElementById('stationSuggestions').classList.remove('active');
             }
-        }
-
-        function copySelected() {
-            showNotification('Files copied to clipboard', 'success');
-        }
-
-        function moveSelected() {
-            showNotification('Select destination folder', 'info');
-        }
-
-        // Notifications
-        function showNotification(message, type = 'info') {
-            console.log(`[${type}] ${message}`);
-            // You can add a toast notification UI here
-        }
-
-        // Drag and drop
-        document.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            document.getElementById('uploadZone').classList.add('active');
-        });
-
-        document.addEventListener('dragleave', function(e) {
-            if (e.clientX === 0 && e.clientY === 0) {
-                document.getElementById('uploadZone').classList.remove('active');
-            }
-        });
-
-        document.addEventListener('drop', function(e) {
-            e.preventDefault();
-            document.getElementById('uploadZone').classList.remove('active');
-            if (cloudinaryWidget) {
-                cloudinaryWidget.open();
-            }
-        });
-
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', async function() {
-            initCloudinaryWidget();
-            await loadCollections();
-            await loadFiles();
         });
 
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
-            // Ctrl+A - Select all
+            if (e.key === 'Escape') {
+                closeDetails();
+                closePreviewModal();
+                closeUploadZone();
+                selectedFiles.clear();
+                document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+            }
+            
             if (e.ctrlKey && e.key === 'a') {
                 e.preventDefault();
                 selectAll();
-            }
-            
-            // Delete key
-            if (e.key === 'Delete' && selectedFiles.size > 0) {
-                deleteSelected();
-            }
-            
-            // Escape - Clear selection
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.selected').forEach(el => {
-                    el.classList.remove('selected');
-                });
-                selectedFiles.clear();
-                closeDetails();
-                closePreviewModal();
             }
         });
     </script>
