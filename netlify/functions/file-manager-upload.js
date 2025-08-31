@@ -1,151 +1,319 @@
 // netlify/functions/file-manager-upload.js
+// FIXED VERSION WITH PROPER ERROR HANDLING
+
+const busboy = require('busboy');
+const cloudinary = require('cloudinary').v2;
 const https = require('https');
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-};
-const json = (code, body) => ({
-  statusCode: code,
-  headers: { ...CORS, 'content-type': 'application/json' },
-  body: JSON.stringify(body),
-});
-
-const htmlPage = "<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Idaho Broadcasting Media Upload</title><style>body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial,sans-serif;background:linear-gradient(135deg,#1e3c72,#2a5298)}.wrap{max-width:860px;margin:0 auto;padding:22px}.card{background:#fff;border-radius:16px;box-shadow:0 18px 40px rgba(0,0,0,.18);overflow:hidden}.head{padding:22px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff}.head h1{margin:0;font-weight:800}.head p{margin:6px 0 0}.body{padding:22px}label{font-weight:700;display:block;margin:12px 0 6px}input,select,textarea{width:100%;padding:10px 12px;border:2px solid #e5e7eb;border-radius:10px;background:#f9fafb;font-size:15px}input[type=file]{background:#fff}textarea{min-height:90px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.btn{display:inline-flex;gap:8px;align-items:center;margin-top:14px;padding:12px 16px;border:0;border-radius:10px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-weight:800;cursor:pointer}.btn:disabled{opacity:.6;cursor:not-allowed}.msg{margin-top:14px;border-radius:10px;padding:12px;font-weight:700;display:none}.ok{background:#ecfdf5;color:#065f46;border:1px solid #bbf7d0}.err{background:#fef2f2;color:#7f1d1d;border:1px solid #fecaca}.prog{height:8px;background:#e5e7eb;border-radius:8px;overflow:hidden;margin-top:10px;display:none}.bar{height:100%;width:0;background:linear-gradient(135deg,#667eea,#764ba2);transition:width .2s}small{color:#6b7280}.fileinfo{color:#334155;font-size:13px;margin-top:6px}</style></head><body><div class='wrap'><div class='card'><div class='head'><h1>Idaho Broadcasting Media Upload</h1><p>Upload media files to the VoxPro system</p></div><div class='body'><div id='ok' class='msg ok'></div><div id='err' class='msg err'></div><form id='f'><label>Media file <small>(required; max 250MB)</small></label><input type='file' id='file' required accept='.mp4,.mov,.avi,.mkv,.wmv,.flv,.mp3,.wav,.aac,.m4a,.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx'><div id='fileinfo' class='fileinfo'></div><div class='row'><div><label>Title *</label><input id='title' placeholder='Enter media title' required></div><div><label>Submitted By</label><input id='submittedBy' placeholder='Your name'></div></div><label>Description</label><textarea id='description' placeholder='Enter media description'></textarea><div class='row'><div><label>Category</label><select id='category'><option value=''>Select category</option><option>Audio</option><option>Video</option><option>Photo</option><option>Document</option><option>Other</option></select></div><div><label>Station</label><input id='station' placeholder='Enter station' list='stationList'><datalist id='stationList'></datalist></div></div><div class='row'><div><label>Tags</label><input id='tags' placeholder='Comma separated'></div><div><label>Priority</label><select id='priority'><option>Normal</option><option>High</option><option>Low</option></select></div></div><label>Notes</label><textarea id='notes' placeholder='Additional notes or comments'></textarea><div class='prog' id='prog'><div class='bar' id='bar'></div></div><button class='btn' id='submitBtn' type='submit'>Upload Media</button></form><div style='margin-top:20px;text-align:center'><a href='/voxpro-manager' style='color:#667eea;text-decoration:none;font-weight:600'>← Back to VoxPro Manager</a></div></div></div></div><script>(function(){const MAX=262144000,$=id=>document.getElementById(id),form=$('f'),ok=$('ok'),err=$('err'),file=$('file'),info=$('fileinfo'),bar=$('bar'),prog=$('prog'),btn=$('submitBtn');function okMsg(m){ok.textContent=m;ok.style.display='block';err.style.display='none'}function errMsg(m){err.textContent=m;err.style.display='block';ok.style.display='none'}function reset(){prog.style.display='none';bar.style.width='0'}const loadStations=()=>{const stations=JSON.parse(localStorage.getItem('voxpro_stations')||'[]');const datalist=$('stationList');datalist.innerHTML=stations.map(s=>'<option value=\"'+s+'\">').join('')};loadStations();file.addEventListener('change',()=>{const f=file.files[0];if(!f){info.textContent='';return}if(f.size>MAX){errMsg('File exceeds 250MB limit.');file.value='';info.textContent='';return}info.textContent='Selected: '+f.name+' • '+(f.size/1048576).toFixed(2)+' MB • '+(f.type||'unknown')});form.addEventListener('submit',async(e)=>{e.preventDefault();const f=file.files[0];if(!f){return errMsg('Please select a file.')}if(f.size>MAX){return errMsg('File exceeds 250MB limit.')}const stationVal=$('station').value;if(stationVal){const stations=JSON.parse(localStorage.getItem('voxpro_stations')||'[]');if(!stations.includes(stationVal)){stations.unshift(stationVal);if(stations.length>10)stations.pop();localStorage.setItem('voxpro_stations',JSON.stringify(stations))}}const fd=new FormData();fd.append('attachment',f);fd.append('title',$('title').value||'Untitled');fd.append('description',$('description').value||'');fd.append('submitted_by',$('submittedBy').value||'Anonymous');fd.append('notes',$('notes').value||'');fd.append('tags',$('tags').value||'');fd.append('category',$('category').value||'Other');fd.append('station',$('station').value||'');fd.append('priority',$('priority').value||'Normal');fd.append('file_type',f.type||'unknown');fd.append('file_size',String(f.size));fd.append('filename',f.name);fd.append('is_approved','false');btn.disabled=true;prog.style.display='block';bar.style.width='25%';okMsg('');errMsg('');try{const res=await fetch('/.netlify/functions/file-manager-upload',{method:'POST',body:fd});bar.style.width='70%';const text=await res.text();let data;try{data=JSON.parse(text)}catch{data={message:text}}if(res.ok){bar.style.width='100%';okMsg('File uploaded successfully! You can now find it in VoxPro Manager.');form.reset();info.textContent='';reset()}else{errMsg((data.error||data.message||'Upload failed.')+(data.stage?(' ['+data.stage+']'):' '));reset()}}catch(ex){errMsg('Upload failed: '+ex.message);reset()}finally{btn.disabled=false}})})();</script></body></html>";
+// HTML page for GET requests
+const htmlPage = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Idaho Broadcasting Media Upload</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; font-weight: 300; }
+        .header p { font-size: 1.1em; opacity: 0.9; }
+        .form-container { padding: 40px; }
+        .form-group { margin-bottom: 25px; }
+        .form-group label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; font-size: 0.95em; }
+        .form-group label.required::after { content: ' *'; color: #e74c3c; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 15px; border: 2px solid #e1e8ed; border-radius: 8px; font-size: 1em; transition: all 0.3s ease; background-color: #fafbfc; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #667eea; background-color: white; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
+        .form-group textarea { resize: vertical; min-height: 100px; }
+        .upload-btn { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 1.1em; font-weight: 600; cursor: pointer; transition: all 0.3s ease; width: 100%; margin-top: 20px; }
+        .upload-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3); }
+        .upload-btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; box-shadow: none; }
+        .back-link { display: inline-block; margin-top: 20px; color: #667eea; text-decoration: none; font-weight: 500; }
+        .progress-container { margin-top: 20px; display: none; }
+        .progress-bar { width: 100%; height: 20px; background-color: #e1e8ed; border-radius: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s ease; }
+        .message { padding: 15px; border-radius: 8px; margin-top: 20px; display: none; }
+        .success-message { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error-message { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Idaho Broadcasting Media Upload</h1>
+            <p>Upload media files to the VoxPro system</p>
+        </div>
+        <div class="form-container">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="mediaFile" class="required">Select Media File:</label>
+                    <input type="file" id="mediaFile" name="attachment" accept="audio/*,video/*,image/*,.pdf,.doc,.docx" required>
+                </div>
+                <div class="form-group">
+                    <label for="title" class="required">Title:</label>
+                    <input type="text" id="title" name="title" placeholder="Enter media title" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" placeholder="Enter media description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="category">Category:</label>
+                    <select id="category" name="category">
+                        <option value="">Select category</option>
+                        <option value="Audio">Audio</option>
+                        <option value="Video">Video</option>
+                        <option value="Photo">Photo</option>
+                        <option value="Document">Document</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="station">Station:</label>
+                    <select id="station" name="station">
+                        <option value="">Select station</option>
+                        <option value="KIVI">KIVI</option>
+                        <option value="KNIN">KNIN</option>
+                        <option value="KGEM">KGEM</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="submittedBy">Submitted By:</label>
+                    <input type="text" id="submittedBy" name="submitted_by" placeholder="Your name">
+                </div>
+                <button type="submit" class="upload-btn" id="uploadBtn">Upload Media</button>
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+                </div>
+                <div class="message success-message" id="successMessage"></div>
+                <div class="message error-message" id="errorMessage"></div>
+                <a href="/voxpro-manager" class="back-link">← Back to VoxPro Manager</a>
+            </form>
+        </div>
+    </div>
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const btn = document.getElementById('uploadBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            const successMsg = document.getElementById('successMessage');
+            const errorMsg = document.getElementById('errorMessage');
+            
+            btn.disabled = true;
+            btn.textContent = 'Uploading...';
+            progressContainer.style.display = 'block';
+            successMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+            
+            try {
+                progressFill.style.width = '50%';
+                const response = await fetch('/.netlify/functions/file-manager-upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                progressFill.style.width = '100%';
+                
+                if (response.ok) {
+                    successMsg.textContent = 'File uploaded successfully!';
+                    successMsg.style.display = 'block';
+                    e.target.reset();
+                } else {
+                    const error = await response.text();
+                    throw new Error(error || 'Upload failed');
+                }
+            } catch (error) {
+                errorMsg.textContent = 'Upload failed: ' + error.message;
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Upload Media';
+                setTimeout(() => { progressContainer.style.display = 'none'; progressFill.style.width = '0'; }, 2000);
+            }
+        });
+    </script>
+</body>
+</html>`;
 
 exports.handler = async (event) => {
-  // CORS / preflight
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: CORS, body: '' };
-
-  // Serve the upload PAGE on GET (no JSON anymore)
-  if (event.httpMethod === 'GET') {
-    return { statusCode: 200, headers: { ...CORS, 'content-type': 'text/html; charset=utf-8' }, body: htmlPage };
-  }
-
-  if (event.httpMethod !== 'POST') return json(405, { ok: false, error: 'Method not allowed' });
-
-  // Env check
-  const {
-    CLOUDINARY_CLOUD_NAME,
-    CLOUDINARY_API_KEY,
-    CLOUDINARY_API_SECRET,
-    XANO_API_KEY,
-    XANO_API_BASE,
-  } = process.env;
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET)
-    return json(500, { ok: false, stage: 'env', error: 'Missing Cloudinary env vars' });
-  if (!XANO_API_KEY || !XANO_API_BASE)
-    return json(500, { ok: false, stage: 'env', error: 'Missing Xano env vars' });
-
-  // Lazy-require for POST
-  let Busboy, cloudinary;
-  try {
-    Busboy = require('busboy');
-    cloudinary = require('cloudinary').v2;
-  } catch (e) {
-    return json(500, { ok: false, stage: 'deps', error: 'Missing dependency', detail: e.message });
-  }
-  cloudinary.config({
-    cloud_name: CLOUDINARY_CLOUD_NAME,
-    api_key: CLOUDINARY_API_KEY,
-    api_secret: CLOUDINARY_API_SECRET,
-  });
-
-  // Parse multipart
-  const parseMultipart = () =>
-    new Promise((resolve, reject) => {
-      const contentType = event.headers['content-type'] || event.headers['Content-Type'] || '';
-      if (!/multipart\/form-data/i.test(contentType)) {
-        return reject(new Error(`Invalid content-type: ${contentType || 'undefined'}`));
-      }
-      const bb = Busboy({ headers: { 'content-type': contentType } });
-      const fields = {};
-      let file = null;
-      bb.on('file', (name, stream, info) => {
-        const { filename, mimeType } = info;
-        const chunks = [];
-        stream.on('data', (d) => chunks.push(d));
-        stream.on('end', () => {
-          if (name === 'attachment' || !file) {
-            file = { fieldname: name, filename, mimeType, buffer: Buffer.concat(chunks) };
-          }
-        });
-      });
-      bb.on('field', (n, v) => (fields[n] = v));
-      bb.on('error', reject);
-      bb.on('finish', () => resolve({ fields, file }));
-      const bodyBuf = Buffer.from(event.body || '', event.isBase64Encoded ? 'base64' : 'utf8');
-      bb.end(bodyBuf);
-    });
-
-  try {
-    const { fields, file } = await parseMultipart();
-    if (!file) return json(400, { ok: false, stage: 'parse', error: 'No file (field \"attachment\")' });
-
-    // Upload to Cloudinary
-    const cloudRes = await new Promise((resolve, reject) => {
-      const up = cloudinary.uploader.upload_stream(
-        { resource_type: 'auto', eager: [{ width: 300, height: 300, crop: 'thumb' }] },
-        (err, res) => (err ? reject(err) : resolve(res))
-      );
-      up.end(file.buffer);
-    });
-
-    // Build Xano payload
-    const payload = {
-      title: fields.title || file.filename || 'Untitled',
-      description: fields.description || '',
-      submitted_by: fields.submitted_by || 'Anonymous',
-      notes: fields.notes || '',
-      tags: fields.tags || '',
-      category: fields.category || 'Other',
-      station: fields.station || '',
-      priority: fields.priority || 'Normal',
-      file_type: file.mimeType || 'unknown',
-      file_size: String(file.buffer.length),
-      filename: fields.filename || file.filename || '',
-      is_approved: String(fields.is_approved || 'false') === 'true',
-      file_url: cloudRes.secure_url,
-      thumbnail_url: cloudRes.eager?.[0]?.secure_url || '',
-      created_at: Date.now(),
+    const headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
     };
 
-    // POST to Xano
-    let xanoUrl;
-    try {
-      xanoUrl = new URL(XANO_API_BASE.replace(/\/+$/, '') + '/user_submission');
-    } catch {
-      return json(500, { ok: false, stage: 'env', error: 'Invalid XANO_API_BASE' });
+    // Handle preflight
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 200, headers, body: '' };
     }
-    const xanoResp = await new Promise((resolve) => {
-      const req = https.request(
-        {
-          protocol: xanoUrl.protocol,
-          hostname: xanoUrl.hostname,
-          path: xanoUrl.pathname + xanoUrl.search,
-          method: 'POST',
-          headers: {
-            Authorization: 'Bearer ' + XANO_API_KEY,
-            'Content-Type': 'application/json',
-          },
-        },
-        (res) => {
-          let data = '';
-          res.on('data', (c) => (data += c));
-          res.on('end', () => resolve({ status: res.statusCode, body: data }));
-        }
-      );
-      req.on('error', (e) => resolve({ status: 500, body: JSON.stringify({ error: e.message }) }));
-      req.write(JSON.stringify(payload));
-      req.end();
+
+    // Serve HTML on GET
+    if (event.httpMethod === 'GET') {
+        return {
+            statusCode: 200,
+            headers: { ...headers, 'Content-Type': 'text/html' },
+            body: htmlPage
+        };
+    }
+
+    // Handle POST upload
+    if (event.httpMethod !== 'POST') {
+        return {
+            statusCode: 405,
+            headers,
+            body: JSON.stringify({ error: 'Method not allowed' })
+        };
+    }
+
+    // Check environment variables
+    const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = process.env;
+    
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) {
+        console.error('Missing Cloudinary environment variables');
+        return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ 
+                error: 'Server configuration error: Cloudinary credentials not configured',
+                help: 'Add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to Netlify environment variables'
+            })
+        };
+    }
+
+    // Configure Cloudinary
+    cloudinary.config({
+        cloud_name: CLOUDINARY_CLOUD_NAME,
+        api_key: CLOUDINARY_API_KEY,
+        api_secret: CLOUDINARY_API_SECRET
     });
 
-    let xanoBody = xanoResp.body;
-    try { xanoBody = JSON.parse(xanoResp.body); } catch {}
+    try {
+        // Parse multipart form data
+        const contentType = event.headers['content-type'] || event.headers['Content-Type'];
+        const bb = busboy({ headers: { 'content-type': contentType } });
+        
+        const fields = {};
+        let fileData = null;
+        
+        const parsePromise = new Promise((resolve, reject) => {
+            bb.on('file', (name, stream, info) => {
+                const chunks = [];
+                stream.on('data', chunk => chunks.push(chunk));
+                stream.on('end', () => {
+                    fileData = {
+                        filename: info.filename,
+                        mimeType: info.mimeType,
+                        buffer: Buffer.concat(chunks)
+                    };
+                });
+            });
+            
+            bb.on('field', (name, value) => {
+                fields[name] = value;
+            });
+            
+            bb.on('finish', () => resolve({ fields, file: fileData }));
+            bb.on('error', reject);
+        });
+        
+        const bodyBuffer = Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8');
+        bb.end(bodyBuffer);
+        
+        const { fields: formFields, file } = await parsePromise;
+        
+        if (!file) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'No file uploaded' })
+            };
+        }
 
-    return json(200, { ok: true, cloudinary: cloudRes, xano: { status: xanoResp.status, body: xanoBody } });
-  } catch (e) {
-    return json(500, { ok: false, stage: 'handler', error: e.message });
-  }
+        // Upload to Cloudinary
+        console.log('Uploading to Cloudinary...');
+        const uploadResult = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                { 
+                    resource_type: 'auto',
+                    folder: 'voxpro'
+                },
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            );
+            uploadStream.end(file.buffer);
+        });
+
+        console.log('Cloudinary upload successful:', uploadResult.secure_url);
+
+        // Save to database
+        const XANO_API_BASE = process.env.XANO_API_BASE || 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
+        
+        const dbData = {
+            title: formFields.title || file.filename,
+            description: formFields.description || '',
+            category: formFields.category || 'Other',
+            station: formFields.station || '',
+            submitted_by: formFields.submitted_by || '',
+            cloudinary_url: uploadResult.secure_url,
+            file_url: uploadResult.secure_url,
+            thumbnail_url: uploadResult.secure_url,
+            file_type: uploadResult.resource_type,
+            file_size: uploadResult.bytes,
+            created_at: new Date().toISOString()
+        };
+
+        // Save to Xano
+        const xanoUrl = new URL(`${XANO_API_BASE}/user_submission`);
+        const xanoResponse = await new Promise((resolve) => {
+            const req = https.request(
+                {
+                    hostname: xanoUrl.hostname,
+                    path: xanoUrl.pathname,
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': process.env.XANO_API_KEY ? `Bearer ${process.env.XANO_API_KEY}` : undefined
+                    }
+                },
+                (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => resolve({ status: res.statusCode, body: data }));
+                }
+            );
+            req.on('error', (e) => resolve({ status: 500, body: e.message }));
+            req.write(JSON.stringify(dbData));
+            req.end();
+        });
+
+        if (xanoResponse.status !== 200 && xanoResponse.status !== 201) {
+            console.error('Xano save failed:', xanoResponse);
+        }
+
+        return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+                success: true,
+                message: 'File uploaded successfully',
+                url: uploadResult.secure_url
+            })
+        };
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ 
+                error: 'Upload failed', 
+                message: error.message 
+            })
+        };
+    }
 };
