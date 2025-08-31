@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HOIBF File Management System</title>
-    <meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com https://upload-widget.cloudinary.com https://xgm6-u3bi-jbxy.n7c.xano.io https://*.xano.io; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://upload-widget.cloudinary.com; style-src 'self' 'unsafe-inline'; default-src *;">
     <style>
         :root {
             --bg-primary: #0a0e1a;
@@ -954,7 +953,7 @@
     </div>
 
     <script>
-        // Global state
+        // Global state - define all variables in global scope
         let allFiles = [];
         let filteredFiles = [];
         let allCollections = [];
@@ -971,10 +970,12 @@
         const CLOUDINARY_PRESET = 'hoibf_preset';
         const XANO_BASE = 'https://xgm6-u3bi-jbxy.n7c.xano.io/api:VhM7OdLM';
 
-        // Setup upload zone
+        // Define all functions in global scope
         function setupUploadZone() {
             const dropZone = document.getElementById('dropZone');
             const fileInput = document.getElementById('fileInput');
+            
+            if (!dropZone || !fileInput) return;
             
             dropZone.addEventListener('click', () => fileInput.click());
             
@@ -998,7 +999,6 @@
             });
         }
 
-        // Handle file selection for upload
         function handleFileSelection(files) {
             pendingUploadFiles = Array.from(files);
             const listEl = document.getElementById('selectedFilesList');
@@ -1014,7 +1014,6 @@
             }
         }
 
-        // Upload files
         async function uploadFiles() {
             if (pendingUploadFiles.length === 0) return;
             
@@ -1052,10 +1051,9 @@
             showNotification(`Uploaded ${uploaded} of ${total} files`, uploaded === total ? 'success' : 'warning');
         }
 
-        // Save to Xano with correct field mapping - FIXED VERSION
         async function saveToXano(fileInfo) {
             try {
-                // Generate thumbnail URL for videos and images
+                // Generate thumbnail URL for videos and images - FIXED VERSION
                 let thumbnailUrl = '';
                 if (fileInfo.resource_type === 'video') {
                     // For videos: extract frame and convert to jpg
@@ -1068,7 +1066,7 @@
                 }
 
                 const metadata = {
-                    title: '',  // Leave blank for user to enter meaningful title
+                    title: '',  // Leave blank for user to enter meaningful title - FIXED
                     database_url: fileInfo.secure_url,
                     thumbnail: thumbnailUrl,
                     file_type: fileInfo.resource_type,
@@ -1098,7 +1096,6 @@
             }
         }
 
-        // Load collections
         async function loadCollections() {
             try {
                 const response = await fetch(`${XANO_BASE}/collection`);
@@ -1107,7 +1104,6 @@
                 const data = await response.json();
                 allCollections = Array.isArray(data) ? data : data.items || [];
                 
-                // Populate sidebar
                 const html = allCollections.map(col => `
                     <div class="nav-item" data-collection="${col.id}" onclick="filterByCollection(${col.id})">
                         <span class="nav-icon">📁</span>
@@ -1118,7 +1114,6 @@
                 
                 document.getElementById('collectionsContainer').innerHTML = html || '<div style="padding: 10px; color: var(--text-muted);">No collections</div>';
                 
-                // Populate dropdown
                 const selectHTML = '<option value="">No Collection</option>' + 
                     allCollections.map(col => `<option value="${col.id}">${col.name}</option>`).join('');
                 document.getElementById('detailsCollection').innerHTML = selectHTML;
@@ -1129,9 +1124,7 @@
             }
         }
 
-        // Load categories
         async function loadCategories() {
-            // For now, use hardcoded categories
             allCategories = [
                 { id: 1, name: 'News' },
                 { id: 2, name: 'Sports' },
@@ -1140,7 +1133,6 @@
                 { id: 5, name: 'Commercial' }
             ];
             
-            // Populate sidebar
             const html = allCategories.map(cat => `
                 <div class="nav-item" data-category="${cat.id}" onclick="filterByCategory(${cat.id})">
                     <span class="nav-icon">🏷️</span>
@@ -1151,13 +1143,11 @@
             
             document.getElementById('categoriesContainer').innerHTML = html;
             
-            // Populate dropdown
             const selectHTML = '<option value="">No Category</option>' + 
                 allCategories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
             document.getElementById('detailsCategory').innerHTML = selectHTML;
         }
 
-        // Load files from Xano
         async function loadFiles() {
             try {
                 console.log('Loading files from Xano...');
@@ -1179,9 +1169,7 @@
             }
         }
 
-        // Update counts in sidebar
         function updateCounts() {
-            // File type counts
             const counts = {
                 all: allFiles.length,
                 audio: allFiles.filter(f => f.file_type === 'audio').length,
@@ -1196,25 +1184,21 @@
             document.getElementById('imageCount').textContent = counts.image;
             document.getElementById('documentCount').textContent = counts.raw;
             
-            // Collection counts
             document.querySelectorAll('.collection-count').forEach(el => {
                 const id = parseInt(el.dataset.id);
                 el.textContent = allFiles.filter(f => f.collection_id === id).length;
             });
             
-            // Category counts
             document.querySelectorAll('.category-count').forEach(el => {
                 const id = parseInt(el.dataset.id);
                 el.textContent = allFiles.filter(f => f.category_id === id).length;
             });
             
-            // Storage
             const totalSize = allFiles.reduce((sum, file) => sum + (file.file_size || 0), 0);
             document.getElementById('storageText').textContent = formatFileSize(totalSize) + ' of 10 GB';
             document.querySelector('.storage-used').style.width = (totalSize / (10 * 1024 * 1024 * 1024) * 100) + '%';
         }
 
-        // Apply filters and sorting
         function applyFilters() {
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             
@@ -1232,7 +1216,6 @@
                 return matchesFilter && matchesSearch;
             });
             
-            // Sort
             filteredFiles.sort((a, b) => {
                 let aVal = a[currentSort.field];
                 let bVal = b[currentSort.field];
@@ -1251,7 +1234,6 @@
             renderFiles();
         }
 
-        // Render file list
         function renderFiles() {
             const container = document.getElementById('listViewContent');
             
@@ -1294,7 +1276,6 @@
             }).join('');
         }
 
-        // File selection
         function selectFile(element, event) {
             if (event) event.stopPropagation();
             
@@ -1318,12 +1299,10 @@
             }
         }
 
-        // Show file details
         function showFileDetails(file) {
             currentFile = file;
             document.getElementById('detailsPanel').classList.add('active');
             
-            // Preview
             const preview = document.getElementById('detailsPreview');
             const url = file.database_url;
             
@@ -1341,7 +1320,6 @@
                 preview.innerHTML = `<span class="file-icon-large">${getFileIcon(file.file_type)}</span>`;
             }
             
-            // Basic fields
             document.getElementById('detailsTitle').value = file.title || '';
             document.getElementById('detailsDescription').value = file.description || '';
             document.getElementById('detailsStation').value = file.station || '';
@@ -1350,11 +1328,7 @@
             document.getElementById('detailsCollection').value = file.collection_id || '';
             document.getElementById('detailsTags').value = file.tags || '';
             document.getElementById('detailsFeatured').checked = file.is_featured || false;
-            
-            // Notes
             document.getElementById('detailsNotes').value = file.notes1 || '';
-            
-            // Dates
             document.getElementById('detailsOriginalDate').value = file.original_creation_date || file.created_at?.split('T')[0] || '';
             
             // Fixed date handling for timestamps
@@ -1404,20 +1378,17 @@
                 document.getElementById('detailsUnpublishDate').value = '';
             }
             
-            // File info
             document.getElementById('detailsType').textContent = file.file_type || 'Unknown';
             document.getElementById('detailsSize').textContent = formatFileSize(file.file_size);
             document.getElementById('detailsDuration').textContent = formatDuration(file.duration);
             document.getElementById('detailsUploaded').textContent = new Date(file.created_at).toLocaleString();
             
-            // Update station history
             if (file.station && !stationHistory.includes(file.station)) {
                 stationHistory.unshift(file.station);
                 stationHistory = stationHistory.slice(0, 10);
             }
         }
 
-        // Save file changes
         async function saveFileChanges() {
             if (!currentFile) return;
             
@@ -1460,7 +1431,6 @@
             }
         }
 
-        // Delete file
         async function deleteFile() {
             if (!currentFile) return;
             
@@ -1485,7 +1455,7 @@
             }
         }
 
-        // Delete selected files - FIXED VERSION
+        // Delete selected files - FIXED VERSION to only delete selected files
         async function deleteSelected() {
             if (selectedFiles.size === 0) {
                 showNotification('No files selected', 'warning');
@@ -1535,7 +1505,6 @@
             applyFilters();
         }
 
-        // Station autocomplete
         function handleStationInput(input) {
             const value = input.value.toLowerCase();
             const suggestions = document.getElementById('stationSuggestions');
@@ -1562,7 +1531,6 @@
             document.getElementById('stationSuggestions').classList.remove('active');
         }
 
-        // Utility functions
         function getFileIcon(type) {
             const icons = {
                 'audio': '🎵',
@@ -1588,7 +1556,6 @@
             return `${mins}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // Sorting
         function sortBy(field) {
             if (currentSort.field === field) {
                 currentSort.ascending = !currentSort.ascending;
@@ -1599,7 +1566,6 @@
             applyFilters();
         }
 
-        // Filtering
         function filterByType(type) {
             currentFilter = type === 'all' ? 'all' : { type: 'type', value: type };
             document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -1621,7 +1587,6 @@
             applyFilters();
         }
 
-        // UI functions
         function showUploadZone() {
             document.getElementById('uploadZone').classList.add('active');
         }
@@ -1695,7 +1660,6 @@
         }
 
         function setView(view, element) {
-            // Currently only list view
             document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
             element.classList.add('active');
         }
@@ -1719,7 +1683,16 @@
             // You could add a toast notification here
         }
 
-        // Search
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('Initializing file manager...');
+            setupUploadZone();
+            await loadCollections();
+            await loadCategories();
+            await loadFiles();
+        });
+
+        // Search event listener
         document.getElementById('searchInput').addEventListener('input', applyFilters);
 
         // Filter navigation
@@ -1751,3 +1724,6 @@
                 selectAll();
             }
         });
+    </script>
+</body>
+</html>
