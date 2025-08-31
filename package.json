@@ -1,8 +1,16 @@
 {
-  "name": "netlify-functions",
+  "name": "voxpro-manager",
   "version": "1.0.0",
+  "description": "VoxPro broadcast media management system",
+  "scripts": {
+    "build": "echo 'No build required'"
+  },
   "dependencies": {
     "busboy": "^1.6.0",
-    "cloudinary": "^1.41.2"
+    "cloudinary": "^1.41.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
