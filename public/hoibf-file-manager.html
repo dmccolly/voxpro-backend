@@ -1315,7 +1315,18 @@
             document.getElementById('detailsTags').value = file.tags || '';
             document.getElementById('detailsFeatured').checked = file.is_featured || false;
             document.getElementById('detailsNotes').value = file.notes1 || '';
-            document.getElementById('detailsOriginalDate').value = file.original_creation_date || file.created_at?.split('T')[0] || '';
+            // Handle both timestamp and string formats for created_at
+let dateValue = '';
+if (file.original_creation_date) {
+    dateValue = file.original_creation_date;
+} else if (file.created_at) {
+    if (typeof file.created_at === 'number') {
+        dateValue = new Date(file.created_at).toISOString().split('T')[0];
+    } else if (typeof file.created_at === 'string') {
+        dateValue = file.created_at.split('T')[0];
+    }
+}
+document.getElementById('detailsOriginalDate').value = dateValue;
             
             document.getElementById('detailsType').textContent = file.file_type || 'Unknown';
             document.getElementById('detailsSize').textContent = formatFileSize(file.file_size);
