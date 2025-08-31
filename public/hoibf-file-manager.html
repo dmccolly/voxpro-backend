@@ -1010,19 +1010,21 @@
         }
 
         function handleFileSelection(files) {
-            pendingUploadFiles = Array.from(files);
-            const listEl = document.getElementById('selectedFilesList');
-            const uploadBtn = document.getElementById('uploadButton');
-            
-            if (pendingUploadFiles.length > 0) {
-                listEl.innerHTML = `<div style="color: var(--text-secondary);">Selected files:</div>` +
-                    pendingUploadFiles.map(f => `<div style="padding: 4px 0;">• ${f.name} (${formatFileSize(f.size)})</div>`).join('');
-                uploadBtn.style.display = 'inline-block';
-            } else {
-                listEl.innerHTML = '';
-                uploadBtn.style.display = 'none';
-            }
-        }
+    pendingUploadFiles = Array.from(files);
+    const listEl = document.getElementById('selectedFilesList');
+    const uploadBtn = document.getElementById('uploadButton');
+    
+    console.log('Selected files:', pendingUploadFiles.length); // Add this for debugging
+    
+    if (pendingUploadFiles.length > 0) {
+        listEl.innerHTML = `<div style="color: var(--text-secondary);">Selected ${pendingUploadFiles.length} file(s):</div>` +
+            pendingUploadFiles.map(f => `<div style="padding: 4px 0;">• ${f.name} (${formatFileSize(f.size)})</div>`).join('');
+        uploadBtn.style.display = 'inline-block';
+    } else {
+        listEl.innerHTML = '<div style="color: var(--error);">No files selected</div>';
+        uploadBtn.style.display = 'none';
+    }
+}
 
         async function uploadFiles() {
             if (pendingUploadFiles.length === 0) return;
