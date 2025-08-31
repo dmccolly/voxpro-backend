@@ -1,3 +1,6 @@
+[build]
+  publish = "public"
+
 # Function-specific configuration
 [functions]
   node_bundler = "esbuild"
@@ -23,12 +26,22 @@
     X-Content-Type-Options = "nosniff"
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://widget.cloudinary.com https://upload-widget.cloudinary.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com https://upload-widget.cloudinary.com https://xgm6-u3bi-jbxy.n7c.xano.io; frame-src 'self' https://widget.cloudinary.com https://upload-widget.cloudinary.com; media-src 'self' https: blob:;"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://widget.cloudinary.com https://upload-widget.cloudinary.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://api.cloudinary.com https://res.cloudinary.com https://upload-widget.cloudinary.com https://xgm6-u3bi-jbxy.n7c.xano.io https://xajo-bs7d-cagt.n7e.xano.io; frame-src 'self' https://widget.cloudinary.com https://upload-widget.cloudinary.com; media-src 'self' https: blob:;"
 
 # Redirects for API endpoints
 [[redirects]]
   from = "/api/upload"
   to = "/.netlify/functions/uploader-fixed"
+  status = 200
+
+[[redirects]]
+  from = "/voxpro-manager"
+  to = "/.netlify/functions/voxpro-manager"
+  status = 200
+
+[[redirects]]
+  from = "/file-manager"
+  to = "/.netlify/functions/file-manager-page"
   status = 200
 
 # Build plugins (optional - for optimization)
