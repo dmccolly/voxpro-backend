@@ -25,8 +25,9 @@
         h1 {
             font-size: 3em;
             margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
-        p {
+        .subtitle {
             font-size: 1.2em;
             margin-bottom: 30px;
             opacity: 0.9;
@@ -36,6 +37,7 @@
             gap: 20px;
             flex-wrap: wrap;
             justify-content: center;
+            margin-bottom: 40px;
         }
         .button {
             display: inline-block;
@@ -48,27 +50,125 @@
             transition: all 0.3s ease;
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255, 255, 255, 0.3);
+            min-width: 200px;
         }
         .button:hover {
             background: rgba(255, 255, 255, 0.3);
             transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
-        .upload-button {
+        .button.primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
         }
-        .upload-button:hover {
+        .button.primary:hover {
             background: linear-gradient(135deg, #7c8efa 0%, #865db0 100%);
+        }
+        .button.secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+        }
+        .button.secondary:hover {
+            background: linear-gradient(135deg, #f2a3fc 0%, #f6677c 100%);
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 40px;
+            text-align: left;
+        }
+        .feature {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+        }
+        .feature h3 {
+            margin-bottom: 10px;
+            color: #a5b4fc;
+        }
+        .feature p {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin: 0;
+        }
+        .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        .status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
     </style>
 </head>
 <body>
+    <div class="status">
+        <div class="status-dot"></div>
+        System Online
+    </div>
+    
     <div class="container">
-        <h1>VoxPro Manager</h1>
-        <p>Broadcast media management system</p>
+        <h1>🎙️ VoxPro Manager</h1>
+        <p class="subtitle">Broadcast Media Management System</p>
         
         <div class="buttons">
-            <a href="templates/voxpro-manager.html" class="button">VoxPro Manager</a>
-            <a href="file-manager.html" class="button upload-button">Upload Media</a>
+            <a href="/voxpro.html" class="button primary">
+                <div class="icon">📻</div>
+                VoxPro Player
+            </a>
+            <a href="/.netlify/functions/file-manager-page" class="button secondary">
+                <div class="icon">📤</div>
+                Upload Media
+            </a>
+            <a href="/hoibf-file-manager.html" class="button">
+                <div class="icon">📁</div>
+                HOIBF Manager
+            </a>
+        </div>
+        
+        <div class="feature-grid">
+            <div class="feature">
+                <h3>🎵 Media Library</h3>
+                <p>Manage audio, video, and image assets</p>
+            </div>
+            <div class="feature">
+                <h3>⌨️ Hot Keys</h3>
+                <p>Assign media to function keys for instant playback</p>
+            </div>
+            <div class="feature">
+                <h3>☁️ Cloud Storage</h3>
+                <p>Secure storage with Cloudinary integration</p>
+            </div>
+            <div class="feature">
+                <h3>🔍 Smart Search</h3>
+                <p>Find media by title, station, tags, or description</p>
+            </div>
+        </div>
+        
+        <div style="margin-top: 40px; opacity: 0.6; font-size: 0.9em;">
+            <p>Debug Tools: <a href="/debug.html" style="color: #a5b4fc;">System Debug</a></p>
         </div>
     </div>
 </body>
