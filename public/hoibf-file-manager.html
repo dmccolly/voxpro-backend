@@ -966,10 +966,11 @@
         let stationHistory = ['KIVI', 'KTFT', 'KBOI'];
 
         // Configuration
-        CLOUDINARY_URL: 'https://api.cloudinary.com/v1_1/dzrw8nopf/upload',
-        const CLOUDINARY_PRESET = 'hoibf_preset';
-        const XANO_BASE = 'https://xgm6-u3bi-jbxy.n7c.xano.io/api:VhM7OdLM';
-
+       const CONFIG = {
+    CLOUDINARY_URL: 'https://api.cloudinary.com/v1_1/dzrw8nopf/upload',
+    CLOUDINARY_PRESET: 'hoibf-media',
+    XANO_BASE: '/.netlify/functions/xano-proxy'
+};
         // Define all functions in global scope
         function setupUploadZone() {
             const dropZone = document.getElementById('dropZone');
