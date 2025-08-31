@@ -1,0 +1,5 @@
+# API proxy redirects (if you need them)
+/api/* https://xgm6-u3bi-jbxy.n7c.xano.io/api:VhM7OdLM/:splat 200
+
+# Any other redirects you need
+# (add them here)
