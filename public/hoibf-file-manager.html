@@ -1008,15 +1008,16 @@
                 }
 
                 const metadata = {
-                    title: fileInfo.original_filename || 'Untitled',
-                    database_url: fileInfo.secure_url,  // Correct field name
-                    thumbnail: thumbnailUrl,            // Correct field name
-                    file_type: fileInfo.resource_type,
-                    file_size: fileInfo.bytes || 0,
-                    duration: fileInfo.duration || null,
-                    original_creation_date: new Date().toISOString().split('T')[0],
-                    created_at: new Date().toISOString()
-                };
+    title: '', // Leave blank for user to fill in
+    database_url: fileInfo.secure_url,
+    thumbnail: thumbnailUrl,
+    file_type: fileInfo.resource_type,
+    file_size: fileInfo.bytes || 0,
+    duration: fileInfo.duration || null,
+    original_creation_date: new Date().toISOString().split('T')[0],
+    created_at: new Date().toISOString(),
+    notes2: fileInfo.original_filename || fileInfo.public_id  // Store technical name here
+};
 
                 const response = await fetch(`${XANO_BASE}/asset`, {
                     method: 'POST',
