@@ -9,6 +9,10 @@
     timeout = 300
     memory = 1024
     runtime = "nodejs18.x"
+    
+  [functions.file-manager-upload]
+    timeout = 300
+    memory = 1024
 
 # Headers for CORS support
 [[headers]]
@@ -31,7 +35,7 @@
 # Redirects for API endpoints
 [[redirects]]
   from = "/api/upload"
-  to = "/.netlify/functions/uploader-fixed"
+  to = "/.netlify/functions/uploader"
   status = 200
 
 [[redirects]]
@@ -44,6 +48,6 @@
   to = "/.netlify/functions/file-manager-page"
   status = 200
 
-# Build plugins (optional - for optimization)
+# Build plugins
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
