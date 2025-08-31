@@ -641,6 +641,17 @@
             transition: width 0.3s ease;
         }
 
+        .empty-state {
+            text-align: center;
+            color: white;
+            margin: 50px 0;
+        }
+
+        .empty-state h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .sidebar {
@@ -953,7 +964,7 @@
     </div>
 
     <script>
-        // Global state - define all variables in global scope
+        // Global state
         let allFiles = [];
         let filteredFiles = [];
         let allCollections = [];
@@ -965,13 +976,11 @@
         let pendingUploadFiles = [];
         let stationHistory = ['KIVI', 'KTFT', 'KBOI'];
 
-        // Configuration
-       const CONFIG = {
-    CLOUDINARY_URL: 'https://api.cloudinary.com/v1_1/dzrw8nopf/upload',
-    CLOUDINARY_PRESET: 'hoibf-media',
-    XANO_BASE: '/.netlify/functions/xano-proxy'
-};
-        // Define all functions in global scope
+        // Configuration - FIXED WITH YOUR CLOUDINARY SETTINGS
+        const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzrw8nopf/upload';
+        const CLOUDINARY_PRESET = 'hoibf-media';
+
+        // Setup upload zone
         function setupUploadZone() {
             const dropZone = document.getElementById('dropZone');
             const fileInput = document.getElementById('fileInput');
@@ -1054,31 +1063,33 @@
 
         async function saveToXano(fileInfo) {
             try {
-                // Generate thumbnail URL for videos and images - FIXED VERSION
+                // Generate thumbnail URL for videos and images
                 let thumbnailUrl = '';
                 if (fileInfo.resource_type === 'video') {
-                    // For videos: extract frame and convert to jpg
                     thumbnailUrl = fileInfo.secure_url
                         .replace('/upload/', '/upload/w_200,h_200,c_fill,so_auto/')
                         .replace(/\.(mp4|mov|avi|webm)$/, '.jpg');
                 } else if (fileInfo.resource_type === 'image') {
-                    // For images: standard transformation
                     thumbnailUrl = fileInfo.secure_url.replace('/upload/', '/upload/w_200,h_200,c_fill,g_auto/');
                 }
 
                 const metadata = {
-                    title: '',  // Leave blank for user to enter meaningful title - FIXED
+                    title: '',
                     database_url: fileInfo.secure_url,
+                    cloudinary_url: fileInfo.secure_url,
+                    file_url: fileInfo.secure_url,
                     thumbnail: thumbnailUrl,
+                    thumbnail_url: thumbnailUrl,
                     file_type: fileInfo.resource_type,
                     file_size: fileInfo.bytes || 0,
                     duration: fileInfo.duration || null,
                     original_creation_date: new Date().toISOString().split('T')[0],
                     created_at: new Date().toISOString(),
-                    notes2: fileInfo.public_id || fileInfo.original_filename  // Store technical identifier here
+                    notes2: fileInfo.public_id || fileInfo.original_filename
                 };
 
-                const response = await fetch(`${XANO_BASE}/asset`, {
+                // USE PROXY INSTEAD OF DIRECT XANO
+                const response = await fetch('/.netlify/functions/xano-proxy/user_submission', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(metadata)
@@ -1098,31 +1109,10 @@
         }
 
         async function loadCollections() {
-            try {
-                const response = await fetch(`${XANO_BASE}/collection`);
-                if (!response.ok) throw new Error('Failed to load collections');
-                
-                const data = await response.json();
-                allCollections = Array.isArray(data) ? data : data.items || [];
-                
-                const html = allCollections.map(col => `
-                    <div class="nav-item" data-collection="${col.id}" onclick="filterByCollection(${col.id})">
-                        <span class="nav-icon">📁</span>
-                        <span>${col.name}</span>
-                        <span class="nav-count collection-count" data-id="${col.id}">0</span>
-                    </div>
-                `).join('');
-                
-                document.getElementById('collectionsContainer').innerHTML = html || '<div style="padding: 10px; color: var(--text-muted);">No collections</div>';
-                
-                const selectHTML = '<option value="">No Collection</option>' + 
-                    allCollections.map(col => `<option value="${col.id}">${col.name}</option>`).join('');
-                document.getElementById('detailsCollection').innerHTML = selectHTML;
-                
-            } catch (error) {
-                console.error('Failed to load collections:', error);
-                document.getElementById('collectionsContainer').innerHTML = '<div style="padding: 10px; color: var(--text-muted);">No collections</div>';
-            }
+            // Collections would normally load from API
+            // For now using empty array
+            allCollections = [];
+            document.getElementById('collectionsContainer').innerHTML = '<div style="padding: 10px; color: var(--text-muted);">No collections</div>';
         }
 
         async function loadCategories() {
@@ -1149,10 +1139,12 @@
             document.getElementById('detailsCategory').innerHTML = selectHTML;
         }
 
+        // FIXED loadFiles function - uses proxy
         async function loadFiles() {
             try {
                 console.log('Loading files from Xano...');
-                const response = await fetch(`${XANO_BASE}/asset`);
+                // USE THE PROXY INSTEAD OF DIRECT XANO
+                const response = await fetch('/.netlify/functions/list-media');
                 if (!response.ok) throw new Error('Failed to load files');
                 
                 const data = await response.json();
@@ -1184,16 +1176,6 @@
             document.getElementById('videoCount').textContent = counts.video;
             document.getElementById('imageCount').textContent = counts.image;
             document.getElementById('documentCount').textContent = counts.raw;
-            
-            document.querySelectorAll('.collection-count').forEach(el => {
-                const id = parseInt(el.dataset.id);
-                el.textContent = allFiles.filter(f => f.collection_id === id).length;
-            });
-            
-            document.querySelectorAll('.category-count').forEach(el => {
-                const id = parseInt(el.dataset.id);
-                el.textContent = allFiles.filter(f => f.category_id === id).length;
-            });
             
             const totalSize = allFiles.reduce((sum, file) => sum + (file.file_size || 0), 0);
             document.getElementById('storageText').textContent = formatFileSize(totalSize) + ' of 10 GB';
@@ -1247,6 +1229,7 @@
                 const icon = getFileIcon(file.file_type);
                 const date = new Date(file.created_at).toLocaleDateString();
                 const hasStar = file.is_featured ? '<span class="star-icon">⭐</span>' : '';
+                const fileUrl = file.cloudinary_url || file.file_url || file.database_url;
                 
                 return `
                     <div class="file-list-item" data-id="${file.id}" onclick="selectFile(this, event)">
@@ -1267,10 +1250,12 @@
                         <div>${file.station || '-'}</div>
                         <div>${date}</div>
                         <div>
-                            <button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" 
-                                    onclick="downloadFileById(${file.id}); event.stopPropagation();">
-                                ⬇️
-                            </button>
+                            ${fileUrl ? 
+                                `<button class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" 
+                                        onclick="downloadFileById(${file.id}); event.stopPropagation();">
+                                    ⬇️
+                                </button>` :
+                                '<span style="color: var(--text-muted); font-size: 12px;">No file</span>'}
                         </div>
                     </div>
                 `;
@@ -1305,7 +1290,7 @@
             document.getElementById('detailsPanel').classList.add('active');
             
             const preview = document.getElementById('detailsPreview');
-            const url = file.database_url;
+            const url = file.database_url || file.cloudinary_url || file.file_url;
             
             if (url && typeof url === 'string' && url.startsWith('http')) {
                 if (file.file_type === 'image') {
@@ -1332,87 +1317,29 @@
             document.getElementById('detailsNotes').value = file.notes1 || '';
             document.getElementById('detailsOriginalDate').value = file.original_creation_date || file.created_at?.split('T')[0] || '';
             
-            // Fixed date handling for timestamps
-            if (file.scheduled_publish_date) {
-                try {
-                    let date;
-                    if (typeof file.scheduled_publish_date === 'number') {
-                        date = new Date(file.scheduled_publish_date);
-                    } else if (typeof file.scheduled_publish_date === 'string') {
-                        date = new Date(file.scheduled_publish_date);
-                    } else {
-                        date = null;
-                    }
-                    
-                    if (date && !isNaN(date)) {
-                        document.getElementById('detailsPublishDate').value = date.toISOString().slice(0, 16);
-                    } else {
-                        document.getElementById('detailsPublishDate').value = '';
-                    }
-                } catch(e) {
-                    document.getElementById('detailsPublishDate').value = '';
-                }
-            } else {
-                document.getElementById('detailsPublishDate').value = '';
-            }
-
-            if (file.scheduled_unpublish_date) {
-                try {
-                    let date;
-                    if (typeof file.scheduled_unpublish_date === 'number') {
-                        date = new Date(file.scheduled_unpublish_date);
-                    } else if (typeof file.scheduled_unpublish_date === 'string') {
-                        date = new Date(file.scheduled_unpublish_date);
-                    } else {
-                        date = null;
-                    }
-                    
-                    if (date && !isNaN(date)) {
-                        document.getElementById('detailsUnpublishDate').value = date.toISOString().slice(0, 16);
-                    } else {
-                        document.getElementById('detailsUnpublishDate').value = '';
-                    }
-                } catch(e) {
-                    document.getElementById('detailsUnpublishDate').value = '';
-                }
-            } else {
-                document.getElementById('detailsUnpublishDate').value = '';
-            }
-            
             document.getElementById('detailsType').textContent = file.file_type || 'Unknown';
             document.getElementById('detailsSize').textContent = formatFileSize(file.file_size);
             document.getElementById('detailsDuration').textContent = formatDuration(file.duration);
             document.getElementById('detailsUploaded').textContent = new Date(file.created_at).toLocaleString();
-            
-            if (file.station && !stationHistory.includes(file.station)) {
-                stationHistory.unshift(file.station);
-                stationHistory = stationHistory.slice(0, 10);
-            }
         }
 
+        // FIXED saveFileChanges - uses proxy
         async function saveFileChanges() {
             if (!currentFile) return;
             
             try {
-                const publishDate = document.getElementById('detailsPublishDate').value;
-                const unpublishDate = document.getElementById('detailsUnpublishDate').value;
-                
                 const updatedData = {
                     title: document.getElementById('detailsTitle').value,
                     description: document.getElementById('detailsDescription').value,
                     station: document.getElementById('detailsStation').value,
                     submitted_by: document.getElementById('detailsSubmittedBy').value,
-                    category_id: parseInt(document.getElementById('detailsCategory').value) || null,
-                    collection_id: parseInt(document.getElementById('detailsCollection').value) || null,
                     tags: document.getElementById('detailsTags').value,
                     is_featured: document.getElementById('detailsFeatured').checked,
-                    notes1: document.getElementById('detailsNotes').value,
-                    original_creation_date: document.getElementById('detailsOriginalDate').value,
-                    scheduled_publish_date: publishDate ? new Date(publishDate).toISOString() : null,
-                    scheduled_unpublish_date: unpublishDate ? new Date(unpublishDate).toISOString() : null
+                    notes1: document.getElementById('detailsNotes').value
                 };
                 
-                const response = await fetch(`${XANO_BASE}/asset/${currentFile.id}`, {
+                // USE PROXY
+                const response = await fetch(`/.netlify/functions/xano-proxy/user_submission/${currentFile.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updatedData)
@@ -1432,14 +1359,18 @@
             }
         }
 
+        // FIXED deleteFile - uses proxy
         async function deleteFile() {
             if (!currentFile) return;
             
             if (!confirm(`Delete "${currentFile.title || 'this file'}"?`)) return;
             
             try {
-                const response = await fetch(`${XANO_BASE}/asset/${currentFile.id}`, {
-                    method: 'DELETE'
+                // USE DELETE-MEDIA FUNCTION
+                const response = await fetch('/.netlify/functions/delete-media', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: currentFile.id })
                 });
                 
                 if (!response.ok) throw new Error('Failed to delete');
@@ -1456,7 +1387,7 @@
             }
         }
 
-        // Delete selected files - FIXED VERSION to only delete selected files
+        // FIXED deleteSelected - uses proxy
         async function deleteSelected() {
             if (selectedFiles.size === 0) {
                 showNotification('No files selected', 'warning');
@@ -1468,28 +1399,26 @@
             let deleted = 0;
             let failed = 0;
             
-            // Convert Set to Array to avoid modification during iteration
             const filesToDelete = Array.from(selectedFiles);
             
             for (const fileId of filesToDelete) {
                 try {
-                    const response = await fetch(`${XANO_BASE}/asset/${fileId}`, {
-                        method: 'DELETE'
+                    // USE DELETE-MEDIA FUNCTION
+                    const response = await fetch('/.netlify/functions/delete-media', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: fileId })
                     });
                     
                     if (response.ok) {
                         deleted++;
-                        // Remove from allFiles array
                         allFiles = allFiles.filter(f => f.id !== fileId);
-                        // Remove from selectedFiles Set
                         selectedFiles.delete(fileId);
                     } else {
                         failed++;
-                        console.error(`Failed to delete file ${fileId}: ${response.status}`);
                     }
                 } catch (error) {
                     failed++;
-                    console.error(`Failed to delete file ${fileId}:`, error);
                 }
             }
             
@@ -1610,20 +1539,21 @@
             
             const modal = document.getElementById('previewModal');
             const content = document.getElementById('modalPreviewContent');
+            const url = currentFile.database_url || currentFile.cloudinary_url || currentFile.file_url;
             
             if (currentFile.file_type === 'image') {
-                content.innerHTML = `<img src="${currentFile.database_url}" style="max-width: 100%; max-height: 90vh;">`;
+                content.innerHTML = `<img src="${url}" style="max-width: 100%; max-height: 90vh;">`;
             } else if (currentFile.file_type === 'video') {
-                content.innerHTML = `<video src="${currentFile.database_url}" controls style="max-width: 100%; max-height: 90vh;"></video>`;
+                content.innerHTML = `<video src="${url}" controls style="max-width: 100%; max-height: 90vh;"></video>`;
             } else if (currentFile.file_type === 'audio') {
                 content.innerHTML = `
                     <div style="background: white; padding: 40px; border-radius: 8px;">
                         <h2 style="color: black; margin-bottom: 20px;">${currentFile.title}</h2>
-                        <audio src="${currentFile.database_url}" controls style="width: 400px;"></audio>
+                        <audio src="${url}" controls style="width: 400px;"></audio>
                     </div>
                 `;
             } else {
-                window.open(currentFile.database_url, '_blank');
+                window.open(url, '_blank');
                 return;
             }
             
@@ -1644,15 +1574,17 @@
         }
 
         function downloadFile() {
-            if (currentFile && currentFile.database_url) {
-                window.open(currentFile.database_url, '_blank');
+            if (currentFile) {
+                const url = currentFile.database_url || currentFile.cloudinary_url || currentFile.file_url;
+                if (url) window.open(url, '_blank');
             }
         }
 
         function downloadFileById(id) {
             const file = allFiles.find(f => f.id === id);
-            if (file && file.database_url) {
-                window.open(file.database_url, '_blank');
+            if (file) {
+                const url = file.database_url || file.cloudinary_url || file.file_url;
+                if (url) window.open(url, '_blank');
             }
         }
 
@@ -1681,7 +1613,7 @@
 
         function showNotification(message, type = 'info') {
             console.log(`[${type}] ${message}`);
-            // You could add a toast notification here
+            // Could add toast notifications here
         }
 
         // Initialize when DOM is ready
