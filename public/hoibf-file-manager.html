@@ -971,15 +971,6 @@
         const CLOUDINARY_PRESET = 'hoibf_preset';
         const XANO_BASE = 'https://xgm6-u3bi-jbxy.n7c.xano.io/api:VhM7OdLM';
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', async function() {
-            console.log('Initializing file manager...');
-            setupUploadZone();
-            await loadCollections();
-            await loadCategories();
-            await loadFiles();
-        });
-
         // Setup upload zone
         function setupUploadZone() {
             const dropZone = document.getElementById('dropZone');
