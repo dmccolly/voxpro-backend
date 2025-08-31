@@ -976,7 +976,7 @@
         let pendingUploadFiles = [];
         let stationHistory = ['KIVI', 'KTFT', 'KBOI'];
 
-        // Configuration - FIXED WITH YOUR CLOUDINARY SETTINGS
+        // Configuration - YOUR CLOUDINARY SETTINGS
         const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dzrw8nopf/upload';
         const CLOUDINARY_PRESET = 'hoibf-media';
 
@@ -1009,35 +1009,48 @@
             });
         }
 
+        // FIXED: File selection handler
         function handleFileSelection(files) {
-    pendingUploadFiles = Array.from(files);
-    const listEl = document.getElementById('selectedFilesList');
-    const uploadBtn = document.getElementById('uploadButton');
-    
-    console.log('Selected files:', pendingUploadFiles.length); // Add this for debugging
-    
-    if (pendingUploadFiles.length > 0) {
-        listEl.innerHTML = `<div style="color: var(--text-secondary);">Selected ${pendingUploadFiles.length} file(s):</div>` +
-            pendingUploadFiles.map(f => `<div style="padding: 4px 0;">• ${f.name} (${formatFileSize(f.size)})</div>`).join('');
-        uploadBtn.style.display = 'inline-block';
-    } else {
-        listEl.innerHTML = '<div style="color: var(--error);">No files selected</div>';
-        uploadBtn.style.display = 'none';
-    }
-}
+            pendingUploadFiles = Array.from(files);
+            const listEl = document.getElementById('selectedFilesList');
+            const uploadBtn = document.getElementById('uploadButton');
+            
+            console.log('Selected files:', pendingUploadFiles.length);
+            
+            if (pendingUploadFiles.length > 0) {
+                listEl.innerHTML = `<div style="color: var(--text-secondary);">Selected ${pendingUploadFiles.length} file(s):</div>` +
+                    pendingUploadFiles.map(f => `<div style="padding: 4px 0;">• ${f.name} (${formatFileSize(f.size)})</div>`).join('');
+                uploadBtn.style.display = 'inline-block';
+            } else {
+                listEl.innerHTML = '<div style="color: var(--error);">No files selected</div>';
+                uploadBtn.style.display = 'none';
+            }
+        }
 
+        // FIXED: Upload function that preserves pending files
         async function uploadFiles() {
-            if (pendingUploadFiles.length === 0) return;
+            console.log('uploadFiles called, pending files:', pendingUploadFiles.length);
+            
+            if (pendingUploadFiles.length === 0) {
+                console.error('No pending files to upload!');
+                showNotification('No files selected', 'warning');
+                return;
+            }
+            
+            // Store files in local variable before closing modal
+            const filesToUpload = [...pendingUploadFiles];
             
             closeUploadZone();
             showProgress('Uploading files...', 0);
             
             let uploaded = 0;
-            const total = pendingUploadFiles.length;
+            const total = filesToUpload.length;
             
-            for (const file of pendingUploadFiles) {
+            for (const file of filesToUpload) {
                 try {
                     showProgress(`Uploading ${uploaded + 1} of ${total}...`, (uploaded / total) * 100);
+                    
+                    console.log('Uploading file:', file.name, 'Size:', file.size);
                     
                     const formData = new FormData();
                     formData.append('file', file);
@@ -1048,10 +1061,16 @@
                         body: formData
                     });
                     
+                    console.log('Cloudinary response:', response.status);
+                    
                     if (response.ok) {
                         const result = await response.json();
+                        console.log('Upload successful:', result.secure_url);
                         await saveToXano(result);
                         uploaded++;
+                    } else {
+                        const error = await response.text();
+                        console.error('Cloudinary error:', error);
                     }
                 } catch (error) {
                     console.error('Upload error:', error);
@@ -1061,11 +1080,13 @@
             hideProgress();
             await loadFiles();
             showNotification(`Uploaded ${uploaded} of ${total} files`, uploaded === total ? 'success' : 'warning');
+            
+            // Clear pending files after upload completes
+            pendingUploadFiles = [];
         }
 
         async function saveToXano(fileInfo) {
             try {
-                // Generate thumbnail URL for videos and images
                 let thumbnailUrl = '';
                 if (fileInfo.resource_type === 'video') {
                     thumbnailUrl = fileInfo.secure_url
@@ -1090,7 +1111,6 @@
                     notes2: fileInfo.public_id || fileInfo.original_filename
                 };
 
-                // USE PROXY INSTEAD OF DIRECT XANO
                 const response = await fetch('/.netlify/functions/xano-proxy/user_submission', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1111,8 +1131,6 @@
         }
 
         async function loadCollections() {
-            // Collections would normally load from API
-            // For now using empty array
             allCollections = [];
             document.getElementById('collectionsContainer').innerHTML = '<div style="padding: 10px; color: var(--text-muted);">No collections</div>';
         }
@@ -1141,11 +1159,9 @@
             document.getElementById('detailsCategory').innerHTML = selectHTML;
         }
 
-        // FIXED loadFiles function - uses proxy
         async function loadFiles() {
             try {
                 console.log('Loading files from Xano...');
-                // USE THE PROXY INSTEAD OF DIRECT XANO
                 const response = await fetch('/.netlify/functions/list-media');
                 if (!response.ok) throw new Error('Failed to load files');
                 
@@ -1229,13 +1245,17 @@
             
             container.innerHTML = filteredFiles.map(file => {
                 const icon = getFileIcon(file.file_type);
-                const date = new Date(file.created_at).toLocaleDateString();
+                const date = file.created_at ? 
+                    (typeof file.created_at === 'number' ? 
+                        new Date(file.created_at).toLocaleDateString() : 
+                        new Date(file.created_at).toLocaleDateString()) : '-';
                 const hasStar = file.is_featured ? '<span class="star-icon">⭐</span>' : '';
                 const fileUrl = file.cloudinary_url || file.file_url || file.database_url;
                 
                 return `
                     <div class="file-list-item" data-id="${file.id}" onclick="selectFile(this, event)">
-                        <input type="checkbox" class="file-checkbox" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="file-checkbox" onclick="event.stopPropagation()" 
+                               onchange="toggleFileSelection(${file.id}, this.checked)">
                         <div class="file-thumbnail">
                             ${file.thumbnail ? 
                                 `<img src="${file.thumbnail}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
@@ -1264,6 +1284,15 @@
             }).join('');
         }
 
+        // FIXED: Toggle file selection for checkboxes
+        function toggleFileSelection(fileId, isChecked) {
+            if (isChecked) {
+                selectedFiles.add(fileId);
+            } else {
+                selectedFiles.delete(fileId);
+            }
+        }
+
         function selectFile(element, event) {
             if (event) event.stopPropagation();
             
@@ -1274,12 +1303,13 @@
             
             element.classList.toggle('selected');
             const checkbox = element.querySelector('.file-checkbox');
-            if (checkbox) checkbox.checked = element.classList.contains('selected');
             
             if (element.classList.contains('selected')) {
+                if (checkbox) checkbox.checked = true;
                 selectedFiles.add(fileId);
                 showFileDetails(file);
             } else {
+                if (checkbox) checkbox.checked = false;
                 selectedFiles.delete(fileId);
                 if (selectedFiles.size === 0) {
                     closeDetails();
@@ -1287,6 +1317,7 @@
             }
         }
 
+        // FIXED: Date handling in showFileDetails
         function showFileDetails(file) {
             currentFile = file;
             document.getElementById('detailsPanel').classList.add('active');
@@ -1317,26 +1348,31 @@
             document.getElementById('detailsTags').value = file.tags || '';
             document.getElementById('detailsFeatured').checked = file.is_featured || false;
             document.getElementById('detailsNotes').value = file.notes1 || '';
-            // Handle both timestamp and string formats for created_at
-let dateValue = '';
-if (file.original_creation_date) {
-    dateValue = file.original_creation_date;
-} else if (file.created_at) {
-    if (typeof file.created_at === 'number') {
-        dateValue = new Date(file.created_at).toISOString().split('T')[0];
-    } else if (typeof file.created_at === 'string') {
-        dateValue = file.created_at.split('T')[0];
-    }
-}
-document.getElementById('detailsOriginalDate').value = dateValue;
+            
+            // FIXED: Handle both timestamp and string date formats
+            let dateValue = '';
+            if (file.original_creation_date) {
+                dateValue = file.original_creation_date;
+            } else if (file.created_at) {
+                if (typeof file.created_at === 'number') {
+                    dateValue = new Date(file.created_at).toISOString().split('T')[0];
+                } else if (typeof file.created_at === 'string') {
+                    dateValue = file.created_at.split('T')[0];
+                }
+            }
+            document.getElementById('detailsOriginalDate').value = dateValue;
             
             document.getElementById('detailsType').textContent = file.file_type || 'Unknown';
             document.getElementById('detailsSize').textContent = formatFileSize(file.file_size);
             document.getElementById('detailsDuration').textContent = formatDuration(file.duration);
-            document.getElementById('detailsUploaded').textContent = new Date(file.created_at).toLocaleString();
+            
+            const uploadDate = file.created_at ? 
+                (typeof file.created_at === 'number' ? 
+                    new Date(file.created_at).toLocaleString() : 
+                    new Date(file.created_at).toLocaleString()) : '-';
+            document.getElementById('detailsUploaded').textContent = uploadDate;
         }
 
-        // FIXED saveFileChanges - uses proxy
         async function saveFileChanges() {
             if (!currentFile) return;
             
@@ -1351,7 +1387,6 @@ document.getElementById('detailsOriginalDate').value = dateValue;
                     notes1: document.getElementById('detailsNotes').value
                 };
                 
-                // USE PROXY
                 const response = await fetch(`/.netlify/functions/xano-proxy/user_submission/${currentFile.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -1372,14 +1407,12 @@ document.getElementById('detailsOriginalDate').value = dateValue;
             }
         }
 
-        // FIXED deleteFile - uses proxy
         async function deleteFile() {
             if (!currentFile) return;
             
             if (!confirm(`Delete "${currentFile.title || 'this file'}"?`)) return;
             
             try {
-                // USE DELETE-MEDIA FUNCTION
                 const response = await fetch('/.netlify/functions/delete-media', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1400,59 +1433,59 @@ document.getElementById('detailsOriginalDate').value = dateValue;
             }
         }
 
-        // FIXED deleteSelected - uses proxy
+        // FIXED: Batch delete for better performance
         async function deleteSelected() {
-    const selectedArray = Array.from(selectedFiles);
-    if (selectedArray.length === 0) {
-        showNotification('No files selected', 'warning');
-        return;
-    }
-    
-    if (!confirm(`Delete ${selectedArray.length} selected files?`)) return;
-    
-    showProgress('Deleting files...', 0);
-    
-    // Delete in parallel for better performance
-    const deletePromises = selectedArray.map(fileId => 
-        fetch('/.netlify/functions/delete-media', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: fileId })
-        }).then(response => ({
-            id: fileId,
-            success: response.ok
-        })).catch(() => ({
-            id: fileId,
-            success: false
-        }))
-    );
-    
-    const results = await Promise.all(deletePromises);
-    
-    const deleted = results.filter(r => r.success).length;
-    const failed = results.filter(r => !r.success).length;
-    
-    // Remove successful deletes from local state
-    results.forEach(result => {
-        if (result.success) {
-            allFiles = allFiles.filter(f => f.id !== result.id);
-            selectedFiles.delete(result.id);
+            const selectedArray = Array.from(selectedFiles);
+            if (selectedArray.length === 0) {
+                showNotification('No files selected', 'warning');
+                return;
+            }
+            
+            if (!confirm(`Delete ${selectedArray.length} selected files?`)) return;
+            
+            showProgress('Deleting files...', 0);
+            
+            // Delete in parallel for better performance
+            const deletePromises = selectedArray.map(fileId => 
+                fetch('/.netlify/functions/delete-media', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: fileId })
+                }).then(response => ({
+                    id: fileId,
+                    success: response.ok
+                })).catch(() => ({
+                    id: fileId,
+                    success: false
+                }))
+            );
+            
+            const results = await Promise.all(deletePromises);
+            
+            const deleted = results.filter(r => r.success).length;
+            const failed = results.filter(r => !r.success).length;
+            
+            // Remove successful deletes from local state
+            results.forEach(result => {
+                if (result.success) {
+                    allFiles = allFiles.filter(f => f.id !== result.id);
+                    selectedFiles.delete(result.id);
+                }
+            });
+            
+            hideProgress();
+            selectedFiles.clear();
+            closeDetails();
+            
+            if (failed > 0) {
+                showNotification(`Deleted ${deleted} files, ${failed} failed`, 'warning');
+            } else {
+                showNotification(`Deleted ${deleted} files successfully`, 'success');
+            }
+            
+            updateCounts();
+            applyFilters();
         }
-    });
-    
-    hideProgress();
-    selectedFiles.clear();
-    closeDetails();
-    
-    if (failed > 0) {
-        showNotification(`Deleted ${deleted} files, ${failed} failed`, 'warning');
-    } else {
-        showNotification(`Deleted ${deleted} files successfully`, 'success');
-    }
-    
-    updateCounts();
-    applyFilters();
-}
 
         function handleStationInput(input) {
             const value = input.value.toLowerCase();
@@ -1540,9 +1573,10 @@ document.getElementById('detailsOriginalDate').value = dateValue;
             document.getElementById('uploadZone').classList.add('active');
         }
 
+        // FIXED: Don't clear pendingUploadFiles here
         function closeUploadZone() {
             document.getElementById('uploadZone').classList.remove('active');
-            pendingUploadFiles = [];
+            // DON'T clear pendingUploadFiles here - it's cleared after upload completes
             document.getElementById('fileInput').value = '';
             document.getElementById('selectedFilesList').innerHTML = '';
             document.getElementById('uploadButton').style.display = 'none';
@@ -1554,11 +1588,16 @@ document.getElementById('detailsOriginalDate').value = dateValue;
         }
 
         function openFullPreview() {
-            if (!currentFile || !currentFile.database_url) return;
+            if (!currentFile) return;
             
             const modal = document.getElementById('previewModal');
             const content = document.getElementById('modalPreviewContent');
             const url = currentFile.database_url || currentFile.cloudinary_url || currentFile.file_url;
+            
+            if (!url) {
+                showNotification('No file URL available', 'error');
+                return;
+            }
             
             if (currentFile.file_type === 'image') {
                 content.innerHTML = `<img src="${url}" style="max-width: 100%; max-height: 90vh;">`;
@@ -1632,7 +1671,6 @@ document.getElementById('detailsOriginalDate').value = dateValue;
 
         function showNotification(message, type = 'info') {
             console.log(`[${type}] ${message}`);
-            // Could add toast notifications here
         }
 
         // Initialize when DOM is ready
