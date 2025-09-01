@@ -999,7 +999,7 @@
         async function loadFiles() {
             try {
                 console.log('Loading files from Xano...');
-                const response = await fetch('/.netlify/functions/list-media');
+                const response = await fetch('/.netlify/functions/xano-proxy/user_submission');
                 
                 if (!response.ok) {
                     throw new Error(`Failed to load files: ${response.status}`);
@@ -1062,7 +1062,7 @@
                     <div>
                         <button onclick="event.stopPropagation(); downloadFile(${file.id})" 
                                 style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
-                            ${file.cloudinary_url ? '📁' : 'No file'}
+                            ${file.attachment || file.media_url ? '📁' : 'No file'}
                         </button>
                     </div>
                 </div>
@@ -1291,30 +1291,25 @@
             
             const cloudinaryData = await cloudinaryResponse.json();
             
-            // Step 2: Save metadata to Xano
+            // Step 2: Save metadata to Xano using the working user_submission endpoint
             const xanoData = {
                 title: file.name.split('.')[0],
                 description: '',
-                station: '',
                 submitted_by: 'User',
-                notes1: '',
-                notes2: '',
+                notes: '',
                 tags: 'hoibf,uploaded',
-                original_creation_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format like successful entries
-                file_size: file.size,
+                attachment: cloudinaryData.secure_url, // Save Cloudinary URL in attachment field
+                is_approved: false,
+                category: getFileType(file.type), // Use file type as category for now
+                station: '',
+                priority: '',
                 file_type: getFileType(file.type),
-                duration: 0,
-                is_featured: false,
-                scheduled_publish_date: Date.now(), // Number timestamp like successful entries
-                scheduled_unpublish_date: 0, // Number 0, not null
-                category_id: 0, // Number 0, not null
-                collection_id: 0, // Number 0, not null
-                user_id: 0, // Number 0, not null
-                database_url: cloudinaryData.secure_url,
-                thumbnail: cloudinaryData.secure_url
+                file_size: file.size,
+                media_url: cloudinaryData.secure_url, // Also save in media_url field
+                filename: file.name
             };
-            
-            const xanoResponse = await fetch('/.netlify/functions/xano-proxy/asset', {
+
+            const xanoResponse = await fetch('/.netlify/functions/xano-proxy/user_submission', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(xanoData)
@@ -1389,8 +1384,9 @@
         }
 
         function downloadFile() {
-            if (selectedFile && selectedFile.cloudinary_url) {
-                window.open(selectedFile.cloudinary_url, '_blank');
+            if (selectedFile && (selectedFile.attachment || selectedFile.media_url)) {
+                const fileUrl = selectedFile.attachment || selectedFile.media_url;
+                window.open(fileUrl, '_blank');
             } else {
                 showMessage('No file URL available', 'error');
             }
