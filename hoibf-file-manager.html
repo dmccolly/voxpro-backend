@@ -900,6 +900,9 @@
 
                         <div class="details-section">
                             <div class="details-section-title">Preview</div>
+                            <button class="details-btn secondary" onclick="playMedia()">
+                                ▶️ Play Media
+                            </button>
                             <button class="details-btn secondary" onclick="openFullPreview()">
                                 👁️ Full Preview
                             </button>
@@ -1435,8 +1438,130 @@
             }
         }
 
+        function playMedia() {
+            if (!selectedFile) return;
+            
+            const fileUrl = selectedFile.attachment || selectedFile.media_url;
+            if (!fileUrl) {
+                showMessage('No media URL available', 'error');
+                return;
+            }
+            
+            // Create or update the media player in the preview area
+            const previewContainer = document.querySelector('.preview-container') || createPreviewContainer();
+            
+            // Clear existing content
+            previewContainer.innerHTML = '';
+            
+            let mediaElement;
+            
+            if (selectedFile.file_type === 'audio') {
+                // Create audio player
+                mediaElement = document.createElement('audio');
+                mediaElement.controls = true;
+                mediaElement.style.width = '100%';
+                mediaElement.style.marginTop = '10px';
+            } else if (selectedFile.file_type === 'video') {
+                // Create video player
+                mediaElement = document.createElement('video');
+                mediaElement.controls = true;
+                mediaElement.style.width = '100%';
+                mediaElement.style.maxHeight = '300px';
+                mediaElement.style.marginTop = '10px';
+            } else {
+                // For other file types, show preview image or link
+                mediaElement = document.createElement('div');
+                mediaElement.innerHTML = `
+                    <div style="text-align: center; padding: 20px; border: 2px dashed #ccc; margin-top: 10px;">
+                        <p>Preview not available for this file type</p>
+                        <button onclick="downloadFile()" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📁 Open File
+                        </button>
+                    </div>
+                `;
+                previewContainer.appendChild(mediaElement);
+                return;
+            }
+            
+            mediaElement.src = fileUrl;
+            mediaElement.preload = 'metadata';
+            
+            // Add error handling
+            mediaElement.onerror = function() {
+                previewContainer.innerHTML = `
+                    <div style="text-align: center; padding: 20px; border: 2px solid #ff6b6b; margin-top: 10px; background: #ffe0e0;">
+                        <p style="color: #d63031;">Error loading media file</p>
+                        <button onclick="downloadFile()" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📁 Download File
+                        </button>
+                    </div>
+                `;
+            };
+            
+            // Add loading indicator
+            mediaElement.onloadstart = function() {
+                showMessage('Loading media...', 'info');
+            };
+            
+            mediaElement.oncanplay = function() {
+                showMessage('Media ready to play', 'success');
+            };
+            
+            previewContainer.appendChild(mediaElement);
+            
+            // Auto-play for audio files (optional)
+            if (selectedFile.file_type === 'audio') {
+                mediaElement.play().catch(e => {
+                    console.log('Auto-play prevented:', e);
+                });
+            }
+        }
+        
+        function createPreviewContainer() {
+            // Find or create preview container in the details panel
+            const detailsPanel = document.getElementById('detailsPanel');
+            let previewContainer = detailsPanel.querySelector('.preview-container');
+            
+            if (!previewContainer) {
+                previewContainer = document.createElement('div');
+                previewContainer.className = 'preview-container';
+                previewContainer.style.marginTop = '15px';
+                previewContainer.style.padding = '10px';
+                previewContainer.style.border = '1px solid #ddd';
+                previewContainer.style.borderRadius = '8px';
+                previewContainer.style.backgroundColor = '#f8f9fa';
+                
+                // Insert before the action buttons
+                const actionButtons = detailsPanel.querySelector('.details-actions');
+                if (actionButtons) {
+                    detailsPanel.insertBefore(previewContainer, actionButtons);
+                } else {
+                    detailsPanel.appendChild(previewContainer);
+                }
+            }
+            
+            return previewContainer;
+        }
+        
+        function generateThumbnail(file) {
+            // For now, return appropriate icons based on file type
+            // Later this can be enhanced to generate actual thumbnails from Cloudinary
+            const fileType = file.file_type || 'unknown';
+            
+            switch (fileType) {
+                case 'audio':
+                    return '🎵';
+                case 'video':
+                    return '🎬';
+                case 'image':
+                    return '🖼️';
+                default:
+                    return '📄';
+            }
+        }
+
         function openFullPreview() {
-            if (selectedFile && selectedFile.cloudinary_url) {
+            if (selectedFile && (selectedFile.attachment || selectedFile.media_url)) {
                 window.open(selectedFile.cloudinary_url, '_blank');
             } else {
                 showMessage('No preview available', 'error');
