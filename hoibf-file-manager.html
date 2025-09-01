@@ -1439,13 +1439,24 @@
         }
 
         function playMedia() {
-            if (!selectedFile) return;
+            console.log('🎵 playMedia function called');
+            alert('Play Media clicked!'); // Debug alert
+            
+            if (!selectedFile) {
+                alert('No file selected');
+                return;
+            }
+            
+            console.log('Selected file:', selectedFile.title);
             
             const fileUrl = selectedFile.attachment || selectedFile.media_url;
             if (!fileUrl) {
+                alert('No media URL available');
                 showMessage('No media URL available', 'error');
                 return;
             }
+            
+            alert('Creating media player for: ' + selectedFile.title);
             
             // Create or update the media player in the preview area
             const previewContainer = document.querySelector('.preview-container') || createPreviewContainer();
