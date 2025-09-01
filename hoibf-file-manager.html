@@ -1251,6 +1251,8 @@
             selectedFile = allFiles.find(f => f.id === id);
             if (selectedFile) {
                 updateDetailsPanel();
+                // Show preview automatically when file is selected
+                showFilePreview(selectedFile);
             }
         }
 
@@ -1680,27 +1682,6 @@
                 
                 previewContent.appendChild(mediaElement);
             }
-        }
-        
-        // Update file selection to show preview
-        function selectFile(file) {
-            selectedFile = file;
-            
-            // Update file details form
-            document.getElementById('fileTitle').value = file.title || '';
-            document.getElementById('fileDescription').value = file.description || '';
-            document.getElementById('fileStation').value = file.station || '';
-            document.getElementById('fileSubmittedBy').value = file.submitted_by || '';
-            
-            // Update category selection
-            const categorySelect = document.getElementById('fileCategory');
-            categorySelect.value = file.category_id || '0';
-            
-            // Show details panel
-            document.getElementById('detailsPanel').style.display = 'block';
-            
-            // Show preview automatically
-            showFilePreview(file);
         }
         
         // Fullscreen function
