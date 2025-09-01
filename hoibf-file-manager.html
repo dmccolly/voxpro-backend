@@ -1062,7 +1062,14 @@
                     <div>
                         <button onclick="event.stopPropagation(); downloadFile(${file.id})" 
                                 style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
-                            ${file.attachment || file.media_url ? '📁' : 'No file'}
+                            ${(() => {
+                                console.log('DEBUG - File:', file.title, 'attachment:', file.attachment, 'media_url:', file.media_url);
+                                const hasFile = file.attachment || file.media_url;
+                                console.log('DEBUG - hasFile:', hasFile);
+                                const result = hasFile ? '📁 FIXED' : 'No file';
+                                console.log('DEBUG - result:', result);
+                                return result;
+                            })()}
                         </button>
                     </div>
                 </div>
