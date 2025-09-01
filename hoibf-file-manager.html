@@ -1300,16 +1300,16 @@
                 notes1: '',
                 notes2: '',
                 tags: 'hoibf,uploaded',
-                original_creation_date: new Date().toISOString(),
+                original_creation_date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format like successful entries
                 file_size: file.size,
                 file_type: getFileType(file.type),
                 duration: 0,
                 is_featured: false,
-                scheduled_publish_date: null,
-                scheduled_unpublish_date: null,
-                category_id: null, // Will be set when user assigns category
-                collection_id: null,
-                user_id: null,
+                scheduled_publish_date: Date.now(), // Number timestamp like successful entries
+                scheduled_unpublish_date: 0, // Number 0, not null
+                category_id: 0, // Number 0, not null
+                collection_id: 0, // Number 0, not null
+                user_id: 0, // Number 0, not null
                 database_url: cloudinaryData.secure_url,
                 thumbnail: cloudinaryData.secure_url
             };
