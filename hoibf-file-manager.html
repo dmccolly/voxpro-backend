@@ -1498,15 +1498,51 @@
             loadFiles();
         }
 
-        function deleteSelected() {
+        async function deleteSelected() {
             if (selectedFiles.size === 0) {
                 showMessage('No files selected', 'error');
                 return;
             }
             
-            if (confirm(`Delete ${selectedFiles.size} selected files?`)) {
-                // Implement delete functionality
-                console.log('Deleting files:', Array.from(selectedFiles));
+            const fileCount = selectedFiles.size;
+            const fileNames = Array.from(selectedFiles).map(id => {
+                const file = allFiles.find(f => f.id === id);
+                return file ? file.title : `File ${id}`;
+            }).join(', ');
+            
+            if (confirm(`Are you sure you want to delete ${fileCount} selected file(s)?\n\nFiles to delete:\n${fileNames}\n\nThis action cannot be undone.`)) {
+                try {
+                    showMessage(`Deleting ${fileCount} files...`, 'info');
+                    
+                    // Delete each selected file
+                    const deletePromises = Array.from(selectedFiles).map(async (fileId) => {
+                        const response = await fetch(`/.netlify/functions/xano-proxy/user_submission/${fileId}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error(`Failed to delete file ${fileId}`);
+                        }
+                        
+                        return fileId;
+                    });
+                    
+                    // Wait for all deletions to complete
+                    await Promise.all(deletePromises);
+                    
+                    showMessage(`Successfully deleted ${fileCount} files`, 'success');
+                    
+                    // Clear selections and refresh
+                    selectedFiles.clear();
+                    selectedFile = null;
+                    document.getElementById('detailsPanel').style.display = 'none';
+                    loadFiles();
+                    
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    showMessage(`Error deleting files: ${error.message}`, 'error');
+                }
             }
         }
 
