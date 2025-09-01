@@ -385,10 +385,112 @@
         .file-date {
             color: var(--text-secondary);
             font-size: 12px;
+        }        /* Preview Window Styles */
+        .preview-window {
+            background: #2c3e50;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #34495e;
         }
 
-        /* Details Panel */
-        .details-panel {
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #34495e;
+            border-radius: 8px 8px 0 0;
+            border-bottom: 1px solid #4a5f7a;
+        }
+
+        .preview-title {
+            color: #ecf0f1;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .preview-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+
+        .preview-btn:hover {
+            background: #2980b9;
+        }
+
+        .preview-content {
+            min-height: 250px;
+            max-height: 400px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .preview-placeholder {
+            text-align: center;
+            color: #7f8c8d;
+        }
+
+        .placeholder-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .placeholder-text {
+            font-size: 14px;
+        }
+
+        /* Media Player Styles */
+        .preview-content audio,
+        .preview-content video {
+            width: 100%;
+            max-width: 100%;
+            max-height: 350px;
+            border-radius: 4px;
+        }
+
+        .preview-content img {
+            max-width: 100%;
+            max-height: 350px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .preview-content iframe {
+            width: 100%;
+            height: 350px;
+            border: none;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .file-info-overlay {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        /* Details Form Styles */
+        .details-form {    .details-panel {
             width: 350px;
             background: var(--bg-secondary);
             border-left: 1px solid var(--border);
@@ -872,6 +974,25 @@
                         <div class="details-title">File Details</div>
                     </div>
                     <div class="details-content">
+                    <!-- FIXED PREVIEW WINDOW -->
+                    <div class="preview-window">
+                        <div class="preview-header">
+                            <span class="preview-title">Media Preview</span>
+                            <div class="preview-controls">
+                                <button class="preview-btn" onclick="openFullscreen()" title="Open Fullscreen">⛶</button>
+                                <button class="preview-btn" onclick="downloadCurrentFile()" title="Download">📥</button>
+                            </div>
+                        </div>
+                        <div class="preview-content" id="previewContent">
+                            <div class="preview-placeholder">
+                                <div class="placeholder-icon">📄</div>
+                                <div class="placeholder-text">Select a file to preview</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FILE DETAILS FORM -->
+                    <div class="details-form">
                         <div class="details-section">
                             <div class="details-section-title">Basic Information</div>
                             <div class="details-field">
@@ -1436,6 +1557,163 @@
                     showMessage('Failed to delete file', 'error');
                 }
             }
+        }
+
+        // Universal Preview Function
+        function showFilePreview(file) {
+            if (!file) return;
+            
+            const previewContent = document.getElementById('previewContent');
+            const fileUrl = file.attachment || file.media_url;
+            
+            if (!fileUrl) {
+                previewContent.innerHTML = `
+                    <div class="preview-placeholder">
+                        <div class="placeholder-icon">❌</div>
+                        <div class="placeholder-text">No media URL available</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Clear existing content
+            previewContent.innerHTML = '';
+            
+            // Create preview based on file type
+            let mediaElement;
+            
+            if (file.file_type === 'audio') {
+                // Audio Player
+                mediaElement = document.createElement('audio');
+                mediaElement.controls = true;
+                mediaElement.src = fileUrl;
+                mediaElement.style.width = '100%';
+                
+                // Add file info overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'file-info-overlay';
+                overlay.textContent = `🎵 ${file.title || 'Audio File'}`;
+                previewContent.appendChild(overlay);
+                
+            } else if (file.file_type === 'video') {
+                // Video Player
+                mediaElement = document.createElement('video');
+                mediaElement.controls = true;
+                mediaElement.src = fileUrl;
+                mediaElement.style.width = '100%';
+                mediaElement.style.maxHeight = '350px';
+                
+                // Add file info overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'file-info-overlay';
+                overlay.textContent = `🎬 ${file.title || 'Video File'}`;
+                previewContent.appendChild(overlay);
+                
+            } else if (file.file_type === 'image') {
+                // Image Viewer
+                mediaElement = document.createElement('img');
+                mediaElement.src = fileUrl;
+                mediaElement.alt = file.title || 'Image';
+                mediaElement.style.maxWidth = '100%';
+                mediaElement.style.maxHeight = '350px';
+                mediaElement.style.objectFit = 'contain';
+                
+                // Add file info overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'file-info-overlay';
+                overlay.textContent = `🖼️ ${file.title || 'Image'}`;
+                previewContent.appendChild(overlay);
+                
+            } else if (fileUrl.toLowerCase().includes('.pdf')) {
+                // PDF Viewer
+                mediaElement = document.createElement('iframe');
+                mediaElement.src = fileUrl + '#toolbar=1&navpanes=1&scrollbar=1';
+                mediaElement.style.width = '100%';
+                mediaElement.style.height = '350px';
+                
+                // Add file info overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'file-info-overlay';
+                overlay.textContent = `📄 ${file.title || 'PDF Document'}`;
+                previewContent.appendChild(overlay);
+                
+            } else if (fileUrl.toLowerCase().match(/\.(doc|docx|txt|rtf)$/)) {
+                // Document Viewer (using Google Docs Viewer)
+                mediaElement = document.createElement('iframe');
+                mediaElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+                mediaElement.style.width = '100%';
+                mediaElement.style.height = '350px';
+                
+                // Add file info overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'file-info-overlay';
+                overlay.textContent = `📝 ${file.title || 'Document'}`;
+                previewContent.appendChild(overlay);
+                
+            } else {
+                // Generic file - show download option
+                previewContent.innerHTML = `
+                    <div class="preview-placeholder">
+                        <div class="placeholder-icon">📄</div>
+                        <div class="placeholder-text">${file.title || 'File'}</div>
+                        <button onclick="downloadFile()" style="margin-top: 12px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📥 Download File
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Add error handling
+            if (mediaElement) {
+                mediaElement.onerror = function() {
+                    previewContent.innerHTML = `
+                        <div class="preview-placeholder">
+                            <div class="placeholder-icon">⚠️</div>
+                            <div class="placeholder-text">Error loading media</div>
+                            <button onclick="downloadFile()" style="margin-top: 12px; padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                📥 Download Instead
+                            </button>
+                        </div>
+                    `;
+                };
+                
+                previewContent.appendChild(mediaElement);
+            }
+        }
+        
+        // Update file selection to show preview
+        function selectFile(file) {
+            selectedFile = file;
+            
+            // Update file details form
+            document.getElementById('fileTitle').value = file.title || '';
+            document.getElementById('fileDescription').value = file.description || '';
+            document.getElementById('fileStation').value = file.station || '';
+            document.getElementById('fileSubmittedBy').value = file.submitted_by || '';
+            
+            // Update category selection
+            const categorySelect = document.getElementById('fileCategory');
+            categorySelect.value = file.category_id || '0';
+            
+            // Show details panel
+            document.getElementById('detailsPanel').style.display = 'block';
+            
+            // Show preview automatically
+            showFilePreview(file);
+        }
+        
+        // Fullscreen function
+        function openFullscreen() {
+            if (selectedFile && (selectedFile.attachment || selectedFile.media_url)) {
+                const fileUrl = selectedFile.attachment || selectedFile.media_url;
+                window.open(fileUrl, '_blank');
+            }
+        }
+        
+        // Download current file function
+        function downloadCurrentFile() {
+            downloadFile();
         }
 
         function playMedia() {
