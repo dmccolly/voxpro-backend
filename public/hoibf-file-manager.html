@@ -1277,10 +1277,10 @@
             // Step 1: Upload to Cloudinary
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('upload_preset', 'hoibf_uploads'); // You'll need to set this in Cloudinary
+            formData.append('upload_preset', 'hoibf-media');
             formData.append('tags', 'hoibf,uploaded'); // Default tags
             
-            const cloudinaryResponse = await fetch('https://api.cloudinary.com/v1_1/YOUR_CLOUD_NAME/auto/upload', {
+            const cloudinaryResponse = await fetch('https://api.cloudinary.com/v1_1/dzrw8nopf/upload', {
                 method: 'POST',
                 body: formData
             });
