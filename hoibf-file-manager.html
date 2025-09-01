@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HOIBF File Management System - v2.1</title>
+    <title>HOIBF File Management System - FINAL v3.0</title>
     <style>
         :root {
             --bg-primary: #0a0e1a;
@@ -814,6 +814,7 @@
                     <span>Media Library</span>
                     <span class="breadcrumb-separator">/</span>
                     <span id="currentView">All Files</span>
+                    <span style="background: #ff4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 15px;">FINAL v3.0 - CLOUDINARY FIXED</span>
                 </div>
                 <div class="header-actions">
                     <div class="search-box">
@@ -1062,14 +1063,7 @@
                     <div>
                         <button onclick="event.stopPropagation(); downloadFile(${file.id})" 
                                 style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
-                            ${(() => {
-                                console.log('DEBUG - File:', file.title, 'attachment:', file.attachment, 'media_url:', file.media_url);
-                                const hasFile = file.attachment || file.media_url;
-                                console.log('DEBUG - hasFile:', hasFile);
-                                const result = hasFile ? '📁 FIXED' : 'No file';
-                                console.log('DEBUG - result:', result);
-                                return result;
-                            })()}
+                            ${file.attachment || file.media_url ? '📁 WORKING' : 'No file'}
                         </button>
                     </div>
                 </div>
