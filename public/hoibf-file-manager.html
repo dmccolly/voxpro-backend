@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HOIBF File Management System</title>
+    <title>HOIBF File Management System - FINAL v3.0</title>
     <style>
         :root {
             --bg-primary: #0a0e1a;
@@ -385,9 +385,118 @@
         .file-date {
             color: var(--text-secondary);
             font-size: 12px;
+        }        /* Preview Window Styles */
+        .preview-window {
+            background: #2c3e50;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #34495e;
         }
 
-        /* Details Panel */
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #34495e;
+            border-radius: 8px 8px 0 0;
+            border-bottom: 1px solid #4a5f7a;
+        }
+
+        .preview-title {
+            color: #ecf0f1;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .preview-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.2s;
+        }
+
+        .preview-btn:hover {
+            background: #2980b9;
+        }
+
+        .preview-content {
+            min-height: 250px;
+            max-height: 400px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .preview-placeholder {
+            text-align: center;
+            color: #7f8c8d;
+        }
+
+        .placeholder-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .placeholder-text {
+            font-size: 14px;
+        }
+
+        /* Media Player Styles */
+        .preview-content audio,
+        .preview-content video {
+            width: 100%;
+            max-width: 100%;
+            max-height: 350px;
+            border-radius: 4px;
+        }
+
+        .preview-content img {
+            max-width: 100%;
+            max-height: 350px;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .preview-content iframe {
+            width: 100%;
+            height: 350px;
+            border: none;
+            border-radius: 4px;
+            background: white;
+        }
+
+        .file-info-overlay {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        /* Details Form Styles */
+        /* Define details-form separately from details-panel. The previous nested
+           syntax caused the details panel styles to be ignored, which led to
+           the preview overlaying other fields. */
+        .details-form {
+            /* Place form-specific styles here if needed */
+        }
+
         .details-panel {
             width: 350px;
             background: var(--bg-secondary);
@@ -814,6 +923,7 @@
                     <span>Media Library</span>
                     <span class="breadcrumb-separator">/</span>
                     <span id="currentView">All Files</span>
+                    <span style="background: #ff4444; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin-left: 15px;">FINAL v3.0 - CLOUDINARY FIXED</span>
                 </div>
                 <div class="header-actions">
                     <div class="search-box">
@@ -871,6 +981,25 @@
                         <div class="details-title">File Details</div>
                     </div>
                     <div class="details-content">
+                    <!-- FIXED PREVIEW WINDOW -->
+                    <div class="preview-window">
+                        <div class="preview-header">
+                            <span class="preview-title">Media Preview</span>
+                            <div class="preview-controls">
+                                <button class="preview-btn" onclick="openFullscreen()" title="Open Fullscreen">⛶</button>
+                                <button class="preview-btn" onclick="downloadCurrentFile()" title="Download">📥</button>
+                            </div>
+                        </div>
+                        <div class="preview-content" id="previewContent">
+                            <div class="preview-placeholder">
+                                <div class="placeholder-icon">📄</div>
+                                <div class="placeholder-text">Select a file to preview</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- FILE DETAILS FORM -->
+                    <div class="details-form">
                         <div class="details-section">
                             <div class="details-section-title">Basic Information</div>
                             <div class="details-field">
@@ -899,6 +1028,9 @@
 
                         <div class="details-section">
                             <div class="details-section-title">Preview</div>
+                            <button class="details-btn secondary" onclick="playMedia()">
+                                ▶️ Play Media
+                            </button>
                             <button class="details-btn secondary" onclick="openFullPreview()">
                                 👁️ Full Preview
                             </button>
@@ -999,7 +1131,7 @@
         async function loadFiles() {
             try {
                 console.log('Loading files from Xano...');
-                const response = await fetch('/.netlify/functions/list-media');
+                const response = await fetch('/.netlify/functions/xano-proxy/user_submission');
                 
                 if (!response.ok) {
                     throw new Error(`Failed to load files: ${response.status}`);
@@ -1062,7 +1194,7 @@
                     <div>
                         <button onclick="event.stopPropagation(); downloadFile(${file.id})" 
                                 style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
-                            ${file.cloudinary_url ? '📁' : 'No file'}
+                            ${file.attachment || file.media_url ? '📁 WORKING' : 'No file'}
                         </button>
                     </div>
                 </div>
@@ -1126,6 +1258,8 @@
             selectedFile = allFiles.find(f => f.id === id);
             if (selectedFile) {
                 updateDetailsPanel();
+                // Show preview automatically when file is selected
+                showFilePreview(selectedFile);
             }
         }
 
@@ -1291,23 +1425,25 @@
             
             const cloudinaryData = await cloudinaryResponse.json();
             
-            // Step 2: Save metadata to Xano
+            // Step 2: Save metadata to Xano using the working user_submission endpoint
             const xanoData = {
                 title: file.name.split('.')[0],
                 description: '',
+                submitted_by: 'User',
+                notes: '',
+                tags: 'hoibf,uploaded',
+                attachment: cloudinaryData.secure_url, // Save Cloudinary URL in attachment field
+                is_approved: false,
+                category: getFileType(file.type), // Use file type as category for now
+                station: '',
+                priority: '',
                 file_type: getFileType(file.type),
                 file_size: file.size,
-                filename: file.name,
-                cloudinary_url: cloudinaryData.secure_url,
-                media_url: cloudinaryData.secure_url,
-                thumbnail_url: cloudinaryData.secure_url,
-                submitted_by: 'User',
-                station: '',
-                category_id: null, // Will be set when user assigns category
-                tags: 'hoibf,uploaded'
+                media_url: cloudinaryData.secure_url, // Also save in media_url field
+                filename: file.name
             };
-            
-            const xanoResponse = await fetch('/.netlify/functions/xano-proxy/asset', {
+
+            const xanoResponse = await fetch('/.netlify/functions/xano-proxy/user_submission', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(xanoData)
@@ -1369,37 +1505,306 @@
             loadFiles();
         }
 
-        function deleteSelected() {
+        async function deleteSelected() {
             if (selectedFiles.size === 0) {
                 showMessage('No files selected', 'error');
                 return;
             }
             
-            if (confirm(`Delete ${selectedFiles.size} selected files?`)) {
-                // Implement delete functionality
-                console.log('Deleting files:', Array.from(selectedFiles));
+            const fileCount = selectedFiles.size;
+            const fileNames = Array.from(selectedFiles).map(id => {
+                const file = allFiles.find(f => f.id === id);
+                return file ? file.title : `File ${id}`;
+            }).join(', ');
+            
+            if (confirm(`Are you sure you want to delete ${fileCount} selected file(s)?\n\nFiles to delete:\n${fileNames}\n\nThis action cannot be undone.`)) {
+                try {
+                    showMessage(`Deleting ${fileCount} files...`, 'info');
+                    
+                    // Delete each selected file
+                    const deletePromises = Array.from(selectedFiles).map(async (fileId) => {
+                        const response = await fetch(`/.netlify/functions/xano-proxy/user_submission/${fileId}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        if (!response.ok) {
+                            throw new Error(`Failed to delete file ${fileId}`);
+                        }
+                        
+                        return fileId;
+                    });
+                    
+                    // Wait for all deletions to complete
+                    await Promise.all(deletePromises);
+                    
+                    showMessage(`Successfully deleted ${fileCount} files`, 'success');
+                    
+                    // Clear selections and refresh
+                    selectedFiles.clear();
+                    selectedFile = null;
+                    document.getElementById('detailsPanel').style.display = 'none';
+                    loadFiles();
+                    
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    showMessage(`Error deleting files: ${error.message}`, 'error');
+                }
             }
         }
 
         function downloadFile() {
-            if (selectedFile && selectedFile.cloudinary_url) {
-                window.open(selectedFile.cloudinary_url, '_blank');
+            if (selectedFile && (selectedFile.attachment || selectedFile.media_url)) {
+                const fileUrl = selectedFile.attachment || selectedFile.media_url;
+                
+                // Create a temporary link element to trigger download
+                const link = document.createElement('a');
+                link.href = fileUrl;
+                link.download = selectedFile.filename || selectedFile.title || 'download';
+                link.target = '_blank';
+                
+                // Append to body, click, and remove
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showMessage('Download started', 'success');
             } else {
                 showMessage('No file URL available', 'error');
             }
         }
 
-        function deleteFile() {
+        async function deleteFile() {
             if (!selectedFile) return;
             
             if (confirm(`Delete "${selectedFile.title}"?`)) {
-                // Implement delete functionality
-                console.log('Deleting file:', selectedFile.id);
+                try {
+                    showMessage('Deleting file...', 'info');
+                    
+                    const response = await fetch(`/.netlify/functions/xano-proxy/user_submission/${selectedFile.id}`, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Failed to delete file: ${response.status}`);
+                    }
+                    
+                    showMessage('File deleted successfully', 'success');
+                    
+                    // Clear selection and refresh file list
+                    selectedFile = null;
+                    document.getElementById('detailsPanel').style.display = 'none';
+                    loadFiles();
+                    
+                } catch (error) {
+                    console.error('Delete error:', error);
+                    showMessage('Failed to delete file', 'error');
+                }
+            }
+        }
+
+        // Universal Preview Function
+        function showFilePreview(file) {
+            if (!file) return;
+            
+            const previewContent = document.getElementById('previewContent');
+            const fileUrl = file.attachment || file.media_url;
+            
+            if (!fileUrl) {
+                previewContent.innerHTML = `
+                    <div class="preview-placeholder">
+                        <div class="placeholder-icon">❌</div>
+                        <div class="placeholder-text">No media URL available</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Clear existing content
+            previewContent.innerHTML = '';
+            
+            // Create preview based on file type
+            let mediaElement;
+            
+            if (file.file_type === 'audio') {
+                // Audio Player
+                mediaElement = document.createElement('audio');
+                mediaElement.controls = true;
+                mediaElement.src = fileUrl;
+                mediaElement.style.width = '100%';
+                
+                // Add file info overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'file-info-overlay';
+                overlay.textContent = `🎵 ${file.title || 'Audio File'}`;
+                previewContent.appendChild(overlay);
+                
+            } else if (file.file_type === 'video') {
+                // Video Player
+                mediaElement = document.createElement('video');
+                mediaElement.controls = true;
+                mediaElement.src = fileUrl;
+                mediaElement.style.width = '100%';
+                mediaElement.style.maxHeight = '350px';
+                
+                // Add file info overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'file-info-overlay';
+                overlay.textContent = `🎬 ${file.title || 'Video File'}`;
+                previewContent.appendChild(overlay);
+                
+            } else if (file.file_type === 'image') {
+                // Image Viewer
+                mediaElement = document.createElement('img');
+                mediaElement.src = fileUrl;
+                mediaElement.alt = file.title || 'Image';
+                mediaElement.style.maxWidth = '100%';
+                mediaElement.style.maxHeight = '350px';
+                mediaElement.style.objectFit = 'contain';
+                
+                // Add file info overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'file-info-overlay';
+                overlay.textContent = `🖼️ ${file.title || 'Image'}`;
+                previewContent.appendChild(overlay);
+                
+            } else if (fileUrl.toLowerCase().includes('.pdf')) {
+                // PDF Viewer
+                mediaElement = document.createElement('iframe');
+                mediaElement.src = fileUrl + '#toolbar=1&navpanes=1&scrollbar=1';
+                mediaElement.style.width = '100%';
+                mediaElement.style.height = '350px';
+                
+                // Add file info overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'file-info-overlay';
+                overlay.textContent = `📄 ${file.title || 'PDF Document'}`;
+                previewContent.appendChild(overlay);
+                
+            } else if (fileUrl.toLowerCase().match(/\.(doc|docx|txt|rtf)$/)) {
+                // Document Viewer (using Google Docs Viewer)
+                mediaElement = document.createElement('iframe');
+                mediaElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+                mediaElement.style.width = '100%';
+                mediaElement.style.height = '350px';
+                
+                // Add file info overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'file-info-overlay';
+                overlay.textContent = `📝 ${file.title || 'Document'}`;
+                previewContent.appendChild(overlay);
+                
+            } else {
+                // Generic file - show download option
+                previewContent.innerHTML = `
+                    <div class="preview-placeholder">
+                        <div class="placeholder-icon">📄</div>
+                        <div class="placeholder-text">${file.title || 'File'}</div>
+                        <button onclick="downloadFile()" style="margin-top: 12px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📥 Download File
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Add error handling
+            if (mediaElement) {
+                mediaElement.onerror = function() {
+                    previewContent.innerHTML = `
+                        <div class="preview-placeholder">
+                            <div class="placeholder-icon">⚠️</div>
+                            <div class="placeholder-text">Error loading media</div>
+                            <button onclick="downloadFile()" style="margin-top: 12px; padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                📥 Download Instead
+                            </button>
+                        </div>
+                    `;
+                };
+                
+                previewContent.appendChild(mediaElement);
+            }
+        }
+        
+        // Fullscreen function
+        function openFullscreen() {
+            if (selectedFile && (selectedFile.attachment || selectedFile.media_url)) {
+                const fileUrl = selectedFile.attachment || selectedFile.media_url;
+                window.open(fileUrl, '_blank');
+            }
+        }
+        
+        // Download current file function
+        function downloadCurrentFile() {
+            downloadFile();
+        }
+
+        function playMedia() {
+            // Play the selected media file using the existing preview logic.
+            // This simplified version delegates rendering to showFilePreview()
+            // and avoids creating duplicate containers or showing debug alerts.
+            if (!selectedFile) {
+                showMessage('No file selected', 'error');
+                return;
+            }
+            // Render the preview using the universal preview function
+            showFilePreview(selectedFile);
+            // If an audio element was inserted, auto-play it for convenience
+            const previewContent = document.getElementById('previewContent');
+            const media = previewContent ? previewContent.querySelector('audio') : null;
+            if (media) {
+                media.play().catch(() => {
+                    // Autoplay may be blocked by the browser; ignore errors
+                });
+            }
+        }
+        
+        function createPreviewContainer() {
+            // Find or create preview container in the details panel
+            const detailsPanel = document.getElementById('detailsPanel');
+            let previewContainer = detailsPanel.querySelector('.preview-container');
+            
+            if (!previewContainer) {
+                previewContainer = document.createElement('div');
+                previewContainer.className = 'preview-container';
+                previewContainer.style.marginTop = '15px';
+                previewContainer.style.padding = '10px';
+                previewContainer.style.border = '1px solid #ddd';
+                previewContainer.style.borderRadius = '8px';
+                previewContainer.style.backgroundColor = '#f8f9fa';
+                
+                // Insert before the action buttons
+                const actionButtons = detailsPanel.querySelector('.details-actions');
+                if (actionButtons) {
+                    detailsPanel.insertBefore(previewContainer, actionButtons);
+                } else {
+                    detailsPanel.appendChild(previewContainer);
+                }
+            }
+            
+            return previewContainer;
+        }
+        
+        function generateThumbnail(file) {
+            // For now, return appropriate icons based on file type
+            // Later this can be enhanced to generate actual thumbnails from Cloudinary
+            const fileType = file.file_type || 'unknown';
+            
+            switch (fileType) {
+                case 'audio':
+                    return '🎵';
+                case 'video':
+                    return '🎬';
+                case 'image':
+                    return '🖼️';
+                default:
+                    return '📄';
             }
         }
 
         function openFullPreview() {
-            if (selectedFile && selectedFile.cloudinary_url) {
+            if (selectedFile && (selectedFile.attachment || selectedFile.media_url)) {
                 window.open(selectedFile.cloudinary_url, '_blank');
             } else {
                 showMessage('No preview available', 'error');
