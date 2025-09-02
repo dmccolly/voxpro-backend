@@ -289,6 +289,92 @@
             background: #dc2626;
         }
 
+        /* Thumbnail and view modes */
+        .thumbnails-view {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .thumb-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.2s ease;
+        }
+        .thumb-item:hover {
+            background: var(--bg-hover);
+        }
+        .thumb-title {
+            font-size: 12px;
+            color: var(--text-primary);
+            margin-top: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* Ensure thumbnails scale within their container */
+        .thumb-item img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .thumbs-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        /* Active view mode button */
+        .toolbar-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        /* Thumbnails view styling */
+        .thumbs-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 8px;
+        }
+        .thumb-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            overflow: hidden;
+        }
+        .thumb-item:hover {
+            background: var(--bg-hover);
+        }
+        .thumb-image {
+            width: 100%;
+            height: auto;
+            margin-bottom: 6px;
+        }
+        .thumb-image img,
+        .thumb-image span {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .thumb-title {
+            font-size: 13px;
+            color: var(--text-primary);
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
         /* File List */
         .file-list-container {
             flex: 1;
@@ -459,23 +545,32 @@
         .preview-content video {
             width: 100%;
             max-width: 100%;
-            max-height: 350px;
+            max-height: 200px; /* keep previews small */
             border-radius: 4px;
         }
 
         .preview-content img {
             max-width: 100%;
-            max-height: 350px;
+            max-height: 200px; /* keep previews small */
             object-fit: contain;
             border-radius: 4px;
         }
 
         .preview-content iframe {
             width: 100%;
-            height: 350px;
+            height: 200px; /* keep previews small */
             border: none;
             border-radius: 4px;
             background: white;
+        }
+
+        /* Thumbnail icon for file list */
+        .thumbnail-icon {
+            width: 32px;
+            height: 32px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 8px;
         }
 
         .file-info-overlay {
@@ -490,7 +585,14 @@
         }
 
         /* Details Form Styles */
-        .details-form {    .details-panel {
+        /* Define details-form separately from details-panel. The previous nested
+           syntax caused the details panel styles to be ignored, which led to
+           the preview overlaying other fields. */
+        .details-form {
+            /* Place form-specific styles here if needed */
+        }
+
+        .details-panel {
             width: 350px;
             background: var(--bg-secondary);
             border-left: 1px solid var(--border);
@@ -926,6 +1028,8 @@
                     <button class="upload-btn" onclick="openUploadModal()">
                         ⬆️ Upload
                     </button>
+                    <!-- Link to VoxPro manager -->
+                    <a href="/public/voxpro" class="upload-btn" style="margin-left: 8px; text-decoration: none; display: inline-flex; align-items: center;">🔁 VoxPro</a>
                 </div>
             </div>
 
@@ -940,6 +1044,10 @@
                 <button class="toolbar-btn" onclick="refreshFiles()">
                     🔄 Refresh
                 </button>
+                <!-- View mode buttons -->
+                <button class="toolbar-btn" id="viewDetailsBtn" onclick="setViewMode('details')">Details</button>
+                <button class="toolbar-btn" id="viewSmallBtn" onclick="setViewMode('small')">Small</button>
+                <button class="toolbar-btn" id="viewMediumBtn" onclick="setViewMode('medium')">Medium</button>
                 <div style="margin-left: auto;">
                     <button class="toolbar-btn" onclick="toggleSidebar()">
                         ☰
@@ -1017,6 +1125,15 @@
                                     <option value="">Loading categories...</option>
                                 </select>
                             </div>
+                            <!-- New fields: Tags and Notes -->
+                            <div class="details-field">
+                                <div class="details-label">Tags</div>
+                                <input type="text" class="details-input" id="detailsTags" placeholder="Comma-separated tags">
+                            </div>
+                            <div class="details-field">
+                                <div class="details-label">Notes</div>
+                                <textarea class="details-textarea" id="detailsNotes" placeholder="Add notes..."></textarea>
+                            </div>
                         </div>
 
                         <div class="details-section">
@@ -1027,6 +1144,15 @@
                             <button class="details-btn secondary" onclick="openFullPreview()">
                                 👁️ Full Preview
                             </button>
+                        </div>
+
+                        <!-- Advanced section for full record editing -->
+                        <div class="details-section">
+                            <div class="details-section-title">Advanced</div>
+                            <button class="details-btn secondary" id="toggleFullRecordBtn" onclick="toggleFullRecord()">
+                                Show Full Record
+                            </button>
+                            <div id="fullRecordContainer" style="display: none; margin-top: 12px;"></div>
                         </div>
                     </div>
                     <div class="details-actions">
@@ -1046,9 +1172,8 @@
                 <div class="modal-title">Upload Files</div>
             </div>
             <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-                <div class="upload-icon">📁</div>
-                <div class="upload-text">Drag files here or click to browse</div>
-                <div class="upload-subtext">Supports images, videos, and audio files</div>
+                <!-- Simplified upload area: just a button to select files -->
+                <button class="details-btn" type="button">Select Files</button>
             </div>
             <input type="file" id="fileInput" multiple style="display: none;" accept="image/*,video/*,audio/*">
             <div class="progress-container" id="progressContainer">
@@ -1070,6 +1195,17 @@
         let selectedFiles = new Set();
         let currentFilter = { type: 'all' };
         let selectedFile = null;
+        // Infinite scroll state
+        // currentPage controls how many pages of results are shown. Each page
+        // displays `itemsPerPage` items. filteredFilesCache stores the
+        // last filtered list so we can append pages without recomputing.
+        let currentPage = 1;
+        let itemsPerPage = 50;
+        let filteredFilesCache = [];
+
+        // View mode state. 'details' shows a list with columns; 'small' shows
+        // a grid of small thumbnails; 'medium' shows a grid of medium thumbnails.
+        let currentViewMode = 'details';
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
@@ -1077,6 +1213,9 @@
             loadCategories();
             loadFiles();
             setupEventListeners();
+            initInfiniteScroll();
+            // Initialize view buttons state
+            setViewMode(currentViewMode);
         });
 
         // Load categories from Xano
@@ -1169,31 +1308,55 @@
                 return true;
             });
 
-            const html = filteredFiles.map(file => `
-                <div class="file-item" data-id="${file.id}" onclick="selectFile(${file.id})">
-                    <div class="file-checkbox ${selectedFiles.has(file.id) ? 'checked' : ''}" 
-                         onclick="event.stopPropagation(); toggleFileSelection(${file.id})"></div>
-                    <div style="display: flex; align-items: center;">
-                        <span class="file-icon">${getFileIcon(file.file_type)}</span>
+            // Store the filtered results so we can implement infinite scroll
+            filteredFilesCache = filteredFiles;
+            // Determine how many items to display based on current page
+            const displayFiles = filteredFilesCache.slice(0, currentPage * itemsPerPage);
+
+            let html = '';
+            if (currentViewMode === 'details') {
+                // Detailed list view
+                html = displayFiles.map(file => {
+                    return `
+                    <div class="file-item" data-id="${file.id}" onclick="selectFile(${file.id})">
+                        <div class="file-checkbox ${selectedFiles.has(file.id) ? 'checked' : ''}" onclick="event.stopPropagation(); toggleFileSelection(${file.id})"></div>
+                        <div style="display: flex; align-items: center;">
+                            ${getFileThumbnail(file)}
+                            <div>
+                                <div class="file-title">${file.title || 'Untitled'}</div>
+                                <div class="file-type">${file.file_type || 'unknown'}</div>
+                            </div>
+                        </div>
+                        <div class="file-size">${formatFileSize(file.file_size)}</div>
+                        <div>${file.duration || '-'}</div>
+                        <div>${file.station || '-'}</div>
+                        <div class="file-date">${formatDate(file.created_at)}</div>
                         <div>
-                            <div class="file-title">${file.title || 'Untitled'}</div>
-                            <div class="file-type">${file.file_type || 'unknown'}</div>
+                            <button onclick="event.stopPropagation(); downloadFile(${file.id})"
+                                    style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
+                                ${file.attachment || file.media_url ? '📁 WORKING' : 'No file'}
+                            </button>
                         </div>
                     </div>
-                    <div class="file-size">${formatFileSize(file.file_size)}</div>
-                    <div>${file.duration || '-'}</div>
-                    <div>${file.station || '-'}</div>
-                    <div class="file-date">${formatDate(file.created_at)}</div>
-                    <div>
-                        <button onclick="event.stopPropagation(); downloadFile(${file.id})" 
-                                style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
-                            ${file.attachment || file.media_url ? '📁 WORKING' : 'No file'}
-                        </button>
+                    `;
+                }).join('');
+                container.innerHTML = html;
+            } else {
+                // Thumbnail view (small or medium)
+                const itemWidth = currentViewMode === 'small' ? '120px' : '200px';
+                html = '<div class="thumbs-container">' + displayFiles.map(file => {
+                    // Compose item html
+                    const title = file.title || 'Untitled';
+                    const thumb = getFileThumbnail(file);
+                    return `
+                    <div class="thumb-item" style="width:${itemWidth}" data-id="${file.id}" onclick="selectFile(${file.id})">
+                        <div class="thumb-image">${thumb}</div>
+                        <div class="thumb-title" title="${title}">${title}</div>
                     </div>
-                </div>
-            `).join('');
-
-            container.innerHTML = html;
+                    `;
+                }).join('') + '</div>';
+                container.innerHTML = html;
+            }
         }
 
         // Update counts
@@ -1214,6 +1377,7 @@
         // Filter functions
         function showAllFiles() {
             currentFilter = { type: 'all' };
+            currentPage = 1;
             updateActiveNav();
             updateFileList();
             document.getElementById('currentView').textContent = 'All Files';
@@ -1221,6 +1385,7 @@
 
         function filterByType(type) {
             currentFilter = { type: 'type', value: type };
+            currentPage = 1;
             updateActiveNav();
             updateFileList();
             document.getElementById('currentView').textContent = type.charAt(0).toUpperCase() + type.slice(1);
@@ -1228,6 +1393,7 @@
 
         function filterByCategory(id) {
             currentFilter = { type: 'category', value: id };
+            currentPage = 1;
             updateActiveNav();
             updateFileList();
             const category = allCategories.find(c => c.id === id);
@@ -1250,6 +1416,17 @@
         function selectFile(id) {
             selectedFile = allFiles.find(f => f.id === id);
             if (selectedFile) {
+                // Ensure the details panel is visible when a file is selected.  It may
+                // have been hidden by previous operations (e.g. after bulk
+                // deletion) via `style.display = 'none'`.  Resetting to an empty
+                // string or its default allows it to reclaim its flex layout.
+                const detailsPanel = document.getElementById('detailsPanel');
+                if (detailsPanel) {
+                    detailsPanel.style.display = '';
+                    // Also reset any inline width that might have been modified by
+                    // responsive styles so the panel remains at its default
+                    // width.  Leaving an empty string lets CSS define it.
+                }
                 updateDetailsPanel();
                 // Show preview automatically when file is selected
                 showFilePreview(selectedFile);
@@ -1287,6 +1464,23 @@
             document.getElementById('detailsStation').value = selectedFile.station || '';
             document.getElementById('detailsSubmittedBy').value = selectedFile.submitted_by || '';
             document.getElementById('detailsCategory').value = selectedFile.category_id || '';
+            // Populate tags and notes if available
+            const tagsInput = document.getElementById('detailsTags');
+            const notesInput = document.getElementById('detailsNotes');
+            if (tagsInput) {
+                const tagsVal = Array.isArray(selectedFile.tags) ? selectedFile.tags.join(', ') : (selectedFile.tags || '');
+                tagsInput.value = tagsVal;
+            }
+            if (notesInput) {
+                notesInput.value = selectedFile.notes || '';
+            }
+
+            // If the full record section is visible, repopulate it with
+            // updated values for the newly selected file
+            const fullContainer = document.getElementById('fullRecordContainer');
+            if (fullContainer && fullContainer.style.display !== 'none') {
+                populateFullRecord();
+            }
         }
 
         // Save file details
@@ -1300,7 +1494,17 @@
                     station: document.getElementById('detailsStation').value,
                     submitted_by: document.getElementById('detailsSubmittedBy').value,
                     category_id: parseInt(document.getElementById('detailsCategory').value) || null,
+                    // Split tags on comma, trim whitespace, and filter out blanks
+                    tags: document.getElementById('detailsTags').value.split(',').map(t => t.trim()).filter(Boolean),
+                    notes: document.getElementById('detailsNotes').value,
                 };
+                // Merge additional fields from the full record editor, if visible
+                const fullFields = document.querySelectorAll('#fullRecordContainer .full-field');
+                fullFields.forEach(input => {
+                    const key = input.dataset.key;
+                    const value = input.value;
+                    updateData[key] = value;
+                });
 
                 const response = await fetch(`/.netlify/functions/xano-proxy/asset/${selectedFile.id}`, {
                     method: 'PATCH',
@@ -1339,7 +1543,11 @@
         // Setup event listeners
         function setupEventListeners() {
             // Search
-            document.getElementById('searchInput').addEventListener('input', updateFileList);
+            // Reset page to 1 on search and refresh the list
+            document.getElementById('searchInput').addEventListener('input', () => {
+                currentPage = 1;
+                updateFileList();
+            });
 
             // File input
             document.getElementById('fileInput').addEventListener('change', handleFileSelect);
@@ -1349,6 +1557,90 @@
             uploadArea.addEventListener('dragover', handleDragOver);
             uploadArea.addEventListener('dragleave', handleDragLeave);
             uploadArea.addEventListener('drop', handleDrop);
+        }
+
+        /**
+         * Initialize infinite scroll on the file list container. When the user
+         * scrolls near the bottom of the list, this function increments
+         * `currentPage` and triggers `updateFileList()` to append more items.
+         */
+        function initInfiniteScroll() {
+            const container = document.getElementById('fileListContent');
+            if (!container) return;
+            container.addEventListener('scroll', () => {
+                const threshold = 50; // px from bottom to trigger load
+                if (container.scrollTop + container.clientHeight >= container.scrollHeight - threshold) {
+                    // Only load more if there are more items to show
+                    if (currentPage * itemsPerPage < filteredFilesCache.length) {
+                        currentPage++;
+                        updateFileList();
+                    }
+                }
+            });
+        }
+
+        /**
+         * Change the current view mode. Updates button active states and
+         * triggers a refresh of the file list.
+         * @param {string} mode - 'details', 'small', or 'medium'
+         */
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            // Update active classes on view buttons
+            ['details','small','medium'].forEach(v => {
+                const btn = document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1) + 'Btn');
+                if (btn) {
+                    btn.classList.toggle('active', v === mode);
+                }
+            });
+            // Reset paging when switching view for consistent behaviour
+            currentPage = 1;
+            updateFileList();
+        }
+
+        /**
+         * Toggle the visibility of the full record editor. When showing, it
+         * populates the container with editable fields for each property of
+         * selectedFile except for certain read-only or duplicated fields.
+         */
+        function toggleFullRecord() {
+            const container = document.getElementById('fullRecordContainer');
+            const btn = document.getElementById('toggleFullRecordBtn');
+            const isHidden = !container || container.style.display === 'none' || container.style.display === '';
+            if (isHidden) {
+                if (container) container.style.display = 'block';
+                if (btn) btn.textContent = 'Hide Full Record';
+                populateFullRecord();
+            } else {
+                if (container) container.style.display = 'none';
+                if (btn) btn.textContent = 'Show Full Record';
+            }
+        }
+
+        /**
+         * Build the full record fields dynamically based on the selected file.
+         * Skips a set of base fields that are either read-only or already
+         * represented in the main form.
+         */
+        function populateFullRecord() {
+            const container = document.getElementById('fullRecordContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!selectedFile) return;
+            const skipKeys = ['id','file_size','file_type','cloudinary_url','secure_url','attachment','media_url','thumbnail_url','created_at'];
+            Object.entries(selectedFile).forEach(([key, value]) => {
+                if (skipKeys.includes(key)) return;
+                // Skip keys that are already in the basic form
+                if (['title','description','station','submitted_by','category_id','tags','notes'].includes(key)) return;
+                const field = document.createElement('div');
+                field.className = 'details-field';
+                const val = value === null || value === undefined ? '' : value;
+                field.innerHTML = `
+                    <div class="details-label">${key}</div>
+                    <input type="text" class="details-input full-field" data-key="${key}" value="${val}">
+                `;
+                container.appendChild(field);
+            });
         }
 
         function handleFileSelect(event) {
@@ -1465,6 +1757,34 @@
                 case 'document': return '📄';
                 default: return '📄';
             }
+        }
+
+        /**
+         * Generate a thumbnail element for a file. For images and videos stored in
+         * Cloudinary, this will return an <img> tag with a transformation applied
+         * to produce a small 60x60 crop. For other types, it falls back to the
+         * appropriate emoji icon. Note: this function returns an HTML string
+         * because it is used inside a template literal when building the file
+         * list. If no URL is available, the default icon is used.
+         * @param {Object} file - File record
+         * @returns {string} HTML string for thumbnail or icon
+         */
+        function getFileThumbnail(file) {
+            // Attempt to find a Cloudinary URL from common fields
+            const url = file.secure_url || file.attachment || file.media_url || '';
+            // Only images and videos get thumbnails; others fall back to icons
+            if (file.file_type === 'image' && url.includes('/upload/')) {
+                // Create a 60x60 centered crop thumbnail
+                const thumbUrl = url.replace('/upload/', '/upload/c_thumb,w_60,h_60/');
+                return `<img class="thumbnail-icon" src="${thumbUrl}" alt="${file.title || ''}">`;
+            }
+            if (file.file_type === 'video' && url.includes('/upload/')) {
+                // Use Cloudinary video frame at start (so_0) and crop
+                const thumbUrl = url.replace('/upload/', '/upload/so_0,c_thumb,w_60,h_60/');
+                return `<img class="thumbnail-icon" src="${thumbUrl}" alt="${file.title || ''}">`;
+            }
+            // Fallback: return the text icon
+            return `<span class="file-icon">${getFileIcon(file.file_type)}</span>`;
         }
 
         function formatFileSize(bytes) {
@@ -1734,91 +2054,21 @@
         }
 
         function playMedia() {
-            console.log('🎵 playMedia function called');
-            alert('Play Media clicked!'); // Debug alert
-            
+            // Play the selected media file using the existing preview logic.
+            // This simplified version delegates rendering to showFilePreview()
+            // and avoids creating duplicate containers or showing debug alerts.
             if (!selectedFile) {
-                alert('No file selected');
+                showMessage('No file selected', 'error');
                 return;
             }
-            
-            console.log('Selected file:', selectedFile.title);
-            
-            const fileUrl = selectedFile.attachment || selectedFile.media_url;
-            if (!fileUrl) {
-                alert('No media URL available');
-                showMessage('No media URL available', 'error');
-                return;
-            }
-            
-            alert('Creating media player for: ' + selectedFile.title);
-            
-            // Create or update the media player in the preview area
-            const previewContainer = document.querySelector('.preview-container') || createPreviewContainer();
-            
-            // Clear existing content
-            previewContainer.innerHTML = '';
-            
-            let mediaElement;
-            
-            if (selectedFile.file_type === 'audio') {
-                // Create audio player
-                mediaElement = document.createElement('audio');
-                mediaElement.controls = true;
-                mediaElement.style.width = '100%';
-                mediaElement.style.marginTop = '10px';
-            } else if (selectedFile.file_type === 'video') {
-                // Create video player
-                mediaElement = document.createElement('video');
-                mediaElement.controls = true;
-                mediaElement.style.width = '100%';
-                mediaElement.style.maxHeight = '300px';
-                mediaElement.style.marginTop = '10px';
-            } else {
-                // For other file types, show preview image or link
-                mediaElement = document.createElement('div');
-                mediaElement.innerHTML = `
-                    <div style="text-align: center; padding: 20px; border: 2px dashed #ccc; margin-top: 10px;">
-                        <p>Preview not available for this file type</p>
-                        <button onclick="downloadFile()" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            📁 Open File
-                        </button>
-                    </div>
-                `;
-                previewContainer.appendChild(mediaElement);
-                return;
-            }
-            
-            mediaElement.src = fileUrl;
-            mediaElement.preload = 'metadata';
-            
-            // Add error handling
-            mediaElement.onerror = function() {
-                previewContainer.innerHTML = `
-                    <div style="text-align: center; padding: 20px; border: 2px solid #ff6b6b; margin-top: 10px; background: #ffe0e0;">
-                        <p style="color: #d63031;">Error loading media file</p>
-                        <button onclick="downloadFile()" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            📁 Download File
-                        </button>
-                    </div>
-                `;
-            };
-            
-            // Add loading indicator
-            mediaElement.onloadstart = function() {
-                showMessage('Loading media...', 'info');
-            };
-            
-            mediaElement.oncanplay = function() {
-                showMessage('Media ready to play', 'success');
-            };
-            
-            previewContainer.appendChild(mediaElement);
-            
-            // Auto-play for audio files (optional)
-            if (selectedFile.file_type === 'audio') {
-                mediaElement.play().catch(e => {
-                    console.log('Auto-play prevented:', e);
+            // Render the preview using the universal preview function
+            showFilePreview(selectedFile);
+            // If an audio element was inserted, auto-play it for convenience
+            const previewContent = document.getElementById('previewContent');
+            const media = previewContent ? previewContent.querySelector('audio') : null;
+            if (media) {
+                media.play().catch(() => {
+                    // Autoplay may be blocked by the browser; ignore errors
                 });
             }
         }
