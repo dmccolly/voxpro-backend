@@ -459,23 +459,32 @@
         .preview-content video {
             width: 100%;
             max-width: 100%;
-            max-height: 350px;
+            max-height: 200px; /* keep previews small */
             border-radius: 4px;
         }
 
         .preview-content img {
             max-width: 100%;
-            max-height: 350px;
+            max-height: 200px; /* keep previews small */
             object-fit: contain;
             border-radius: 4px;
         }
 
         .preview-content iframe {
             width: 100%;
-            height: 350px;
+            height: 200px; /* keep previews small */
             border: none;
             border-radius: 4px;
             background: white;
+        }
+
+        /* Thumbnail icon for file list */
+        .thumbnail-icon {
+            width: 32px;
+            height: 32px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 8px;
         }
 
         .file-info-overlay {
@@ -1024,6 +1033,15 @@
                                     <option value="">Loading categories...</option>
                                 </select>
                             </div>
+                            <!-- New fields: Tags and Notes -->
+                            <div class="details-field">
+                                <div class="details-label">Tags</div>
+                                <input type="text" class="details-input" id="detailsTags" placeholder="Comma-separated tags">
+                            </div>
+                            <div class="details-field">
+                                <div class="details-label">Notes</div>
+                                <textarea class="details-textarea" id="detailsNotes" placeholder="Add notes..."></textarea>
+                            </div>
                         </div>
 
                         <div class="details-section">
@@ -1053,9 +1071,8 @@
                 <div class="modal-title">Upload Files</div>
             </div>
             <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-                <div class="upload-icon">📁</div>
-                <div class="upload-text">Drag files here or click to browse</div>
-                <div class="upload-subtext">Supports images, videos, and audio files</div>
+                <!-- Simplified upload area: just a button to select files -->
+                <button class="details-btn" type="button">Select Files</button>
             </div>
             <input type="file" id="fileInput" multiple style="display: none;" accept="image/*,video/*,audio/*">
             <div class="progress-container" id="progressContainer">
@@ -1077,6 +1094,13 @@
         let selectedFiles = new Set();
         let currentFilter = { type: 'all' };
         let selectedFile = null;
+        // Infinite scroll state
+        // currentPage controls how many pages of results are shown. Each page
+        // displays `itemsPerPage` items. filteredFilesCache stores the
+        // last filtered list so we can append pages without recomputing.
+        let currentPage = 1;
+        let itemsPerPage = 50;
+        let filteredFilesCache = [];
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
@@ -1084,6 +1108,7 @@
             loadCategories();
             loadFiles();
             setupEventListeners();
+            initInfiniteScroll();
         });
 
         // Load categories from Xano
@@ -1176,12 +1201,18 @@
                 return true;
             });
 
-            const html = filteredFiles.map(file => `
+            // Store the filtered results so we can implement infinite scroll
+            filteredFilesCache = filteredFiles;
+            // Determine how many items to display based on current page
+            const displayFiles = filteredFilesCache.slice(0, currentPage * itemsPerPage);
+
+            const html = displayFiles.map(file => {
+                return `
                 <div class="file-item" data-id="${file.id}" onclick="selectFile(${file.id})">
-                    <div class="file-checkbox ${selectedFiles.has(file.id) ? 'checked' : ''}" 
+                    <div class="file-checkbox ${selectedFiles.has(file.id) ? 'checked' : ''}"
                          onclick="event.stopPropagation(); toggleFileSelection(${file.id})"></div>
                     <div style="display: flex; align-items: center;">
-                        <span class="file-icon">${getFileIcon(file.file_type)}</span>
+                        ${getFileThumbnail(file)}
                         <div>
                             <div class="file-title">${file.title || 'Untitled'}</div>
                             <div class="file-type">${file.file_type || 'unknown'}</div>
@@ -1192,13 +1223,14 @@
                     <div>${file.station || '-'}</div>
                     <div class="file-date">${formatDate(file.created_at)}</div>
                     <div>
-                        <button onclick="event.stopPropagation(); downloadFile(${file.id})" 
+                        <button onclick="event.stopPropagation(); downloadFile(${file.id})"
                                 style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
                             ${file.attachment || file.media_url ? '📁 WORKING' : 'No file'}
                         </button>
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
 
             container.innerHTML = html;
         }
@@ -1221,6 +1253,7 @@
         // Filter functions
         function showAllFiles() {
             currentFilter = { type: 'all' };
+            currentPage = 1;
             updateActiveNav();
             updateFileList();
             document.getElementById('currentView').textContent = 'All Files';
@@ -1228,6 +1261,7 @@
 
         function filterByType(type) {
             currentFilter = { type: 'type', value: type };
+            currentPage = 1;
             updateActiveNav();
             updateFileList();
             document.getElementById('currentView').textContent = type.charAt(0).toUpperCase() + type.slice(1);
@@ -1235,6 +1269,7 @@
 
         function filterByCategory(id) {
             currentFilter = { type: 'category', value: id };
+            currentPage = 1;
             updateActiveNav();
             updateFileList();
             const category = allCategories.find(c => c.id === id);
@@ -1294,6 +1329,16 @@
             document.getElementById('detailsStation').value = selectedFile.station || '';
             document.getElementById('detailsSubmittedBy').value = selectedFile.submitted_by || '';
             document.getElementById('detailsCategory').value = selectedFile.category_id || '';
+            // Populate tags and notes if available
+            const tagsInput = document.getElementById('detailsTags');
+            const notesInput = document.getElementById('detailsNotes');
+            if (tagsInput) {
+                const tagsVal = Array.isArray(selectedFile.tags) ? selectedFile.tags.join(', ') : (selectedFile.tags || '');
+                tagsInput.value = tagsVal;
+            }
+            if (notesInput) {
+                notesInput.value = selectedFile.notes || '';
+            }
         }
 
         // Save file details
@@ -1307,6 +1352,9 @@
                     station: document.getElementById('detailsStation').value,
                     submitted_by: document.getElementById('detailsSubmittedBy').value,
                     category_id: parseInt(document.getElementById('detailsCategory').value) || null,
+                    // Split tags on comma, trim whitespace, and filter out blanks
+                    tags: document.getElementById('detailsTags').value.split(',').map(t => t.trim()).filter(Boolean),
+                    notes: document.getElementById('detailsNotes').value,
                 };
 
                 const response = await fetch(`/.netlify/functions/xano-proxy/asset/${selectedFile.id}`, {
@@ -1346,7 +1394,11 @@
         // Setup event listeners
         function setupEventListeners() {
             // Search
-            document.getElementById('searchInput').addEventListener('input', updateFileList);
+            // Reset page to 1 on search and refresh the list
+            document.getElementById('searchInput').addEventListener('input', () => {
+                currentPage = 1;
+                updateFileList();
+            });
 
             // File input
             document.getElementById('fileInput').addEventListener('change', handleFileSelect);
@@ -1356,6 +1408,26 @@
             uploadArea.addEventListener('dragover', handleDragOver);
             uploadArea.addEventListener('dragleave', handleDragLeave);
             uploadArea.addEventListener('drop', handleDrop);
+        }
+
+        /**
+         * Initialize infinite scroll on the file list container. When the user
+         * scrolls near the bottom of the list, this function increments
+         * `currentPage` and triggers `updateFileList()` to append more items.
+         */
+        function initInfiniteScroll() {
+            const container = document.getElementById('fileListContent');
+            if (!container) return;
+            container.addEventListener('scroll', () => {
+                const threshold = 50; // px from bottom to trigger load
+                if (container.scrollTop + container.clientHeight >= container.scrollHeight - threshold) {
+                    // Only load more if there are more items to show
+                    if (currentPage * itemsPerPage < filteredFilesCache.length) {
+                        currentPage++;
+                        updateFileList();
+                    }
+                }
+            });
         }
 
         function handleFileSelect(event) {
@@ -1472,6 +1544,34 @@
                 case 'document': return '📄';
                 default: return '📄';
             }
+        }
+
+        /**
+         * Generate a thumbnail element for a file. For images and videos stored in
+         * Cloudinary, this will return an <img> tag with a transformation applied
+         * to produce a small 60x60 crop. For other types, it falls back to the
+         * appropriate emoji icon. Note: this function returns an HTML string
+         * because it is used inside a template literal when building the file
+         * list. If no URL is available, the default icon is used.
+         * @param {Object} file - File record
+         * @returns {string} HTML string for thumbnail or icon
+         */
+        function getFileThumbnail(file) {
+            // Attempt to find a Cloudinary URL from common fields
+            const url = file.secure_url || file.attachment || file.media_url || '';
+            // Only images and videos get thumbnails; others fall back to icons
+            if (file.file_type === 'image' && url.includes('/upload/')) {
+                // Create a 60x60 centered crop thumbnail
+                const thumbUrl = url.replace('/upload/', '/upload/c_thumb,w_60,h_60/');
+                return `<img class="thumbnail-icon" src="${thumbUrl}" alt="${file.title || ''}">`;
+            }
+            if (file.file_type === 'video' && url.includes('/upload/')) {
+                // Use Cloudinary video frame at start (so_0) and crop
+                const thumbUrl = url.replace('/upload/', '/upload/so_0,c_thumb,w_60,h_60/');
+                return `<img class="thumbnail-icon" src="${thumbUrl}" alt="${file.title || ''}">`;
+            }
+            // Fallback: return the text icon
+            return `<span class="file-icon">${getFileIcon(file.file_type)}</span>`;
         }
 
         function formatFileSize(bytes) {
