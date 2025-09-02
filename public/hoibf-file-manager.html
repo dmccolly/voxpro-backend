@@ -1416,6 +1416,17 @@
         function selectFile(id) {
             selectedFile = allFiles.find(f => f.id === id);
             if (selectedFile) {
+                // Ensure the details panel is visible when a file is selected.  It may
+                // have been hidden by previous operations (e.g. after bulk
+                // deletion) via `style.display = 'none'`.  Resetting to an empty
+                // string or its default allows it to reclaim its flex layout.
+                const detailsPanel = document.getElementById('detailsPanel');
+                if (detailsPanel) {
+                    detailsPanel.style.display = '';
+                    // Also reset any inline width that might have been modified by
+                    // responsive styles so the panel remains at its default
+                    // width.  Leaving an empty string lets CSS define it.
+                }
                 updateDetailsPanel();
                 // Show preview automatically when file is selected
                 showFilePreview(selectedFile);
