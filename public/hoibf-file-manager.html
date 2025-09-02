@@ -289,6 +289,92 @@
             background: #dc2626;
         }
 
+        /* Thumbnail and view modes */
+        .thumbnails-view {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        .thumb-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.2s ease;
+        }
+        .thumb-item:hover {
+            background: var(--bg-hover);
+        }
+        .thumb-title {
+            font-size: 12px;
+            color: var(--text-primary);
+            margin-top: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        /* Ensure thumbnails scale within their container */
+        .thumb-item img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .thumbs-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-start;
+        }
+        /* Active view mode button */
+        .toolbar-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        /* Thumbnails view styling */
+        .thumbs-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 8px;
+        }
+        .thumb-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            overflow: hidden;
+        }
+        .thumb-item:hover {
+            background: var(--bg-hover);
+        }
+        .thumb-image {
+            width: 100%;
+            height: auto;
+            margin-bottom: 6px;
+        }
+        .thumb-image img,
+        .thumb-image span {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .thumb-title {
+            font-size: 13px;
+            color: var(--text-primary);
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
         /* File List */
         .file-list-container {
             flex: 1;
@@ -942,6 +1028,8 @@
                     <button class="upload-btn" onclick="openUploadModal()">
                         ⬆️ Upload
                     </button>
+                    <!-- Link to VoxPro manager -->
+                    <a href="/public/voxpro" class="upload-btn" style="margin-left: 8px; text-decoration: none; display: inline-flex; align-items: center;">🔁 VoxPro</a>
                 </div>
             </div>
 
@@ -956,6 +1044,10 @@
                 <button class="toolbar-btn" onclick="refreshFiles()">
                     🔄 Refresh
                 </button>
+                <!-- View mode buttons -->
+                <button class="toolbar-btn" id="viewDetailsBtn" onclick="setViewMode('details')">Details</button>
+                <button class="toolbar-btn" id="viewSmallBtn" onclick="setViewMode('small')">Small</button>
+                <button class="toolbar-btn" id="viewMediumBtn" onclick="setViewMode('medium')">Medium</button>
                 <div style="margin-left: auto;">
                     <button class="toolbar-btn" onclick="toggleSidebar()">
                         ☰
@@ -1053,6 +1145,15 @@
                                 👁️ Full Preview
                             </button>
                         </div>
+
+                        <!-- Advanced section for full record editing -->
+                        <div class="details-section">
+                            <div class="details-section-title">Advanced</div>
+                            <button class="details-btn secondary" id="toggleFullRecordBtn" onclick="toggleFullRecord()">
+                                Show Full Record
+                            </button>
+                            <div id="fullRecordContainer" style="display: none; margin-top: 12px;"></div>
+                        </div>
                     </div>
                     <div class="details-actions">
                         <button class="details-btn" onclick="saveFileDetails()">Save Changes</button>
@@ -1102,6 +1203,10 @@
         let itemsPerPage = 50;
         let filteredFilesCache = [];
 
+        // View mode state. 'details' shows a list with columns; 'small' shows
+        // a grid of small thumbnails; 'medium' shows a grid of medium thumbnails.
+        let currentViewMode = 'details';
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Initializing file manager...');
@@ -1109,6 +1214,8 @@
             loadFiles();
             setupEventListeners();
             initInfiniteScroll();
+            // Initialize view buttons state
+            setViewMode(currentViewMode);
         });
 
         // Load categories from Xano
@@ -1206,33 +1313,50 @@
             // Determine how many items to display based on current page
             const displayFiles = filteredFilesCache.slice(0, currentPage * itemsPerPage);
 
-            const html = displayFiles.map(file => {
-                return `
-                <div class="file-item" data-id="${file.id}" onclick="selectFile(${file.id})">
-                    <div class="file-checkbox ${selectedFiles.has(file.id) ? 'checked' : ''}"
-                         onclick="event.stopPropagation(); toggleFileSelection(${file.id})"></div>
-                    <div style="display: flex; align-items: center;">
-                        ${getFileThumbnail(file)}
+            let html = '';
+            if (currentViewMode === 'details') {
+                // Detailed list view
+                html = displayFiles.map(file => {
+                    return `
+                    <div class="file-item" data-id="${file.id}" onclick="selectFile(${file.id})">
+                        <div class="file-checkbox ${selectedFiles.has(file.id) ? 'checked' : ''}" onclick="event.stopPropagation(); toggleFileSelection(${file.id})"></div>
+                        <div style="display: flex; align-items: center;">
+                            ${getFileThumbnail(file)}
+                            <div>
+                                <div class="file-title">${file.title || 'Untitled'}</div>
+                                <div class="file-type">${file.file_type || 'unknown'}</div>
+                            </div>
+                        </div>
+                        <div class="file-size">${formatFileSize(file.file_size)}</div>
+                        <div>${file.duration || '-'}</div>
+                        <div>${file.station || '-'}</div>
+                        <div class="file-date">${formatDate(file.created_at)}</div>
                         <div>
-                            <div class="file-title">${file.title || 'Untitled'}</div>
-                            <div class="file-type">${file.file_type || 'unknown'}</div>
+                            <button onclick="event.stopPropagation(); downloadFile(${file.id})"
+                                    style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
+                                ${file.attachment || file.media_url ? '📁 WORKING' : 'No file'}
+                            </button>
                         </div>
                     </div>
-                    <div class="file-size">${formatFileSize(file.file_size)}</div>
-                    <div>${file.duration || '-'}</div>
-                    <div>${file.station || '-'}</div>
-                    <div class="file-date">${formatDate(file.created_at)}</div>
-                    <div>
-                        <button onclick="event.stopPropagation(); downloadFile(${file.id})"
-                                style="background: none; border: none; color: var(--text-muted); cursor: pointer;">
-                            ${file.attachment || file.media_url ? '📁 WORKING' : 'No file'}
-                        </button>
+                    `;
+                }).join('');
+                container.innerHTML = html;
+            } else {
+                // Thumbnail view (small or medium)
+                const itemWidth = currentViewMode === 'small' ? '120px' : '200px';
+                html = '<div class="thumbs-container">' + displayFiles.map(file => {
+                    // Compose item html
+                    const title = file.title || 'Untitled';
+                    const thumb = getFileThumbnail(file);
+                    return `
+                    <div class="thumb-item" style="width:${itemWidth}" data-id="${file.id}" onclick="selectFile(${file.id})">
+                        <div class="thumb-image">${thumb}</div>
+                        <div class="thumb-title" title="${title}">${title}</div>
                     </div>
-                </div>
-                `;
-            }).join('');
-
-            container.innerHTML = html;
+                    `;
+                }).join('') + '</div>';
+                container.innerHTML = html;
+            }
         }
 
         // Update counts
@@ -1339,6 +1463,13 @@
             if (notesInput) {
                 notesInput.value = selectedFile.notes || '';
             }
+
+            // If the full record section is visible, repopulate it with
+            // updated values for the newly selected file
+            const fullContainer = document.getElementById('fullRecordContainer');
+            if (fullContainer && fullContainer.style.display !== 'none') {
+                populateFullRecord();
+            }
         }
 
         // Save file details
@@ -1356,6 +1487,13 @@
                     tags: document.getElementById('detailsTags').value.split(',').map(t => t.trim()).filter(Boolean),
                     notes: document.getElementById('detailsNotes').value,
                 };
+                // Merge additional fields from the full record editor, if visible
+                const fullFields = document.querySelectorAll('#fullRecordContainer .full-field');
+                fullFields.forEach(input => {
+                    const key = input.dataset.key;
+                    const value = input.value;
+                    updateData[key] = value;
+                });
 
                 const response = await fetch(`/.netlify/functions/xano-proxy/asset/${selectedFile.id}`, {
                     method: 'PATCH',
@@ -1427,6 +1565,70 @@
                         updateFileList();
                     }
                 }
+            });
+        }
+
+        /**
+         * Change the current view mode. Updates button active states and
+         * triggers a refresh of the file list.
+         * @param {string} mode - 'details', 'small', or 'medium'
+         */
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            // Update active classes on view buttons
+            ['details','small','medium'].forEach(v => {
+                const btn = document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1) + 'Btn');
+                if (btn) {
+                    btn.classList.toggle('active', v === mode);
+                }
+            });
+            // Reset paging when switching view for consistent behaviour
+            currentPage = 1;
+            updateFileList();
+        }
+
+        /**
+         * Toggle the visibility of the full record editor. When showing, it
+         * populates the container with editable fields for each property of
+         * selectedFile except for certain read-only or duplicated fields.
+         */
+        function toggleFullRecord() {
+            const container = document.getElementById('fullRecordContainer');
+            const btn = document.getElementById('toggleFullRecordBtn');
+            const isHidden = !container || container.style.display === 'none' || container.style.display === '';
+            if (isHidden) {
+                if (container) container.style.display = 'block';
+                if (btn) btn.textContent = 'Hide Full Record';
+                populateFullRecord();
+            } else {
+                if (container) container.style.display = 'none';
+                if (btn) btn.textContent = 'Show Full Record';
+            }
+        }
+
+        /**
+         * Build the full record fields dynamically based on the selected file.
+         * Skips a set of base fields that are either read-only or already
+         * represented in the main form.
+         */
+        function populateFullRecord() {
+            const container = document.getElementById('fullRecordContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            if (!selectedFile) return;
+            const skipKeys = ['id','file_size','file_type','cloudinary_url','secure_url','attachment','media_url','thumbnail_url','created_at'];
+            Object.entries(selectedFile).forEach(([key, value]) => {
+                if (skipKeys.includes(key)) return;
+                // Skip keys that are already in the basic form
+                if (['title','description','station','submitted_by','category_id','tags','notes'].includes(key)) return;
+                const field = document.createElement('div');
+                field.className = 'details-field';
+                const val = value === null || value === undefined ? '' : value;
+                field.innerHTML = `
+                    <div class="details-label">${key}</div>
+                    <input type="text" class="details-input full-field" data-key="${key}" value="${val}">
+                `;
+                container.appendChild(field);
             });
         }
 
