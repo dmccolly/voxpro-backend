@@ -72,3 +72,31 @@ The application integrates with the Xano API to fetch and manage media assets. T
 ## License
 
 This project is licensed under the MIT License.
+
+
+# Install (Cloudinary + Xano, Netlify Functions)
+
+
+## 1) Add files
+- Copy `netlify/functions/*.js` into your repo.
+- Copy `public/js/hoibf-api.js` (or integrate the 3 calls into your bundle).
+- Add `.env.sample` to document required envs.
+
+
+## 2) Set environment variables in Netlify
+- CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+- WEBFLOW_ALLOW_ORIGIN (set to your Webflow domain in production)
+- XANO_API_BASE, XANO_API_KEY (if required), XANO_ASSETS_ENDPOINT, XANO_BATCH_ENDPOINT (optional), XANO_SOFT_DELETE
+
+
+## 3) Netlify build settings
+- Ensure your **functions** directory is `netlify/functions`.
+- Do **not** change your publish dir (to avoid impacting VoxPro).
+
+
+## 4) Wire your UI
+- Include `/public/js/hoibf-api.js` on the page **before** your manager script, e.g.:
+```html
+<script src="/js/hoibf-api.js"></script>
+
+
