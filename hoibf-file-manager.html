@@ -1105,7 +1105,7 @@
                             <div class="details-section-title">Basic Information</div>
                             <div class="details-field">
                                 <div class="details-label">Title</div>
-                                <input type="text" class="details-input" id="detailsTitle">
+                                <input type="text" class="details-input" id="detailsTitle" pattern=".*">
                             </div>
                             <div class="details-field">
                                 <div class="details-label">Description</div>
@@ -1113,11 +1113,11 @@
                             </div>
                             <div class="details-field">
                                 <div class="details-label">Station</div>
-                                <input type="text" class="details-input" id="detailsStation">
+                                <input type="text" class="details-input" id="detailsStation" pattern=".*">
                             </div>
                             <div class="details-field">
                                 <div class="details-label">Submitted By</div>
-                                <input type="text" class="details-input" id="detailsSubmittedBy">
+                                <input type="text" class="details-input" id="detailsSubmittedBy" pattern=".*">
                             </div>
                             <div class="details-field">
                                 <div class="details-label">Category</div>
@@ -1128,7 +1128,7 @@
                             <!-- New fields: Tags and Notes -->
                             <div class="details-field">
                                 <div class="details-label">Tags</div>
-                                <input type="text" class="details-input" id="detailsTags" placeholder="Comma-separated tags">
+                                <input type="text" class="details-input" id="detailsTags" placeholder="Comma-separated tags" pattern=".*">
                             </div>
                             <div class="details-field">
                                 <div class="details-label">Notes</div>
@@ -1637,7 +1637,7 @@
                 const val = value === null || value === undefined ? '' : value;
                 field.innerHTML = `
                     <div class="details-label">${key}</div>
-                    <input type="text" class="details-input full-field" data-key="${key}" value="${val}">
+                    <input type="text" class="details-input full-field" data-key="${key}" value="${val}" pattern=".*">
                 `;
                 container.appendChild(field);
             });
@@ -1770,17 +1770,24 @@
          * @returns {string} HTML string for thumbnail or icon
          */
         function getFileThumbnail(file) {
-            // Attempt to find a Cloudinary URL from common fields
-            const url = file.secure_url || file.attachment || file.media_url || '';
+            // Attempt to find a Cloudinary or Xano-provided thumbnail URL.  Some
+            // records include a `thumbnail_url` directly from Xano; others
+            // require deriving a thumbnail from a Cloudinary URL.  Use
+            // whichever is available.
+            const primaryUrl = file.thumbnail_url || file.cloudinary_url || file.secure_url || file.attachment || file.media_url || '';
+            // If a thumbnail URL is provided explicitly, use it directly.
+            if (file.thumbnail_url) {
+                return `<img class="thumbnail-icon" src="${file.thumbnail_url}" alt="${file.title || ''}">`;
+            }
             // Only images and videos get thumbnails; others fall back to icons
-            if (file.file_type === 'image' && url.includes('/upload/')) {
-                // Create a 60x60 centered crop thumbnail
-                const thumbUrl = url.replace('/upload/', '/upload/c_thumb,w_60,h_60/');
+            if (file.file_type === 'image' && primaryUrl.includes('/upload/')) {
+                // Create a 60x60 centered crop thumbnail using Cloudinary transformation
+                const thumbUrl = primaryUrl.replace('/upload/', '/upload/c_thumb,w_60,h_60/');
                 return `<img class="thumbnail-icon" src="${thumbUrl}" alt="${file.title || ''}">`;
             }
-            if (file.file_type === 'video' && url.includes('/upload/')) {
+            if (file.file_type === 'video' && primaryUrl.includes('/upload/')) {
                 // Use Cloudinary video frame at start (so_0) and crop
-                const thumbUrl = url.replace('/upload/', '/upload/so_0,c_thumb,w_60,h_60/');
+                const thumbUrl = primaryUrl.replace('/upload/', '/upload/so_0,c_thumb,w_60,h_60/');
                 return `<img class="thumbnail-icon" src="${thumbUrl}" alt="${file.title || ''}">`;
             }
             // Fallback: return the text icon
