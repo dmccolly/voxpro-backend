@@ -1506,23 +1506,46 @@
                     updateData[key] = value;
                 });
 
-                const response = await fetch(`/.netlify/functions/xano-proxy/asset/${selectedFile.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(updateData)
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Failed to update file: ${response.status}`);
+                // Persist updates back to the same endpoint used to fetch user submissions.
+                // Use the user_submission endpoint for consistency with other actions (e.g. delete).
+                // We support updating via multiple possible endpoints.  Try
+                // user_submission first (preferred) and fall back to asset if
+                // user_submission is not available on the backend.  Collect
+                // any error messages for debugging.
+                const endpoints = [
+                    `/.netlify/functions/xano-proxy/user_submission/${selectedFile.id}`,
+                    `/.netlify/functions/xano-proxy/asset/${selectedFile.id}`
+                ];
+                let lastError = null;
+                let success = false;
+                for (const endpoint of endpoints) {
+                    try {
+                        const response = await fetch(endpoint, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(updateData)
+                        });
+                        if (response.ok) {
+                            // Update local data and break out if successful
+                            Object.assign(selectedFile, updateData);
+                            updateFileList();
+                            updateCounts();
+                            showMessage('File updated successfully', 'success');
+                            success = true;
+                            break;
+                        } else {
+                            // Record error details for debugging
+                            const text = await response.text();
+                            lastError = `Endpoint ${endpoint} returned ${response.status}: ${text}`;
+                        }
+                    } catch (err) {
+                        lastError = `Error calling ${endpoint}: ${err.message}`;
+                    }
                 }
-
-                // Update local data
-                Object.assign(selectedFile, updateData);
-                updateFileList();
-                updateCounts();
-
-                showMessage('File updated successfully', 'success');
-
+                if (!success) {
+                    console.error('Save error:', lastError);
+                    showMessage('Failed to save changes', 'error');
+                }
             } catch (error) {
                 console.error('Save error:', error);
                 showMessage('Failed to save changes', 'error');
