@@ -11,43 +11,55 @@
   <script src="/public/vendor/marked.min.js"></script>
   <script src="/public/vendor/quill.min.js"></script>
 
-  <!-- Custom dark theme overrides -->
-  <style>
-    /* ensure inputs, selects and textareas have dark backgrounds */
-    .dark input,
-    .dark select,
-    .dark textarea {
-      background-color: #1f2937;
-      color: #f9fafb;
-      border-color: #374151;
-    }
-    /* Quill editor dark tweaks */
-    .dark .ql-toolbar,
-    .dark .ql-container {
-      background-color: #1f2937;
-      border-color: #374151;
-    }
-    .dark .ql-editor {
-      color: #f9fafb;
-    }
-    /* Quill icons */
-    .dark .ql-toolbar button svg {
-      stroke: #f3f4f6;
-      fill: #f3f4f6;
-    }
-    .dark .ql-toolbar button:hover svg {
-      stroke: #ffffff;
-      fill: #ffffff;
-    }
-    .dark .ql-toolbar .ql-picker,
-    .dark .ql-picker-label,
-    .dark .ql-picker-item {
-      color: #e5e7eb !important;
-    }
-    .dark .ql-picker-options {
-      background-color: #1f2937 !important;
-    }
-  </style>
+<style>
+  /* Dark mode form elements */
+  .dark input,
+  .dark select,
+  .dark textarea {
+    background-color: #0f172a; /* slightly lighter than page background */
+    color: #e2e8f0;           /* light grey for text */
+    border-color: #475569;    /* slate-600 border */
+  }
+
+  /* Placeholder text color in dark mode */
+  .dark input::placeholder,
+  .dark textarea::placeholder,
+  .dark select option {
+    color: #94a3b8;           /* slate-400 */
+  }
+
+  /* Quill editor dark tweaks (same as before) */
+  .dark .ql-toolbar,
+  .dark .ql-container {
+    background-color: #1f2937; /* gray-800 */
+    border-color: #374151;     /* gray-700 */
+  }
+
+  .dark .ql-editor {
+    color: #e2e8f0;
+  }
+
+  .dark .ql-toolbar button svg {
+    stroke: #f3f4f6;
+    fill: #f3f4f6;
+  }
+
+  .dark .ql-toolbar button:hover svg {
+    stroke: #ffffff;
+    fill: #ffffff;
+  }
+
+  .dark .ql-toolbar .ql-picker,
+  .dark .ql-picker-label,
+  .dark .ql-picker-item {
+    color: #cbd5e1 !important; /* slate-300 */
+  }
+
+  .dark .ql-picker-options {
+    background-color: #1f2937 !important;
+  }
+</style>
+ 
 </head>
 <body class="bg-gray-900 text-gray-100 p-6">
   <div class="max-w-3xl mx-auto">
