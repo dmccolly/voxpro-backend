@@ -1,31 +1,55 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Blog Manager</title>
 
- <!-- Load Tailwind and Quill from local /public/vendor directory -->
+  <!-- Local styles and scripts -->
   <link rel="stylesheet" href="/public/vendor/tailwind.min.css">
   <link rel="stylesheet" href="/public/vendor/quill.snow.css">
-
-  <!-- Load Marked and Quill JS from local /public/vendor directory -->
   <script src="/public/vendor/marked.min.js"></script>
   <script src="/public/vendor/quill.min.js"></script>
 
-  <!-- Your dark-mode overrides and custom styles remain the same -->
+  <!-- Custom dark theme overrides -->
   <style>
-    /* Dark mode form elements */
-    .dark input, .dark select, .dark textarea {
+    /* ensure inputs, selects and textareas have dark backgrounds */
+    .dark input,
+    .dark select,
+    .dark textarea {
       background-color: #1f2937;
       color: #f9fafb;
       border-color: #374151;
     }
-    /* …other custom dark-mode styles… */
+    /* Quill editor dark tweaks */
+    .dark .ql-toolbar,
+    .dark .ql-container {
+      background-color: #1f2937;
+      border-color: #374151;
+    }
+    .dark .ql-editor {
+      color: #f9fafb;
+    }
+    /* Quill icons */
+    .dark .ql-toolbar button svg {
+      stroke: #f3f4f6;
+      fill: #f3f4f6;
+    }
+    .dark .ql-toolbar button:hover svg {
+      stroke: #ffffff;
+      fill: #ffffff;
+    }
+    .dark .ql-toolbar .ql-picker,
+    .dark .ql-picker-label,
+    .dark .ql-picker-item {
+      color: #e5e7eb !important;
+    }
+    .dark .ql-picker-options {
+      background-color: #1f2937 !important;
+    }
   </style>
 </head>
-<!-- the rest of your HTML continues here -->
-<body class="text-gray-900 dark:text-gray-100 p-6">
+<body class="bg-gray-900 text-gray-100 p-6">
   <div class="max-w-3xl mx-auto">
     <div class="flex justify-between items-center mb-4">
       <h1 class="text-3xl font-bold">Blog Manager</h1>
