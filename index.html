@@ -1,69 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoxPro Manager - Test Page</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .container {
-            text-align: center;
-            padding: 40px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 20px;
-        }
-        h1 { margin-bottom: 20px; }
-        a {
-            display: inline-block;
-            margin: 10px;
-            padding: 15px 30px;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.3s;
-        }
-        a:hover {
-            background: rgba(255,255,255,0.3);
-            transform: translateY(-2px);
-        }
-        .status {
-            margin-top: 30px;
-            padding: 20px;
-            background: rgba(0,0,0,0.5);
-            border-radius: 10px;
-            font-size: 14px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stream of Dan – Home</title>
+  <!-- Immediately forward visitors to your actual home page -->
+  <meta http-equiv="refresh" content="0; url=/public/index.html">
+  <script>
+    // JavaScript fallback in case the meta refresh fails
+    window.location.href = '/public/index.html';
+  </script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .notice {
+      text-align: center;
+      padding: 2rem;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 12px;
+    }
+    a {
+      color: #ffc107;
+      text-decoration: underline;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🎙️ VoxPro Manager is Working!</h1>
-        <p>This is a test page to confirm deployment.</p>
-        
-        <div>
-            <h2>Quick Links:</h2>
-            <a href="/public/voxpro.html">VoxPro Player (in public)</a>
-            <a href="/voxpro.html">VoxPro Player (in root)</a>
-            <a href="/.netlify/functions/file-manager-page">File Manager Function</a>
-            <a href="/public/index.html">Public Index</a>
-        </div>
-        
-        <div class="status">
-            <p><strong>Debug Info:</strong></p>
-            <p>If you see this page, your Netlify deployment is working.</p>
-            <p>Time: <script>document.write(new Date().toLocaleString());</script></p>
-            <p>Branch: Voxpro_Update</p>
-        </div>
-    </div>
+  <div class="notice">
+    <h1>Redirecting...</h1>
+    <p>If you aren’t automatically redirected, <a href="/public/index.html">click here</a> to go to the home page.</p>
+  </div>
 </body>
 </html>
