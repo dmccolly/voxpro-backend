@@ -3,40 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stream of Dan – Home</title>
-  <!-- Immediately forward visitors to your actual home page -->
-  <meta http-equiv="refresh" content="0; url=/public/index.html">
+  <title>Stream of Dan – Redirect</title>
+  <!-- Redirect to the main home page -->
+  <meta http-equiv="refresh" content="0; url=https://streamofdan.com/">
   <script>
-    // JavaScript fallback in case the meta refresh fails
-    window.location.href = '/public/index.html';
+    // JavaScript fallback
+    window.location.href = 'https://streamofdan.com/';
   </script>
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
+      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
+      font-family: Arial, sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
     }
-    .notice {
-      text-align: center;
-      padding: 2rem;
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 12px;
-    }
     a {
-      color: #ffc107;
+      color: #ffd700;
       text-decoration: underline;
     }
   </style>
 </head>
 <body>
-  <div class="notice">
-    <h1>Redirecting...</h1>
-    <p>If you aren’t automatically redirected, <a href="/public/index.html">click here</a> to go to the home page.</p>
-  </div>
+  <p>Redirecting you to the Stream of Dan home page&hellip; If nothing happens, click <a href="https://streamofdan.com/">here</a>.</p>
 </body>
 </html>
