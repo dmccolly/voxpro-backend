@@ -335,4 +335,153 @@
       const dz = document.getElementById('heroDropZone');
       const input = document.getElementById('heroInput');
       dz.addEventListener('click', ()=>input.click());
-      dz.addEventListener('dragover', (e)=>{e.preventDefa
+      dz.addEventListener('dragover', (e)=>{e.preventDefault();dz.style.borderColor='var(--accent)';});
+      dz.addEventListener('dragleave', (e)=>{e.preventDefault();dz.style.borderColor='';});
+      dz.addEventListener('drop', (e)=>{e.preventDefault();dz.style.borderColor='';handleHeroFiles(e.dataTransfer.files);});
+      input.addEventListener('change', ()=>handleHeroFiles(input.files));
+    }
+
+    async function handleHeroFiles(files) {
+      const file = files?.[0]; if (!file) return;
+      if (file.size > 50*1024*1024) return showMessage('File too large. Max 50MB.','error');
+      try {
+        showMessage('Uploading image...','info');
+
+        // Try Cloudinary first
+        if (CFG.cloudinary.uploadUrl && CFG.cloudinary.uploadPreset) {
+          const form = new FormData();
+          form.append('file', file);
+          form.append('upload_preset', CFG.cloudinary.uploadPreset);
+          const r = await fetch(CFG.cloudinary.uploadUrl, { method:'POST', body: form });
+          const j = await r.json();
+          if (r.ok && j.secure_url) {
+            document.getElementById('heroUrl').value = j.secure_url;
+            if (!document.getElementById('mediaUrl').value) document.getElementById('mediaUrl').value = j.secure_url;
+            updateHeroPreview(j.secure_url, file.name);
+            updatePreview();
+            showMessage('Image uploaded successfully!','success');
+            return;
+          }
+        }
+
+        // Fallback to Netlify upload
+        const form2 = new FormData(); form2.append('attachment', file);
+        const r2 = await fetch(CFG.fns.upload, { method:'POST', body: form2 });
+        const t2 = await r2.text(); const j2 = JSON.parse(t2);
+        if (r2.ok && j2.url) {
+          document.getElementById('heroUrl').value = j2.url;
+          if (!document.getElementById('mediaUrl').value) document.getElementById('mediaUrl').value = j2.url;
+          updateHeroPreview(j2.url, file.name);
+          updatePreview();
+          showMessage('Image uploaded successfully!','success');
+        } else { throw new Error(j2.error || 'Upload failed'); }
+
+      } catch (e) {
+        console.error('Upload error:', e);
+        showMessage('Upload failed: '+e.message,'error');
+      }
+    }
+
+    function updateHeroPreview(url, name) {
+      document.getElementById('heroPreview').innerHTML =
+        `<div style="margin-top:1rem;padding:1rem;border:1px solid var(--border);border-radius:6px;background:var(--bg-tertiary);">
+           <img src="${url}" alt="${name}" style="width:100%;max-height:200px;object-fit:cover;border-radius:4px;">
+           <div style="margin-top:.5rem;font-size:.875rem;color:var(--text-secondary);">${name}</div>
+           <button onclick="clearHeroImage()" style="margin-top:.5rem;padding:.25rem .5rem;background:var(--error);color:#fff;border:none;border-radius:4px;font-size:.75rem;cursor:pointer;">Remove</button>
+         </div>`;
+    }
+
+    function clearHeroImage() {
+      document.getElementById('heroUrl').value = '';
+      document.getElementById('heroAlt').value = '';
+      // Clearing the hero image also invalidates auto thumbnail/media
+      document.getElementById('mediaUrl').value = '';
+      document.getElementById('heroPreview').innerHTML = '';
+      updatePreview();
+    }
+
+    async function loadComments() {
+      try {
+        const state = document.getElementById('filterState').value;
+        const postId = document.getElementById('filterPostId').value.trim();
+        if (!postId) {
+          commentsData = [];
+          document.getElementById('commentsList').innerHTML =
+            `<p style="color:var(--text-secondary);text-align:center;padding:1rem;">Enter a Post ID to load comments</p>`;
+          return;
+        }
+        const params = new URLSearchParams(); if (state) params.set('state', state); params.set('postId', postId);
+        const r = await fetch(CFG.fns.listComments + '?' + params.toString());
+        const t = await r.text();
+        let list; try { list = JSON.parse(t); } catch {
+          if (t.includes('Missing postId')) {
+            document.getElementById('commentsList').innerHTML =
+              `<p style="color:var(--text-secondary);text-align:center;padding:1rem;">Enter a valid Post ID to load comments</p>`;
+            return;
+          }
+          throw new Error('Server returned invalid response: ' + t.slice(0,100));
+        }
+        if (!r.ok) throw new Error(list.error || 'Failed to load comments');
+        commentsData = Array.isArray(list) ? list : [];
+        filterComments();
+      } catch (e) {
+        console.error('Load comments error:', e);
+        document.getElementById('commentsList').innerHTML =
+          `<p style="color:var(--error);text-align:center;padding:1rem;">Error loading comments: ${e.message}</p>`;
+      }
+    }
+
+    function filterComments() {
+      const q = document.getElementById('commentSearch').value.toLowerCase();
+      const filtered = (commentsData||[]).filter(c => (c.content||'').toLowerCase().includes(q) || (c.author||'').toLowerCase().includes(q));
+      const el = document.getElementById('commentsList');
+      if (!filtered.length) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:1rem;">No comments found</p>'; return; }
+      el.innerHTML = filtered.map(c => `
+        <div style="border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:1rem;background:var(--bg-tertiary);">
+          <div style="font-weight:500;margin-bottom:.5rem;">${c.author||'Anonymous'}</div>
+          <div style="margin-bottom:.5rem;font-size:.875rem;">${c.content||''}</div>
+          <div style="display:flex;gap:.5rem;">
+            <button onclick="moderateComment('${c.id}','approve')" class="btn btn-success" style="padding:.25rem .5rem;font-size:.75rem;">Approve</button>
+            <button onclick="moderateComment('${c.id}','reject')" class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.75rem;">Reject</button>
+          </div>
+        </div>`).join('');
+    }
+
+    async function moderateComment(id, action) {
+      try {
+        const r = await fetch(CFG.fns.moderateComment, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ id, action })
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'Moderation failed');
+        showMessage(`Comment ${action}d successfully!`,'success'); loadComments();
+      } catch (e) { console.error('Moderation error:', e); showMessage('Error: '+e.message,'error'); }
+    }
+
+    function showMessage(text, type='info') {
+      const wrap = document.getElementById('messages');
+      const el = document.createElement('div');
+      el.className = `message message-${type}`;
+      el.textContent = text;
+      wrap.appendChild(el);
+      setTimeout(()=>el.remove(), 5000);
+    }
+
+    function generateSlug(title) {
+      return title.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    }
+
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.contains('dark');
+      if (isDark) { html.classList.remove('dark'); localStorage.setItem('theme','light'); }
+      else { html.classList.add('dark'); localStorage.setItem('theme','dark'); }
+    }
+
+    function restoreTheme() {
+      if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+    }
+  </script>
+</body>
+</html>
