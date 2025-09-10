@@ -202,7 +202,6 @@
         let quill;
         let commentsData = [];
 
-        // Initialize everything when page loads
         document.addEventListener('DOMContentLoaded', function() {
             initQuill();
             setupEventListeners();
@@ -229,11 +228,9 @@
                 }
             });
 
-            // Update preview when content changes
             quill.on('text-change', updatePreview);
         }
 
-        // Setup all event listeners
         function setupEventListeners() {
             // Title changes
             document.getElementById('title').addEventListener('input', function() {
@@ -241,7 +238,7 @@
                 updatePreview();
             });
 
-            // Status changes
+            // Status changes (toggle schedule button/publish button)
             document.getElementById('status').addEventListener('change', function() {
                 const scheduleBtn = document.getElementById('scheduleBtn');
                 const publishBtn = document.getElementById('publishBtn');
@@ -257,14 +254,14 @@
             });
 
             // Other form changes
-            ['author', 'tags', 'summary', 'heroUrl', 'heroAlt'].forEach(id => {
+            ['author', 'tags', 'summary', 'heroUrl', 'heroAlt', 'scheduleAt'].forEach(id => {
                 document.getElementById(id).addEventListener('input', updatePreview);
             });
 
-            // Button clicks
-            document.getElementById('saveDraftBtn').addEventListener('click', () => savePost('draft'));
-            document.getElementById('publishBtn').addEventListener('click', () => savePost('published'));
-            document.getElementById('scheduleBtn').addEventListener('click', () => savePost('scheduled'));
+            // Buttons
+            document.getElementById('saveDraftBtn').addEventListener('click', (e) => { e.preventDefault(); savePost('draft'); });
+            document.getElementById('publishBtn').addEventListener('click', (e) => { e.preventDefault(); savePost('published'); });
+            document.getElementById('scheduleBtn').addEventListener('click', (e) => { e.preventDefault(); savePost('scheduled'); });
             document.getElementById('previewBtn').addEventListener('click', openPreview);
 
             // Hero image upload
@@ -320,7 +317,6 @@
             document.getElementById('previewContent').innerHTML = preview;
         }
 
-        // Get status label
         function getStatusLabel(status) {
             const labels = {
                 'draft': '📝 Draft',
@@ -328,6 +324,50 @@
                 'scheduled': '⏰ Scheduled'
             };
             return labels[status] || status;
+        }
+
+        // === Core: Build schema-safe payload that keeps ALL fields ===
+        function toIsoOrEmpty(localValue) {
+            if (!localValue) return '';
+            // Convert "YYYY-MM-DDTHH:mm" (local) to ISO with timezone offset
+            const dt = new Date(localValue);
+            if (isNaN(dt.getTime())) return '';
+            return dt.toISOString();
+        }
+
+        function buildPayload(forceStatus) {
+            const title = document.getElementById('title').value.trim();
+            const slug = document.getElementById('slug').value.trim() || generateSlug(title);
+            const status = forceStatus || document.getElementById('status').value;
+
+            // Map UI fields -> stable API keys the function expects
+            // The Netlify function will then map these to Webflow field KEYS via schema.
+            const payload = {
+                title,
+                slug,
+                status,
+                summary: document.getElementById('summary').value,
+                bodyHtml: quill ? quill.root.innerHTML : '',
+                featureImageUrl: document.getElementById('heroUrl').value
+            };
+
+            // Publish date logic:
+            // - draft: omit publishDate
+            // - scheduled: use scheduleAt (required)
+            // - published: use scheduleAt if provided; else now()
+            if (status === 'scheduled') {
+                const when = toIsoOrEmpty(document.getElementById('scheduleAt').value);
+                if (when) payload.publishDate = when;
+            } else if (status === 'published') {
+                const chosen = toIsoOrEmpty(document.getElementById('scheduleAt').value);
+                payload.publishDate = chosen || new Date().toISOString();
+            }
+
+            // NOTE: We keep author/tags/heroAlt in the UI, but we do not send them here
+            // unless your Netlify function is extended to map those too. This prevents
+            // schema validation errors in Webflow (root cause in your report).
+
+            return payload;
         }
 
         // Save post
@@ -339,22 +379,7 @@
             }
 
             const status = forceStatus || document.getElementById('status').value;
-            const postId = document.getElementById('postId').value;
-
-            const payload = {
-                id: postId || undefined,
-                title: title,
-                slug: document.getElementById('slug').value || generateSlug(title),
-                author: document.getElementById('author').value || 'Anonymous',
-                status: status,
-                scheduleAt: status === 'scheduled' ? document.getElementById('scheduleAt').value : null,
-                tags: document.getElementById('tags').value,
-                summary: document.getElementById('summary').value,
-                heroUrl: document.getElementById('heroUrl').value,
-                heroAlt: document.getElementById('heroAlt').value,
-                content: quill ? quill.root.innerHTML : '',
-                contentText: quill ? quill.getText() : ''
-            };
+            const postId = document.getElementById('postId').value; // reserved for future updates
 
             try {
                 showMessage('Saving...', 'info');
@@ -362,31 +387,23 @@
                 const endpoint = postId ? CFG.fns.update : CFG.fns.create;
                 const response = await fetch(endpoint, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(buildPayload(status))
                 });
 
                 const text = await response.text();
                 let result;
-                
-                try {
-                    result = JSON.parse(text);
-                } catch (parseErr) {
-                    throw new Error('Server returned invalid JSON. Response: ' + text.slice(0, 200));
-                }
+                try { result = JSON.parse(text); }
+                catch { throw new Error('Server returned invalid JSON. Response: ' + text.slice(0, 200)); }
 
                 if (!response.ok) {
-                    throw new Error(result.error || 'Save failed');
+                    throw new Error(result.error || result.message || 'Save failed');
                 }
 
-                // Update post ID if this was a new post
                 if (!postId && result.id) {
                     document.getElementById('postId').value = result.id;
                 }
 
-                // Update status in UI
                 document.getElementById('status').value = status;
                 updatePreview();
 
@@ -419,7 +436,7 @@
             newWindow.document.close();
         }
 
-        // Setup hero image upload
+        // Hero image upload (Cloudinary first, fallback to Netlify)
         function setupHeroUpload() {
             const dropZone = document.getElementById('heroDropZone');
             const input = document.getElementById('heroInput');
@@ -445,7 +462,6 @@
             input.addEventListener('change', () => handleHeroFiles(input.files));
         }
 
-        // Handle hero image files
         async function handleHeroFiles(files) {
             const file = files[0];
             if (!file) return;
@@ -507,7 +523,6 @@
             }
         }
 
-        // Update hero preview
         function updateHeroPreview(url, name) {
             const preview = document.getElementById('heroPreview');
             preview.innerHTML = `
@@ -519,7 +534,6 @@
             `;
         }
 
-        // Clear hero image
         function clearHeroImage() {
             document.getElementById('heroUrl').value = '';
             document.getElementById('heroAlt').value = '';
@@ -527,13 +541,12 @@
             updatePreview();
         }
 
-        // Load comments
+        // Comments
         async function loadComments() {
             try {
                 const state = document.getElementById('filterState').value;
                 const postId = document.getElementById('filterPostId').value.trim();
                 
-                // If no postId, show empty state instead of making API call
                 if (!postId) {
                     commentsData = [];
                     document.getElementById('commentsList').innerHTML = `
@@ -555,7 +568,6 @@
                 try {
                     comments = JSON.parse(text);
                 } catch (parseErr) {
-                    // Handle non-JSON responses (like "Missing postId" error)
                     if (text.includes('Missing postId') || text.includes('postId')) {
                         document.getElementById('commentsList').innerHTML = `
                             <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">
@@ -567,9 +579,7 @@
                     throw new Error('Server returned invalid response: ' + text.slice(0, 100));
                 }
 
-                if (!response.ok) {
-                    throw new Error(comments.error || 'Failed to load comments');
-                }
+                if (!response.ok) throw new Error(comments.error || 'Failed to load comments');
 
                 commentsData = Array.isArray(comments) ? comments : [];
                 filterComments();
@@ -584,7 +594,6 @@
             }
         }
 
-        // Filter comments
         function filterComments() {
             const searchTerm = document.getElementById('commentSearch').value.toLowerCase();
             const filtered = commentsData.filter(comment => 
@@ -611,7 +620,6 @@
             `).join('');
         }
 
-        // Moderate comment
         async function moderateComment(id, action) {
             try {
                 const response = await fetch(CFG.fns.moderateComment, {
@@ -635,21 +643,15 @@
             }
         }
 
-        // Show message
         function showMessage(text, type = 'info') {
             const messages = document.getElementById('messages');
             const messageEl = document.createElement('div');
             messageEl.className = `message message-${type}`;
             messageEl.textContent = text;
-            
             messages.appendChild(messageEl);
-            
-            setTimeout(() => {
-                messageEl.remove();
-            }, 5000);
+            setTimeout(() => messageEl.remove(), 5000);
         }
 
-        // Generate slug
         function generateSlug(title) {
             return title.toLowerCase()
                 .trim()
@@ -657,11 +659,9 @@
                 .replace(/^-+|-+$/g, '');
         }
 
-        // Theme toggle
         function toggleTheme() {
             const html = document.documentElement;
             const isDark = html.classList.contains('dark');
-            
             if (isDark) {
                 html.classList.remove('dark');
                 localStorage.setItem('theme', 'light');
@@ -671,7 +671,6 @@
             }
         }
 
-        // Restore theme
         function restoreTheme() {
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme === 'dark') {
@@ -681,4 +680,3 @@
     </script>
 </body>
 </html>
-
