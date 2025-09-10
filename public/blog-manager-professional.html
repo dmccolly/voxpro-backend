@@ -533,9 +533,20 @@
                 const state = document.getElementById('filterState').value;
                 const postId = document.getElementById('filterPostId').value.trim();
                 
+                // If no postId, show empty state instead of making API call
+                if (!postId) {
+                    commentsData = [];
+                    document.getElementById('commentsList').innerHTML = `
+                        <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">
+                            Enter a Post ID to load comments
+                        </p>
+                    `;
+                    return;
+                }
+                
                 const params = new URLSearchParams();
                 if (state) params.set('state', state);
-                if (postId) params.set('postId', postId);
+                params.set('postId', postId);
 
                 const response = await fetch(CFG.fns.listComments + '?' + params.toString());
                 const text = await response.text();
@@ -544,7 +555,20 @@
                 try {
                     comments = JSON.parse(text);
                 } catch (parseErr) {
-                    throw new Error('Invalid JSON response from comments API');
+                    // Handle non-JSON responses (like "Missing postId" error)
+                    if (text.includes('Missing postId') || text.includes('postId')) {
+                        document.getElementById('commentsList').innerHTML = `
+                            <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">
+                                Enter a valid Post ID to load comments
+                            </p>
+                        `;
+                        return;
+                    }
+                    throw new Error('Server returned invalid response: ' + text.slice(0, 100));
+                }
+
+                if (!response.ok) {
+                    throw new Error(comments.error || 'Failed to load comments');
                 }
 
                 commentsData = Array.isArray(comments) ? comments : [];
