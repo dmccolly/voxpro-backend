@@ -61,8 +61,17 @@ label {
 }
 
 .dark label {
-  color: #f3f4f6;
-  font-weight: 600;
+  color: #f3f4f6 !important;
+  font-weight: 600 !important;
+}
+
+/* More specific selectors for labels */
+body.dark label,
+html.dark label,
+.dark body label {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
 }
 
 /* Buttons */
@@ -336,5 +345,35 @@ textarea::placeholder {
 /* Smooth transitions */
 body, input, select, textarea, button {
   transition: all 0.3s ease;
+}
+
+
+/* Force dark mode label visibility with highest specificity */
+body.dark label,
+html.dark body label,
+.dark label,
+body[class*="dark"] label {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+/* Ensure headings are visible in dark mode */
+body.dark h1,
+body.dark h2,
+body.dark h3,
+body.dark h4,
+body.dark h5,
+body.dark h6,
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4,
+.dark h5,
+.dark h6 {
+  color: #ffffff !important;
+  font-weight: 600 !important;
 }
 
