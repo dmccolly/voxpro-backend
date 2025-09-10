@@ -1,682 +1,459 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Professional Blog Manager</title>
-    <link rel="stylesheet" href="css/blog-manager-professional.css">
-    <link rel="stylesheet" href="css/quill.snow.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Professional Blog Manager</title>
+  <link rel="stylesheet" href="css/blog-manager-professional.css" />
+  <link rel="stylesheet" href="css/quill.snow.css" />
 </head>
 <body>
-    <div class="header">
-        <h1>📝 Blog Manager</h1>
-        <div>
-            <button class="theme-toggle" onclick="toggleTheme()">🌙 Toggle Theme</button>
+  <div class="header">
+    <h1>📝 Blog Manager</h1>
+    <div><button class="theme-toggle" onclick="toggleTheme()">🌙 Toggle Theme</button></div>
+  </div>
+
+  <div class="container">
+    <div class="main-content">
+      <div class="form-section">
+        <h2 class="section-title">Post Details</h2>
+
+        <div class="form-group">
+          <label class="form-label" for="title">Title *</label>
+          <input type="text" id="title" class="form-input" placeholder="Enter post title..." required />
         </div>
+
+        <div class="form-group">
+          <label class="form-label" for="slug">Slug (URL)</label>
+          <input type="text" id="slug" class="form-input" placeholder="auto-generated-from-title" />
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <div class="form-group">
+            <label class="form-label" for="author">Author</label>
+            <input type="text" id="author" class="form-input" placeholder="Author name" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="status">Status</label>
+            <select id="status" class="form-select">
+              <option value="draft">📝 Draft</option>
+              <option value="published">✅ Published</option>
+              <option value="scheduled">⏰ Scheduled</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="scheduleAt">Publish Date/Time (for scheduled posts)</label>
+          <input type="datetime-local" id="scheduleAt" class="form-input" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="tags">Tags</label>
+          <input type="text" id="tags" class="form-input" placeholder="tag1, tag2, tag3" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="summary">Summary</label>
+          <textarea id="summary" class="form-textarea" rows="3" placeholder="Brief description of the post..."></textarea>
+        </div>
+
+        <!-- REQUIRED by your Webflow schema -->
+        <div class="form-group">
+          <label class="form-label" for="mediaUrl">Media URL *</label>
+          <input type="url" id="mediaUrl" class="form-input" placeholder="https://example.com/media.mp3" required />
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">Hero Image</h2>
+
+        <div class="form-group">
+          <label class="form-label" for="heroUrl">Image URL</label>
+          <input type="url" id="heroUrl" class="form-input" placeholder="https://example.com/image.jpg" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="heroAlt">Alt Text</label>
+          <input type="text" id="heroAlt" class="form-input" placeholder="Describe the image..." />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Upload Image</label>
+          <div class="upload-zone" id="heroDropZone">
+            <div>📁 Click to upload or drag & drop</div>
+            <div style="font-size:.875rem;color:var(--text-secondary);margin-top:.5rem;">Supports: JPG, PNG, WebP (Max: 50MB)</div>
+            <input type="file" id="heroInput" accept="image/*" style="display:none;" />
+          </div>
+          <div id="heroPreview"></div>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <h2 class="section-title">Content</h2>
+        <div class="editor-container"><div id="editor"></div></div>
+      </div>
+
+      <div class="btn-group">
+        <button id="saveDraftBtn" class="btn btn-secondary">💾 Save Draft</button>
+        <button id="previewBtn" class="btn btn-warning">👁️ Preview</button>
+        <button id="publishBtn" class="btn btn-success">🚀 Publish Now</button>
+        <button id="scheduleBtn" class="btn btn-primary" style="display:none;">⏰ Schedule Post</button>
+      </div>
+
+      <div id="messages"></div>
     </div>
 
-    <div class="container">
-        <!-- Main Content Area -->
-        <div class="main-content">
-            <!-- Post Details Section -->
-            <div class="form-section">
-                <h2 class="section-title">Post Details</h2>
-                
-                <div class="form-group">
-                    <label class="form-label" for="title">Title *</label>
-                    <input type="text" id="title" class="form-input" placeholder="Enter post title..." required>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="slug">Slug (URL)</label>
-                    <input type="text" id="slug" class="form-input" placeholder="auto-generated-from-title">
-                </div>
-
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label class="form-label" for="author">Author</label>
-                        <input type="text" id="author" class="form-input" placeholder="Author name">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="status">Status</label>
-                        <select id="status" class="form-select">
-                            <option value="draft">📝 Draft</option>
-                            <option value="published">✅ Published</option>
-                            <option value="scheduled">⏰ Scheduled</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="scheduleAt">Publish Date/Time (for scheduled posts)</label>
-                    <input type="datetime-local" id="scheduleAt" class="form-input">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="tags">Tags</label>
-                    <input type="text" id="tags" class="form-input" placeholder="tag1, tag2, tag3">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="summary">Summary</label>
-                    <textarea id="summary" class="form-textarea" rows="3" placeholder="Brief description of the post..."></textarea>
-                </div>
-            </div>
-
-            <!-- Hero Image Section -->
-            <div class="form-section">
-                <h2 class="section-title">Hero Image</h2>
-                
-                <div class="form-group">
-                    <label class="form-label" for="heroUrl">Image URL</label>
-                    <input type="url" id="heroUrl" class="form-input" placeholder="https://example.com/image.jpg">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="heroAlt">Alt Text</label>
-                    <input type="text" id="heroAlt" class="form-input" placeholder="Describe the image...">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Upload Image</label>
-                    <div class="upload-zone" id="heroDropZone">
-                        <div>📁 Click to upload or drag & drop</div>
-                        <div style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                            Supports: JPG, PNG, WebP (Max: 50MB)
-                        </div>
-                        <input type="file" id="heroInput" accept="image/*" style="display: none;">
-                    </div>
-                    <div id="heroPreview"></div>
-                </div>
-            </div>
-
-            <!-- Content Editor Section -->
-            <div class="form-section">
-                <h2 class="section-title">Content</h2>
-                <div class="editor-container">
-                    <div id="editor"></div>
-                </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="btn-group">
-                <button id="saveDraftBtn" class="btn btn-secondary">
-                    💾 Save Draft
-                </button>
-                <button id="previewBtn" class="btn btn-warning">
-                    👁️ Preview
-                </button>
-                <button id="publishBtn" class="btn btn-success">
-                    🚀 Publish Now
-                </button>
-                <button id="scheduleBtn" class="btn btn-primary" style="display: none;">
-                    ⏰ Schedule Post
-                </button>
-            </div>
-
-            <!-- Messages -->
-            <div id="messages"></div>
+    <div class="sidebar">
+      <div class="preview-panel">
+        <h3 class="section-title">Live Preview</h3>
+        <div id="previewContent">
+          <p style="color:var(--text-secondary);text-align:center;padding:2rem;">Start writing to see a preview...</p>
         </div>
+      </div>
 
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <!-- Preview Panel -->
-            <div class="preview-panel">
-                <h3 class="section-title">Live Preview</h3>
-                <div id="previewContent">
-                    <p style="color: var(--text-secondary); text-align: center; padding: 2rem;">
-                        Start writing to see a preview...
-                    </p>
-                </div>
-            </div>
-
-            <!-- Comments Section -->
-            <div class="comments-section">
-                <h3 class="section-title">Comments</h3>
-                
-                <div class="form-group">
-                    <label class="form-label">
-                        <input type="checkbox" id="requireApproval" style="margin-right: 0.5rem;">
-                        Require approval for new comments
-                    </label>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="filterState">Filter by state:</label>
-                    <select id="filterState" class="form-select">
-                        <option value="">All Comments</option>
-                        <option value="pending">Pending</option>
-                        <option value="approved">Approved</option>
-                        <option value="rejected">Rejected</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label" for="filterPostId">Post ID:</label>
-                    <input type="text" id="filterPostId" class="form-input" placeholder="Optional">
-                </div>
-
-                <div class="form-group">
-                    <input type="text" id="commentSearch" class="form-input" placeholder="Search comments...">
-                </div>
-
-                <button id="refreshComments" class="btn btn-secondary" style="width: 100%;">
-                    🔄 Refresh Comments
-                </button>
-
-                <div id="commentsList" style="margin-top: 1rem;">
-                    <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">
-                        No comments to display
-                    </p>
-                </div>
-            </div>
+      <div class="comments-section">
+        <h3 class="section-title">Comments</h3>
+        <div class="form-group">
+          <label class="form-label"><input type="checkbox" id="requireApproval" style="margin-right:.5rem;">Require approval for new comments</label>
         </div>
+        <div class="form-group">
+          <label class="form-label" for="filterState">Filter by state:</label>
+          <select id="filterState" class="form-select">
+            <option value="">All Comments</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="filterPostId">Post ID:</label>
+          <input type="text" id="filterPostId" class="form-input" placeholder="Optional" />
+        </div>
+        <div class="form-group">
+          <input type="text" id="commentSearch" class="form-input" placeholder="Search comments..." />
+        </div>
+        <button id="refreshComments" class="btn btn-secondary" style="width:100%;">🔄 Refresh Comments</button>
+        <div id="commentsList" style="margin-top:1rem;">
+          <p style="color:var(--text-secondary);text-align:center;padding:1rem;">No comments to display</p>
+        </div>
+      </div>
     </div>
+  </div>
 
-    <!-- Hidden Elements -->
-    <input type="hidden" id="postId" value="">
+  <input type="hidden" id="postId" value="" />
 
-    <!-- Scripts -->
-    <script src="js/quill.min.js"></script>
-    <script src="js/marked.min.js"></script>
-    <script>
-        // Configuration
-        const CFG = {
-            fns: {
-                create: '/.netlify/functions/posts-create',
-                update: '/.netlify/functions/posts-create',
-                schedule: '/.netlify/functions/posts-create',
-                listComments: '/.netlify/functions/comments-list',
-                moderateComment: '/.netlify/functions/comments-moderate',
-                getSettings: '/.netlify/functions/comments-settings-get',
-                setSettings: '/.netlify/functions/comments-settings-set',
-                upload: '/.netlify/functions/file-manager-upload'
-            },
-            cloudinary: {
-                uploadUrl: 'https://api.cloudinary.com/v1_1/dzrw8nopf/auto/upload',
-                uploadPreset: 'blogHeroUnsigned'
-            }
-        };
+  <script src="js/quill.min.js"></script>
+  <script src="js/marked.min.js"></script>
+  <script>
+    const CFG = {
+      fns: {
+        create: '/.netlify/functions/posts-create',
+        update: '/.netlify/functions/posts-create',
+        schedule: '/.netlify/functions/posts-create',
+        listComments: '/.netlify/functions/comments-list',
+        moderateComment: '/.netlify/functions/comments-moderate',
+        getSettings: '/.netlify/functions/comments-settings-get',
+        setSettings: '/.netlify/functions/comments-settings-set',
+        upload: '/.netlify/functions/file-manager-upload'
+      },
+      cloudinary: {
+        uploadUrl: 'https://api.cloudinary.com/v1_1/dzrw8nopf/auto/upload',
+        uploadPreset: 'blogHeroUnsigned'
+      }
+    };
 
-        // Global variables
-        let quill;
-        let commentsData = [];
+    let quill, commentsData = [];
 
-        document.addEventListener('DOMContentLoaded', function() {
-            initQuill();
-            setupEventListeners();
-            loadComments();
-            restoreTheme();
+    document.addEventListener('DOMContentLoaded', () => {
+      initQuill();
+      setupEventListeners();
+      loadComments();
+      restoreTheme();
+    });
+
+    function initQuill() {
+      const el = document.getElementById('editor');
+      if (!el) return;
+      quill = new Quill(el, {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            ['bold','italic','underline','strike'],
+            [{ 'header': [1,2,3,false] }],
+            ['blockquote','code-block'],
+            [{ 'list':'ordered' },{ 'list':'bullet' }],
+            ['link','image'],
+            ['clean']
+          ]
+        }
+      });
+      quill.on('text-change', updatePreview);
+    }
+
+    function setupEventListeners() {
+      document.getElementById('title').addEventListener('input', () => { updateSlug(); updatePreview(); });
+      document.getElementById('status').addEventListener('change', function() {
+        const scheduleBtn = document.getElementById('scheduleBtn');
+        const publishBtn = document.getElementById('publishBtn');
+        if (this.value === 'scheduled') { scheduleBtn.style.display='inline-flex'; publishBtn.style.display='none'; }
+        else { scheduleBtn.style.display='none'; publishBtn.style.display='inline-flex'; }
+        updatePreview();
+      });
+      ['author','tags','summary','heroUrl','heroAlt','scheduleAt','mediaUrl'].forEach(id => {
+        document.getElementById(id).addEventListener('input', updatePreview);
+      });
+      document.getElementById('saveDraftBtn').addEventListener('click', (e)=>{ e.preventDefault(); savePost('draft'); });
+      document.getElementById('publishBtn').addEventListener('click', (e)=>{ e.preventDefault(); savePost('published'); });
+      document.getElementById('scheduleBtn').addEventListener('click', (e)=>{ e.preventDefault(); savePost('scheduled'); });
+      document.getElementById('previewBtn').addEventListener('click', openPreview);
+      setupHeroUpload();
+      document.getElementById('refreshComments').addEventListener('click', loadComments);
+      document.getElementById('commentSearch').addEventListener('input', filterComments);
+      document.getElementById('filterState').addEventListener('change', filterComments);
+    }
+
+    function updateSlug() {
+      const title = document.getElementById('title').value;
+      const slug = title.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+      document.getElementById('slug').value = slug;
+    }
+
+    function updatePreview() {
+      const title = document.getElementById('title').value || 'Untitled Post';
+      const author = document.getElementById('author').value || 'Anonymous';
+      const status = document.getElementById('status').value;
+      const heroUrl = document.getElementById('heroUrl').value;
+      const summary = document.getElementById('summary').value;
+      const content = quill ? quill.root.innerHTML : '';
+      const statusBadge = `<span class="status-${status}">${getStatusLabel(status)}</span>`;
+      let html = `
+        <div style="margin-bottom:1rem;">
+          <h1 style="margin-bottom:.5rem;">${title}</h1>
+          <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;font-size:.875rem;color:var(--text-secondary);">
+            <span>By ${author}</span>${statusBadge}
+          </div>
+        </div>`;
+      if (heroUrl) html += `<img src="${heroUrl}" alt="${document.getElementById('heroAlt').value}" style="width:100%;height:200px;object-fit:cover;border-radius:6px;margin-bottom:1rem;">`;
+      if (summary) html += `<div style="font-style:italic;margin-bottom:1rem;padding:1rem;background:rgba(59,130,246,.1);border-left:3px solid var(--accent);border-radius:4px;">${summary}</div>`;
+      html += `<div>${content}</div>`;
+      document.getElementById('previewContent').innerHTML = html;
+    }
+
+    function getStatusLabel(status) {
+      return ({ draft:'📝 Draft', published:'✅ Published', scheduled:'⏰ Scheduled' })[status] || status;
+    }
+
+    function toIsoOrEmpty(localValue) {
+      if (!localValue) return '';
+      const dt = new Date(localValue);
+      return isNaN(dt.getTime()) ? '' : dt.toISOString();
+    }
+
+    function buildPayload(forceStatus) {
+      const title = document.getElementById('title').value.trim();
+      const slug = document.getElementById('slug').value.trim() || generateSlug(title);
+      const status = forceStatus || document.getElementById('status').value;
+
+      const payload = {
+        title,
+        slug,
+        status,
+        summary: document.getElementById('summary').value,
+        bodyHtml: quill ? quill.root.innerHTML : '',
+        featureImageUrl: document.getElementById('heroUrl').value,
+        mediaUrl: document.getElementById('mediaUrl').value // REQUIRED
+      };
+
+      if (status === 'scheduled') {
+        const when = toIsoOrEmpty(document.getElementById('scheduleAt').value);
+        if (when) payload.publishDate = when;
+      } else if (status === 'published') {
+        const chosen = toIsoOrEmpty(document.getElementById('scheduleAt').value);
+        payload.publishDate = chosen || new Date().toISOString();
+      }
+
+      return payload;
+    }
+
+    async function savePost(forceStatus = null) {
+      const title = document.getElementById('title').value.trim();
+      const mediaUrl = document.getElementById('mediaUrl').value.trim();
+      if (!title) return showMessage('Please enter a title','error');
+      if (!mediaUrl) return showMessage('Please enter a Media URL','error');
+
+      const status = forceStatus || document.getElementById('status').value;
+      const postId = document.getElementById('postId').value;
+
+      try {
+        showMessage('Saving...','info');
+        const endpoint = postId ? CFG.fns.update : CFG.fns.create;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json','Accept':'application/json' },
+          body: JSON.stringify(buildPayload(status))
         });
+        const text = await res.text();
+        let result; try { result = JSON.parse(text); } catch { throw new Error('Invalid JSON: '+text.slice(0,200)); }
+        if (!res.ok) throw new Error(result?.error || result?.message || 'Save failed');
 
-        // Initialize Quill editor
-        function initQuill() {
-            const editorEl = document.getElementById('editor');
-            if (!editorEl) return;
+        if (!postId && result.id) document.getElementById('postId').value = result.id;
+        document.getElementById('status').value = status;
+        updatePreview();
+        showMessage(`Post ${status==='published'?'published':status==='scheduled'?'scheduled':'saved as draft'} successfully!`,'success');
+      } catch (err) {
+        console.error('Save error:', err);
+        showMessage('Error: '+err.message,'error');
+      }
+    }
 
-            quill = new Quill(editorEl, {
-                theme: 'snow',
-                modules: {
-                    toolbar: [
-                        ['bold', 'italic', 'underline', 'strike'],
-                        [{ 'header': [1, 2, 3, false] }],
-                        ['blockquote', 'code-block'],
-                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-                        ['link', 'image'],
-                        ['clean']
-                    ]
-                }
-            });
+    function openPreview() {
+      const previewContent = document.getElementById('previewContent').innerHTML;
+      const w = window.open('', '_blank');
+      w.document.write(`<!DOCTYPE html><html><head><title>Preview</title><style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:800px;margin:0 auto;padding:2rem}img{max-width:100%;height:auto}</style></head><body>${previewContent}</body></html>`);
+      w.document.close();
+    }
 
-            quill.on('text-change', updatePreview);
+    function setupHeroUpload() {
+      const dz = document.getElementById('heroDropZone');
+      const input = document.getElementById('heroInput');
+      dz.addEventListener('click', ()=>input.click());
+      dz.addEventListener('dragover', (e)=>{e.preventDefault();dz.style.borderColor='var(--accent)';});
+      dz.addEventListener('dragleave', (e)=>{e.preventDefault();dz.style.borderColor='';});
+      dz.addEventListener('drop', (e)=>{e.preventDefault();dz.style.borderColor='';handleHeroFiles(e.dataTransfer.files);});
+      input.addEventListener('change', ()=>handleHeroFiles(input.files));
+    }
+
+    async function handleHeroFiles(files) {
+      const file = files?.[0]; if (!file) return;
+      if (file.size > 50*1024*1024) return showMessage('File too large. Max 50MB.','error');
+      try {
+        showMessage('Uploading image...','info');
+        if (CFG.cloudinary.uploadUrl && CFG.cloudinary.uploadPreset) {
+          const form = new FormData();
+          form.append('file', file);
+          form.append('upload_preset', CFG.cloudinary.uploadPreset);
+          const r = await fetch(CFG.cloudinary.uploadUrl, { method:'POST', body: form });
+          const j = await r.json();
+          if (r.ok && j.secure_url) {
+            document.getElementById('heroUrl').value = j.secure_url;
+            updateHeroPreview(j.secure_url, file.name); updatePreview();
+            showMessage('Image uploaded successfully!','success');
+            return;
+          }
         }
+        const form2 = new FormData(); form2.append('attachment', file);
+        const r2 = await fetch(CFG.fns.upload, { method:'POST', body: form2 });
+        const t2 = await r2.text(); const j2 = JSON.parse(t2);
+        if (r2.ok && j2.url) {
+          document.getElementById('heroUrl').value = j2.url;
+          updateHeroPreview(j2.url, file.name); updatePreview();
+          showMessage('Image uploaded successfully!','success');
+        } else { throw new Error(j2.error || 'Upload failed'); }
+      } catch (e) {
+        console.error('Upload error:', e);
+        showMessage('Upload failed: '+e.message,'error');
+      }
+    }
 
-        function setupEventListeners() {
-            // Title changes
-            document.getElementById('title').addEventListener('input', function() {
-                updateSlug();
-                updatePreview();
-            });
+    function updateHeroPreview(url, name) {
+      document.getElementById('heroPreview').innerHTML =
+        `<div style="margin-top:1rem;padding:1rem;border:1px solid var(--border);border-radius:6px;background:var(--bg-tertiary);">
+           <img src="${url}" alt="${name}" style="width:100%;max-height:200px;object-fit:cover;border-radius:4px;">
+           <div style="margin-top:.5rem;font-size:.875rem;color:var(--text-secondary);">${name}</div>
+           <button onclick="clearHeroImage()" style="margin-top:.5rem;padding:.25rem .5rem;background:var(--error);color:#fff;border:none;border-radius:4px;font-size:.75rem;cursor:pointer;">Remove</button>
+         </div>`;
+    }
 
-            // Status changes (toggle schedule button/publish button)
-            document.getElementById('status').addEventListener('change', function() {
-                const scheduleBtn = document.getElementById('scheduleBtn');
-                const publishBtn = document.getElementById('publishBtn');
-                
-                if (this.value === 'scheduled') {
-                    scheduleBtn.style.display = 'inline-flex';
-                    publishBtn.style.display = 'none';
-                } else {
-                    scheduleBtn.style.display = 'none';
-                    publishBtn.style.display = 'inline-flex';
-                }
-                updatePreview();
-            });
+    function clearHeroImage() {
+      document.getElementById('heroUrl').value = '';
+      document.getElementById('heroAlt').value = '';
+      document.getElementById('heroPreview').innerHTML = '';
+      updatePreview();
+    }
 
-            // Other form changes
-            ['author', 'tags', 'summary', 'heroUrl', 'heroAlt', 'scheduleAt'].forEach(id => {
-                document.getElementById(id).addEventListener('input', updatePreview);
-            });
-
-            // Buttons
-            document.getElementById('saveDraftBtn').addEventListener('click', (e) => { e.preventDefault(); savePost('draft'); });
-            document.getElementById('publishBtn').addEventListener('click', (e) => { e.preventDefault(); savePost('published'); });
-            document.getElementById('scheduleBtn').addEventListener('click', (e) => { e.preventDefault(); savePost('scheduled'); });
-            document.getElementById('previewBtn').addEventListener('click', openPreview);
-
-            // Hero image upload
-            setupHeroUpload();
-
-            // Comments
-            document.getElementById('refreshComments').addEventListener('click', loadComments);
-            document.getElementById('commentSearch').addEventListener('input', filterComments);
-            document.getElementById('filterState').addEventListener('change', filterComments);
+    async function loadComments() {
+      try {
+        const state = document.getElementById('filterState').value;
+        const postId = document.getElementById('filterPostId').value.trim();
+        if (!postId) {
+          commentsData = [];
+          document.getElementById('commentsList').innerHTML =
+            `<p style="color:var(--text-secondary);text-align:center;padding:1rem;">Enter a Post ID to load comments</p>`;
+          return;
         }
-
-        // Auto-generate slug from title
-        function updateSlug() {
-            const title = document.getElementById('title').value;
-            const slug = title.toLowerCase()
-                .trim()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '');
-            document.getElementById('slug').value = slug;
+        const params = new URLSearchParams(); if (state) params.set('state', state); params.set('postId', postId);
+        const r = await fetch(CFG.fns.listComments + '?' + params.toString());
+        const t = await r.text();
+        let list; try { list = JSON.parse(t); } catch {
+          if (t.includes('Missing postId')) {
+            document.getElementById('commentsList').innerHTML =
+              `<p style="color:var(--text-secondary);text-align:center;padding:1rem;">Enter a valid Post ID to load comments</p>`;
+            return;
+          }
+          throw new Error('Server returned invalid response: ' + t.slice(0,100));
         }
+        if (!r.ok) throw new Error(list.error || 'Failed to load comments');
+        commentsData = Array.isArray(list) ? list : [];
+        filterComments();
+      } catch (e) {
+        console.error('Load comments error:', e);
+        document.getElementById('commentsList').innerHTML =
+          `<p style="color:var(--error);text-align:center;padding:1rem;">Error loading comments: ${e.message}</p>`;
+      }
+    }
 
-        // Update live preview
-        function updatePreview() {
-            const title = document.getElementById('title').value || 'Untitled Post';
-            const author = document.getElementById('author').value || 'Anonymous';
-            const status = document.getElementById('status').value;
-            const heroUrl = document.getElementById('heroUrl').value;
-            const summary = document.getElementById('summary').value;
-            const content = quill ? quill.root.innerHTML : '';
+    function filterComments() {
+      const q = document.getElementById('commentSearch').value.toLowerCase();
+      const filtered = (commentsData||[]).filter(c => (c.content||'').toLowerCase().includes(q) || (c.author||'').toLowerCase().includes(q));
+      const el = document.getElementById('commentsList');
+      if (!filtered.length) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:1rem;">No comments found</p>'; return; }
+      el.innerHTML = filtered.map(c => `
+        <div style="border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:1rem;background:var(--bg-tertiary);">
+          <div style="font-weight:500;margin-bottom:.5rem;">${c.author||'Anonymous'}</div>
+          <div style="margin-bottom:.5rem;font-size:.875rem;">${c.content||''}</div>
+          <div style="display:flex;gap:.5rem;">
+            <button onclick="moderateComment('${c.id}','approve')" class="btn btn-success" style="padding:.25rem .5rem;font-size:.75rem;">Approve</button>
+            <button onclick="moderateComment('${c.id}','reject')" class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.75rem;">Reject</button>
+          </div>
+        </div>`).join('');
+    }
 
-            const statusBadge = `<span class="status-${status}">${getStatusLabel(status)}</span>`;
-            
-            let preview = `
-                <div style="margin-bottom: 1rem;">
-                    <h1 style="margin-bottom: 0.5rem;">${title}</h1>
-                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; font-size: 0.875rem; color: var(--text-secondary);">
-                        <span>By ${author}</span>
-                        ${statusBadge}
-                    </div>
-                </div>
-            `;
+    async function moderateComment(id, action) {
+      try {
+        const r = await fetch(CFG.fns.moderateComment, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ id, action })
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'Moderation failed');
+        showMessage(`Comment ${action}d successfully!`,'success'); loadComments();
+      } catch (e) { console.error('Moderation error:', e); showMessage('Error: '+e.message,'error'); }
+    }
 
-            if (heroUrl) {
-                preview += `<img src="${heroUrl}" alt="${document.getElementById('heroAlt').value}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 6px; margin-bottom: 1rem;">`;
-            }
+    function showMessage(text, type='info') {
+      const wrap = document.getElementById('messages');
+      const el = document.createElement('div');
+      el.className = `message message-${type}`;
+      el.textContent = text;
+      wrap.appendChild(el);
+      setTimeout(()=>el.remove(), 5000);
+    }
 
-            if (summary) {
-                preview += `<div style="font-style: italic; margin-bottom: 1rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border-left: 3px solid var(--accent); border-radius: 4px;">${summary}</div>`;
-            }
+    function generateSlug(title) {
+      return title.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+    }
 
-            preview += `<div>${content}</div>`;
+    function toggleTheme() {
+      const html = document.documentElement;
+      const isDark = html.classList.contains('dark');
+      if (isDark) { html.classList.remove('dark'); localStorage.setItem('theme','light'); }
+      else { html.classList.add('dark'); localStorage.setItem('theme','dark'); }
+    }
 
-            document.getElementById('previewContent').innerHTML = preview;
-        }
-
-        function getStatusLabel(status) {
-            const labels = {
-                'draft': '📝 Draft',
-                'published': '✅ Published',
-                'scheduled': '⏰ Scheduled'
-            };
-            return labels[status] || status;
-        }
-
-        // === Core: Build schema-safe payload that keeps ALL fields ===
-        function toIsoOrEmpty(localValue) {
-            if (!localValue) return '';
-            // Convert "YYYY-MM-DDTHH:mm" (local) to ISO with timezone offset
-            const dt = new Date(localValue);
-            if (isNaN(dt.getTime())) return '';
-            return dt.toISOString();
-        }
-
-        function buildPayload(forceStatus) {
-            const title = document.getElementById('title').value.trim();
-            const slug = document.getElementById('slug').value.trim() || generateSlug(title);
-            const status = forceStatus || document.getElementById('status').value;
-
-            // Map UI fields -> stable API keys the function expects
-            // The Netlify function will then map these to Webflow field KEYS via schema.
-            const payload = {
-                title,
-                slug,
-                status,
-                summary: document.getElementById('summary').value,
-                bodyHtml: quill ? quill.root.innerHTML : '',
-                featureImageUrl: document.getElementById('heroUrl').value
-            };
-
-            // Publish date logic:
-            // - draft: omit publishDate
-            // - scheduled: use scheduleAt (required)
-            // - published: use scheduleAt if provided; else now()
-            if (status === 'scheduled') {
-                const when = toIsoOrEmpty(document.getElementById('scheduleAt').value);
-                if (when) payload.publishDate = when;
-            } else if (status === 'published') {
-                const chosen = toIsoOrEmpty(document.getElementById('scheduleAt').value);
-                payload.publishDate = chosen || new Date().toISOString();
-            }
-
-            // NOTE: We keep author/tags/heroAlt in the UI, but we do not send them here
-            // unless your Netlify function is extended to map those too. This prevents
-            // schema validation errors in Webflow (root cause in your report).
-
-            return payload;
-        }
-
-        // Save post
-        async function savePost(forceStatus = null) {
-            const title = document.getElementById('title').value.trim();
-            if (!title) {
-                showMessage('Please enter a title', 'error');
-                return;
-            }
-
-            const status = forceStatus || document.getElementById('status').value;
-            const postId = document.getElementById('postId').value; // reserved for future updates
-
-            try {
-                showMessage('Saving...', 'info');
-                
-                const endpoint = postId ? CFG.fns.update : CFG.fns.create;
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(buildPayload(status))
-                });
-
-                const text = await response.text();
-                let result;
-                try { result = JSON.parse(text); }
-                catch { throw new Error('Server returned invalid JSON. Response: ' + text.slice(0, 200)); }
-
-                if (!response.ok) {
-                    throw new Error(result.error || result.message || 'Save failed');
-                }
-
-                if (!postId && result.id) {
-                    document.getElementById('postId').value = result.id;
-                }
-
-                document.getElementById('status').value = status;
-                updatePreview();
-
-                const statusText = status === 'published' ? 'published' : status === 'scheduled' ? 'scheduled' : 'saved as draft';
-                showMessage(`Post ${statusText} successfully!`, 'success');
-
-            } catch (error) {
-                console.error('Save error:', error);
-                showMessage('Error: ' + error.message, 'error');
-            }
-        }
-
-        // Open preview in new window
-        function openPreview() {
-            const previewContent = document.getElementById('previewContent').innerHTML;
-            const newWindow = window.open('', '_blank');
-            newWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Preview</title>
-                    <style>
-                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; }
-                        img { max-width: 100%; height: auto; }
-                    </style>
-                </head>
-                <body>${previewContent}</body>
-                </html>
-            `);
-            newWindow.document.close();
-        }
-
-        // Hero image upload (Cloudinary first, fallback to Netlify)
-        function setupHeroUpload() {
-            const dropZone = document.getElementById('heroDropZone');
-            const input = document.getElementById('heroInput');
-
-            dropZone.addEventListener('click', () => input.click());
-            
-            dropZone.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = 'var(--accent)';
-            });
-
-            dropZone.addEventListener('dragleave', (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = '';
-            });
-
-            dropZone.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dropZone.style.borderColor = '';
-                handleHeroFiles(e.dataTransfer.files);
-            });
-
-            input.addEventListener('change', () => handleHeroFiles(input.files));
-        }
-
-        async function handleHeroFiles(files) {
-            const file = files[0];
-            if (!file) return;
-
-            if (file.size > 50 * 1024 * 1024) {
-                showMessage('File too large. Maximum size is 50MB.', 'error');
-                return;
-            }
-
-            try {
-                showMessage('Uploading image...', 'info');
-                
-                // Try Cloudinary first
-                if (CFG.cloudinary.uploadUrl && CFG.cloudinary.uploadPreset) {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('upload_preset', CFG.cloudinary.uploadPreset);
-
-                    const response = await fetch(CFG.cloudinary.uploadUrl, {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const result = await response.json();
-                    
-                    if (response.ok && result.secure_url) {
-                        document.getElementById('heroUrl').value = result.secure_url;
-                        updateHeroPreview(result.secure_url, file.name);
-                        updatePreview();
-                        showMessage('Image uploaded successfully!', 'success');
-                        return;
-                    }
-                }
-
-                // Fallback to Netlify function
-                const formData = new FormData();
-                formData.append('attachment', file);
-                
-                const response = await fetch(CFG.fns.upload, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const text = await response.text();
-                const result = JSON.parse(text);
-
-                if (response.ok && result.url) {
-                    document.getElementById('heroUrl').value = result.url;
-                    updateHeroPreview(result.url, file.name);
-                    updatePreview();
-                    showMessage('Image uploaded successfully!', 'success');
-                } else {
-                    throw new Error(result.error || 'Upload failed');
-                }
-
-            } catch (error) {
-                console.error('Upload error:', error);
-                showMessage('Upload failed: ' + error.message, 'error');
-            }
-        }
-
-        function updateHeroPreview(url, name) {
-            const preview = document.getElementById('heroPreview');
-            preview.innerHTML = `
-                <div style="margin-top: 1rem; padding: 1rem; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-tertiary);">
-                    <img src="${url}" alt="${name}" style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 4px;">
-                    <div style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">${name}</div>
-                    <button onclick="clearHeroImage()" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: var(--error); color: white; border: none; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">Remove</button>
-                </div>
-            `;
-        }
-
-        function clearHeroImage() {
-            document.getElementById('heroUrl').value = '';
-            document.getElementById('heroAlt').value = '';
-            document.getElementById('heroPreview').innerHTML = '';
-            updatePreview();
-        }
-
-        // Comments
-        async function loadComments() {
-            try {
-                const state = document.getElementById('filterState').value;
-                const postId = document.getElementById('filterPostId').value.trim();
-                
-                if (!postId) {
-                    commentsData = [];
-                    document.getElementById('commentsList').innerHTML = `
-                        <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">
-                            Enter a Post ID to load comments
-                        </p>
-                    `;
-                    return;
-                }
-                
-                const params = new URLSearchParams();
-                if (state) params.set('state', state);
-                params.set('postId', postId);
-
-                const response = await fetch(CFG.fns.listComments + '?' + params.toString());
-                const text = await response.text();
-                
-                let comments;
-                try {
-                    comments = JSON.parse(text);
-                } catch (parseErr) {
-                    if (text.includes('Missing postId') || text.includes('postId')) {
-                        document.getElementById('commentsList').innerHTML = `
-                            <p style="color: var(--text-secondary); text-align: center; padding: 1rem;">
-                                Enter a valid Post ID to load comments
-                            </p>
-                        `;
-                        return;
-                    }
-                    throw new Error('Server returned invalid response: ' + text.slice(0, 100));
-                }
-
-                if (!response.ok) throw new Error(comments.error || 'Failed to load comments');
-
-                commentsData = Array.isArray(comments) ? comments : [];
-                filterComments();
-
-            } catch (error) {
-                console.error('Load comments error:', error);
-                document.getElementById('commentsList').innerHTML = `
-                    <p style="color: var(--error); text-align: center; padding: 1rem;">
-                        Error loading comments: ${error.message}
-                    </p>
-                `;
-            }
-        }
-
-        function filterComments() {
-            const searchTerm = document.getElementById('commentSearch').value.toLowerCase();
-            const filtered = commentsData.filter(comment => 
-                comment.content?.toLowerCase().includes(searchTerm) ||
-                comment.author?.toLowerCase().includes(searchTerm)
-            );
-
-            const commentsList = document.getElementById('commentsList');
-            
-            if (filtered.length === 0) {
-                commentsList.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 1rem;">No comments found</p>';
-                return;
-            }
-
-            commentsList.innerHTML = filtered.map(comment => `
-                <div style="border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin-bottom: 1rem; background: var(--bg-tertiary);">
-                    <div style="font-weight: 500; margin-bottom: 0.5rem;">${comment.author || 'Anonymous'}</div>
-                    <div style="margin-bottom: 0.5rem; font-size: 0.875rem;">${comment.content || ''}</div>
-                    <div style="display: flex; gap: 0.5rem;">
-                        <button onclick="moderateComment('${comment.id}', 'approve')" class="btn btn-success" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Approve</button>
-                        <button onclick="moderateComment('${comment.id}', 'reject')" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Reject</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function moderateComment(id, action) {
-            try {
-                const response = await fetch(CFG.fns.moderateComment, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id, action })
-                });
-
-                const result = await response.json();
-                
-                if (response.ok) {
-                    showMessage(`Comment ${action}d successfully!`, 'success');
-                    loadComments();
-                } else {
-                    throw new Error(result.error || 'Moderation failed');
-                }
-
-            } catch (error) {
-                console.error('Moderation error:', error);
-                showMessage('Error: ' + error.message, 'error');
-            }
-        }
-
-        function showMessage(text, type = 'info') {
-            const messages = document.getElementById('messages');
-            const messageEl = document.createElement('div');
-            messageEl.className = `message message-${type}`;
-            messageEl.textContent = text;
-            messages.appendChild(messageEl);
-            setTimeout(() => messageEl.remove(), 5000);
-        }
-
-        function generateSlug(title) {
-            return title.toLowerCase()
-                .trim()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/^-+|-+$/g, '');
-        }
-
-        function toggleTheme() {
-            const html = document.documentElement;
-            const isDark = html.classList.contains('dark');
-            if (isDark) {
-                html.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-            } else {
-                html.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-            }
-        }
-
-        function restoreTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'dark') {
-                document.documentElement.classList.add('dark');
-            }
-        }
-    </script>
+    function restoreTheme() {
+      if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+    }
+  </script>
 </body>
 </html>
