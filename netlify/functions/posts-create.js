@@ -1,47 +1,29 @@
 // netlify/functions/posts-create.js
-// Permanent fix: map UI labels (Summary, Body, Feature Image, Publish Date) to
-// the Webflow collection's real field KEYS by reading the schema once and caching.
-// Keeps ALL your fields working without hardcoding.
-//
-// Env required:
-//   - WEBFLOW_COLLECTION_ID
-//   - WEBFLOW_API_TOKEN
+// CommonJS + global fetch (Node 18 on Netlify). No node-fetch.
+// Reads the Webflow collection schema once, caches, and maps visible labels
+// to real keys. Keeps ALL fields reliable (incl. required Media URL).
 
 const WEBFLOW_BASE = 'https://api.webflow.com/v2';
 const COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
 const AUTH_HEADER = `Bearer ${process.env.WEBFLOW_API_TOKEN}`;
 
-// Cache schema between invocations (Netlify keeps the process warm)
+// Warm cache between invocations
 let FIELD_MAP_CACHE = null;
 
-/** Normalize a human label to match the way your UI refers to it. */
 function norm(s) {
   return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-/**
- * Load and cache the collection schema, returning a map:
- * {
- *   title:        "name",              // Webflow key for Title (always "name")
- *   slug:         "slug",              // Webflow key for Slug  (always "slug")
- *   summary:      "<key for Summary>", // from schema.name === "Summary"
- *   bodyHtml:     "<key for Body>",    // from schema.name === "Body" (Rich Text)
- *   featureImage: "<key for Feature Image>",
- *   publishDate:  "<key for Publish Date>"
- * }
- *
- * We match by **schema field NAME** visible in Webflow (not the key).
- * If your visible labels differ, update LABELS below to your UI names.
- */
 async function ensureFieldMap() {
   if (FIELD_MAP_CACHE) return FIELD_MAP_CACHE;
 
-  // Adjust these if your visible CMS field names are different
+  // If your visible CMS labels differ, change these strings to match
   const LABELS = {
     summary: 'Summary',
     bodyHtml: 'Body',
     featureImage: 'Feature Image',
-    publishDate: 'Publish Date'
+    publishDate: 'Publish Date',
+    mediaUrl: 'Media URL' // <-- REQUIRED in your collection
   };
 
   const res = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}`, {
@@ -53,26 +35,23 @@ async function ensureFieldMap() {
   }
   const schema = await res.json();
 
-  // Build a lookup from normalized field "name" -> key and type
   const byName = {};
   for (const f of schema.fieldDefinitions || []) {
     byName[norm(f.name)] = { key: f.key, type: f.type };
   }
 
-  // Required “special” keys that are always present
   const map = {
     title: 'name',
     slug: 'slug',
     summary: null,
     bodyHtml: null,
     featureImage: null,
-    publishDate: null
+    publishDate: null,
+    mediaUrl: null
   };
 
-  // Resolve optional fields by label
-  for (const k of ['summary', 'bodyHtml', 'featureImage', 'publishDate']) {
-    const label = LABELS[k];
-    const hit = byName[norm(label)];
+  for (const k of ['summary', 'bodyHtml', 'featureImage', 'publishDate', 'mediaUrl']) {
+    const hit = byName[norm(LABELS[k])];
     if (hit) map[k] = hit.key;
   }
 
@@ -80,35 +59,28 @@ async function ensureFieldMap() {
   return map;
 }
 
-/** Build Webflow fieldData from incoming UI JSON using the resolved schema map. */
 async function buildFieldData(ui) {
   const map = await ensureFieldMap();
 
-  // Title/Slug (always)
+  // Always include Title/Slug
   const fieldData = {
     [map.title]: ui.title || 'Untitled Post',
     [map.slug]: ui.slug || 'untitled-post'
   };
 
-  // Optional: Summary (plain text)
-  if (map.summary && ui.summary) {
-    fieldData[map.summary] = ui.summary;
-  }
+  if (map.summary && ui.summary) fieldData[map.summary] = ui.summary;
+  if (map.bodyHtml && ui.bodyHtml) fieldData[map.bodyHtml] = ui.bodyHtml;
 
-  // Optional: Body (Rich Text) — Webflow accepts HTML string for rich text fields
-  if (map.bodyHtml && ui.bodyHtml) {
-    fieldData[map.bodyHtml] = ui.bodyHtml;
-  }
-
-  // Optional: Feature Image — pass a public https URL, Webflow will ingest
+  // Feature image: pass a public URL; Webflow ingests it
   if (map.featureImage && ui.featureImageUrl) {
     fieldData[map.featureImage] = { url: ui.featureImageUrl };
   }
 
-  // Optional: Publish Date — ISO 8601 (e.g., 2025-09-10T15:00:00-06:00)
-  if (map.publishDate && ui.publishDate) {
-    fieldData[map.publishDate] = ui.publishDate;
-  }
+  // Publish date: ISO 8601 string
+  if (map.publishDate && ui.publishDate) fieldData[map.publishDate] = ui.publishDate;
+
+  // Media URL (required in your collection)
+  if (map.mediaUrl && ui.mediaUrl) fieldData[map.mediaUrl] = ui.mediaUrl;
 
   return fieldData;
 }
@@ -121,8 +93,17 @@ exports.handler = async (event) => {
   try {
     const ui = JSON.parse(event.body || '{}');
 
-    // Compose fieldData from UI using the live schema keys
+    // Build schema-safe field payload
     const fieldData = await buildFieldData(ui);
+
+    // If Media URL is required, enforce before calling Webflow
+    const map = await ensureFieldMap();
+    if (map.mediaUrl && !fieldData[map.mediaUrl]) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Validation Error: 'Media URL' is required." })
+      };
+    }
 
     const payload = {
       isArchived: false,
@@ -130,29 +111,22 @@ exports.handler = async (event) => {
       fieldData
     };
 
-    const resp = await fetch(
-      `${WEBFLOW_BASE}/collections/${COLLECTION_ID}/items`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: AUTH_HEADER,
-          'Content-Type': 'application/json',
-          accept: 'application/json'
-        },
-        body: JSON.stringify(payload)
-      }
-    );
+    const resp = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}/items`, {
+      method: 'POST',
+      headers: {
+        Authorization: AUTH_HEADER,
+        'Content-Type': 'application/json',
+        accept: 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
 
     const json = await resp.json();
     if (!resp.ok) {
       return { statusCode: resp.status, body: JSON.stringify(json) };
     }
-
     return { statusCode: 200, body: JSON.stringify(json) };
   } catch (err) {
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message })
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
