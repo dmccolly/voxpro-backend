@@ -1,31 +1,54 @@
 // netlify/functions/posts-create.js
 // CommonJS + global fetch (Node 18 on Netlify). No node-fetch.
-// Reads Webflow schema once, caches, maps visible labels to real keys.
-// Adds hard fallbacks for required keys: "media-url" and "thumbnail".
+// Reads the Webflow CMS schema, maps visible labels to keys, and
+// *correctly shapes* values by field type (Image/File vs Link/Text).
+// Also ensures thumbnail is under 4MB by using a smaller Cloudinary variant.
+//
+// Docs: Image/File fields accept an object with { url } (or fileId). Max 4MB. 
+// https://developers.webflow.com/data/reference/field-types-item-values
 
 const WEBFLOW_BASE = 'https://api.webflow.com/v2';
 const COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
 const AUTH_HEADER = `Bearer ${process.env.WEBFLOW_API_TOKEN}`;
 
 // Warm cache between invocations
-let FIELD_MAP_CACHE = null;
+let SCHEMA_CACHE = null;
 
 function norm(s) {
   return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-async function ensureFieldMap() {
-  if (FIELD_MAP_CACHE) return FIELD_MAP_CACHE;
+// If it's a Cloudinary URL, return a smaller/optimized variant.
+// e.g. .../image/upload/v123/abc.jpg -> .../image/upload/f_auto,q_auto,w_800/v123/abc.jpg
+function smallCloudinaryUrl(url, width = 800) {
+  try {
+    if (!url) return url;
+    const u = new URL(url);
+    if (!/res\.cloudinary\.com/i.test(u.hostname)) return url;
+    const replaced = u.pathname.replace(
+      /\/upload\/(?!.*\/upload\/)/,
+      `/upload/f_auto,q_auto,w_${width}/`
+    );
+    return `${u.origin}${replaced}${u.search}${u.hash}`;
+  } catch {
+    return url;
+  }
+}
 
-  // Change label strings only if your visible CMS field names differ
-  const LABELS = {
-    summary: 'Summary',
-    bodyHtml: 'Body',
-    featureImage: 'Feature Image',
-    publishDate: 'Publish Date',
-    mediaUrl: 'Media URL',
-    thumbnail: 'Thumbnail'
-  };
+// Build a quick lookup by *key* and by *name*
+function indexFields(fieldDefs) {
+  const byKey = {};
+  const byName = {};
+  for (const f of fieldDefs || []) {
+    byKey[f.key] = f;
+    byName[norm(f.name)] = f;
+  }
+  return { byKey, byName };
+}
+
+// Read and cache schema; return helpers + our label→key map.
+async function ensureSchema() {
+  if (SCHEMA_CACHE) return SCHEMA_CACHE;
 
   const res = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}`, {
     headers: { Authorization: AUTH_HEADER, accept: 'application/json' }
@@ -35,73 +58,94 @@ async function ensureFieldMap() {
     throw new Error(`Failed to read collection schema: ${res.status} ${txt}`);
   }
   const schema = await res.json();
+  const { byKey, byName } = indexFields(schema.fieldDefinitions);
 
-  const byName = {};
-  for (const f of schema.fieldDefinitions || []) {
-    byName[norm(f.name)] = { key: f.key, type: f.type };
-  }
+  // Update these labels if your visible Webflow field names differ.
+  const LABELS = {
+    summary: 'Summary',
+    bodyHtml: 'Body',
+    featureImage: 'Feature Image',
+    publishDate: 'Publish Date',
+    mediaUrl: 'Media URL',
+    thumbnail: 'Thumbnail'
+  };
 
   const map = {
-    title: 'name',
-    slug: 'slug',
-    summary: null,
-    bodyHtml: null,
-    featureImage: null,
-    publishDate: null,
-    mediaUrl: null,
-    thumbnail: null
+    title: { key: 'name', type: 'Plain Text' },
+    slug: { key: 'slug', type: 'Plain Text' },
+    summary: byName[norm(LABELS.summary)] || null,
+    bodyHtml: byName[norm(LABELS.bodyHtml)] || null,
+    featureImage: byName[norm(LABELS.featureImage)] || null,
+    publishDate: byName[norm(LABELS.publishDate)] || null,
+    mediaUrl: byName[norm(LABELS.mediaUrl)] || null,
+    thumbnail: byName[norm(LABELS.thumbnail)] || null,
+    // Hard fallbacks by *key* in case matching by label ever misses
+    fallback: {
+      mediaUrl: byKey['media-url'] || null,
+      thumbnail: byKey['thumbnail'] || null
+    },
+    byKey,
+    byName
   };
 
-  for (const k of ['summary','bodyHtml','featureImage','publishDate','mediaUrl','thumbnail']) {
-    const hit = byName[norm(LABELS[k])];
-    if (hit) map[k] = hit.key;
-  }
-
-  // Known stable API keys to fall back to if label lookup ever misses
-  map._fallback = {
-    mediaUrl: 'media-url',
-    thumbnail: 'thumbnail'
-  };
-
-  FIELD_MAP_CACHE = map;
+  SCHEMA_CACHE = map;
   return map;
 }
 
+// Assign a value to fieldData with correct shape for the field's *type*.
+function setField(fieldData, fieldDef, value, { isImageLikeSmall = false } = {}) {
+  if (!fieldDef || value == null || value === '') return;
+
+  const key = fieldDef.key;
+  const type = fieldDef.type;
+
+  // Image/File fields accept an object with { url } (or fileId) — 4MB max via URL.
+  // Link/Text-like fields accept a string.
+  if (type === 'ImageRef' || type === 'File') {
+    const url = isImageLikeSmall ? smallCloudinaryUrl(value) : value;
+    fieldData[key] = { url };
+  } else {
+    fieldData[key] = String(value);
+  }
+}
+
 async function buildFieldData(ui) {
-  const map = await ensureFieldMap();
+  const schema = await ensureSchema();
+  const fd = {};
 
-  // Always include Title/Slug
-  const fieldData = {
-    [map.title]: ui.title || 'Untitled Post',
-    [map.slug]: ui.slug || 'untitled-post'
-  };
+  // Always include title/slug
+  setField(fd, schema.title, ui.title || 'Untitled Post');
+  setField(fd, schema.slug, ui.slug || 'untitled-post');
 
-  if (map.summary && ui.summary) fieldData[map.summary] = ui.summary;
-  if (map.bodyHtml && ui.bodyHtml) fieldData[map.bodyHtml] = ui.bodyHtml;
+  // Optional textual fields
+  if (schema.summary) setField(fd, schema.summary, ui.summary);
+  if (schema.bodyHtml) setField(fd, schema.bodyHtml, ui.bodyHtml);
 
-  // Feature image: public URL (Webflow ingests)
-  if (ui.featureImageUrl) {
-    const key = map.featureImage;
-    if (key) fieldData[key] = { url: ui.featureImageUrl };
+  // Feature image (use exact URL provided)
+  if (schema.featureImage && ui.featureImageUrl) {
+    setField(fd, schema.featureImage, ui.featureImageUrl);
   }
 
-  // Thumbnail: use explicit ui.thumbnailUrl, else reuse featureImageUrl
-  const thumbUrl = ui.thumbnailUrl || ui.featureImageUrl;
-  if (thumbUrl) {
-    const key = map.thumbnail || map._fallback.thumbnail; // ensure we hit "thumbnail"
-    fieldData[key] = { url: thumbUrl };
+  // Thumbnail: prefer explicit ui.thumbnailUrl, else reuse featureImageUrl.
+  const thumbUrl = ui.thumbnailUrl || ui.featureImageUrl || '';
+  const thumbDef = schema.thumbnail || schema.fallback.thumbnail;
+  if (thumbDef && thumbUrl) {
+    // Force a smaller Cloudinary variant to stay under 4MB for ingestion.
+    setField(fd, thumbDef, thumbUrl, { isImageLikeSmall: true });
   }
 
-  // Publish date: ISO 8601 string
-  if (map.publishDate && ui.publishDate) fieldData[map.publishDate] = ui.publishDate;
-
-  // Media URL (required): plain text / URL field
-  if (ui.mediaUrl) {
-    const key = map.mediaUrl || map._fallback.mediaUrl; // ensure we hit "media-url"
-    fieldData[key] = ui.mediaUrl;
+  // Publish date (ISO string)
+  if (schema.publishDate && ui.publishDate) {
+    setField(fd, schema.publishDate, ui.publishDate);
   }
 
-  return fieldData;
+  // Media URL (plain URL or file, depending on your field type)
+  const mediaDef = schema.mediaUrl || schema.fallback.mediaUrl;
+  if (mediaDef && ui.mediaUrl) {
+    setField(fd, mediaDef, ui.mediaUrl);
+  }
+
+  return { fd, schema };
 }
 
 exports.handler = async (event) => {
@@ -112,24 +156,23 @@ exports.handler = async (event) => {
   try {
     const ui = JSON.parse(event.body || '{}');
 
-    // Build schema-safe field payload
-    const fieldData = await buildFieldData(ui);
-    const map = await ensureFieldMap();
+    const { fd, schema } = await buildFieldData(ui);
 
-    // Enforce required fields before calling Webflow
-    const mediaKey = map.mediaUrl || map._fallback.mediaUrl;
-    const thumbKey = map.thumbnail || map._fallback.thumbnail;
-    if (mediaKey && !fieldData[mediaKey]) {
+    // Enforce requireds we know about: mediaUrl & thumbnail
+    const mediaKey = (schema.mediaUrl || schema.fallback.mediaUrl)?.key;
+    const thumbKey = (schema.thumbnail || schema.fallback.thumbnail)?.key;
+
+    if (mediaKey && !fd[mediaKey]) {
       return { statusCode: 400, body: JSON.stringify({ error: "Validation Error: 'Media URL' is required." }) };
     }
-    if (thumbKey && !fieldData[thumbKey]) {
+    if (thumbKey && !fd[thumbKey]) {
       return { statusCode: 400, body: JSON.stringify({ error: "Validation Error: 'Thumbnail' is required." }) };
     }
 
     const payload = {
       isArchived: false,
       isDraft: ui.status !== 'published',
-      fieldData
+      fieldData: fd
     };
 
     const resp = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}/items`, {
@@ -144,6 +187,7 @@ exports.handler = async (event) => {
 
     const json = await resp.json();
     if (!resp.ok) {
+      // Surface detailed API error for quick troubleshooting
       return { statusCode: resp.status, body: JSON.stringify(json) };
     }
     return { statusCode: 200, body: JSON.stringify(json) };
