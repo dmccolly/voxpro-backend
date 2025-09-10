@@ -79,7 +79,7 @@ exports.handler = async (event) => {
   // Otherwise create a new item.  Webflow API v2 uses different
   // endpoints for create and update operations.
   const itemId = data.id || data.itemId || null;
-  const collectionId = process.env.BLOG_POSTS_COLLECTION_ID;
+  const collectionId = process.env.WEBFLOW_COLLECTION_ID;
   const baseUrl = `https://api.webflow.com/v2/collections/${collectionId}/items`;
   let url;
   let method;
