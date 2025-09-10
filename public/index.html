@@ -2,38 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Redirecting…</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Primary redirect (instant) -->
-  <meta http-equiv="refresh" content="0; url=https://streamofdan.com/">
+  <title>Blog Manager Redirect</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Automatically redirect to the blog manager interface.  If you want to
+       display another home page instead, update the href below. -->
+  <meta http-equiv="refresh" content="0; url=/blog-manager.html">
   <style>
-    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0b1020;color:#e7eaf3}
-    .wrap{min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px}
-    .card{max-width:720px;width:100%;background:#141b34;border:1px solid #222b52;border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    h1{margin:0 0 8px;font-size:20px}
-    p{margin:6px 0;color:#b8c0de}
-    a{color:#86b7ff;text-decoration:none}
-    a:hover{text-decoration:underline}
-    .note{margin-top:14px;font-size:13px;color:#92a1cf}
+    html, body { height: 100%; margin: 0; font-family: sans-serif; }
+    body { display: flex; align-items: center; justify-content: center; background: #f3f4f6; color: #1f2937; }
+    .card { padding: 2rem; border-radius: 0.5rem; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+    a { color: #2563eb; text-decoration: none; }
   </style>
   <script>
-    // JS redirect as a fallback if meta refresh is blocked
-    (function(){
-      var target = "https://streamofdan.com/";
-      try { window.location.replace(target); } catch(_) { window.location.href = target; }
+    // Fallback JavaScript redirect if meta refresh fails or is blocked.
+    (function() {
+      var target = '/blog-manager.html';
+      if (window.location.pathname !== target) {
+        window.location.replace(target);
+      }
     })();
   </script>
 </head>
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>Redirecting…</h1>
-      <p>If you’re not redirected automatically, <a href="https://streamofdan.com/">click here to continue</a>.</p>
-      <p class="note">
-        Need the Blog Admin? It’s still available at
-        <a href="/blog-admin">/blog-admin</a>.
-      </p>
-    </div>
+  <div class="card">
+    <h1>Redirecting…</h1>
+    <p>If you are not automatically redirected, please <a href="/blog-manager.html">click here</a> to open the Blog Manager.</p>
+    <p style="font-size: 0.875rem; color: #6b7280;">
+      Looking for the public website? Return to the main site at
+      <a href="https://streamofdan.com">streamofdan.com</a>.
+    </p>
   </div>
 </body>
 </html>
