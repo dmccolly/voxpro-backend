@@ -1,7 +1,7 @@
 // netlify/functions/posts-create.js
 // CommonJS + global fetch (Node 18 on Netlify). No node-fetch.
 // Reads the Webflow collection schema once, caches, and maps visible labels
-// to real keys. Keeps ALL fields reliable (incl. required Media URL).
+// to real keys. Adds a hard fallback for the required key "media-url".
 
 const WEBFLOW_BASE = 'https://api.webflow.com/v2';
 const COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
@@ -23,7 +23,7 @@ async function ensureFieldMap() {
     bodyHtml: 'Body',
     featureImage: 'Feature Image',
     publishDate: 'Publish Date',
-    mediaUrl: 'Media URL' // <-- REQUIRED in your collection
+    mediaUrl: 'Media URL' // visible label in Webflow
   };
 
   const res = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}`, {
@@ -55,6 +55,11 @@ async function ensureFieldMap() {
     if (hit) map[k] = hit.key;
   }
 
+  // Known stable API keys we can fall back to if label lookup fails
+  map._fallback = {
+    mediaUrl: 'media-url'
+  };
+
   FIELD_MAP_CACHE = map;
   return map;
 }
@@ -80,7 +85,14 @@ async function buildFieldData(ui) {
   if (map.publishDate && ui.publishDate) fieldData[map.publishDate] = ui.publishDate;
 
   // Media URL (required in your collection)
-  if (map.mediaUrl && ui.mediaUrl) fieldData[map.mediaUrl] = ui.mediaUrl;
+  if (ui.mediaUrl) {
+    if (map.mediaUrl) {
+      fieldData[map.mediaUrl] = ui.mediaUrl;
+    } else {
+      // Hard fallback to the exact API key that Webflow says is required
+      fieldData['media-url'] = ui.mediaUrl;
+    }
+  }
 
   return fieldData;
 }
@@ -96,9 +108,10 @@ exports.handler = async (event) => {
     // Build schema-safe field payload
     const fieldData = await buildFieldData(ui);
 
-    // If Media URL is required, enforce before calling Webflow
+    // Enforce required Media URL before calling Webflow
     const map = await ensureFieldMap();
-    if (map.mediaUrl && !fieldData[map.mediaUrl]) {
+    const mediaKey = map.mediaUrl || map._fallback.mediaUrl;
+    if (mediaKey && !fieldData[mediaKey]) {
       return {
         statusCode: 400,
         body: JSON.stringify({ error: "Validation Error: 'Media URL' is required." })
