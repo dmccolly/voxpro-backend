@@ -2,12 +2,10 @@
 // Permanent fix: map UI labels (Summary, Body, Feature Image, Publish Date) to
 // the Webflow collection's real field KEYS by reading the schema once and caching.
 // Keeps ALL your fields working without hardcoding.
-
-/* Env required (already configured per your debug report):
-   - WEBFLOW_COLLECTION_ID
-   - WEBFLOW_API_TOKEN
-*/
-const fetch = require('node-fetch');
+//
+// Env required:
+//   - WEBFLOW_COLLECTION_ID
+//   - WEBFLOW_API_TOKEN
 
 const WEBFLOW_BASE = 'https://api.webflow.com/v2';
 const COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
@@ -16,15 +14,9 @@ const AUTH_HEADER = `Bearer ${process.env.WEBFLOW_API_TOKEN}`;
 // Cache schema between invocations (Netlify keeps the process warm)
 let FIELD_MAP_CACHE = null;
 
-/**
- * Normalize a human label to match the way your UI refers to it.
- * We’ll use this to match incoming UI labels to Webflow schema "name".
- */
+/** Normalize a human label to match the way your UI refers to it. */
 function norm(s) {
-  return String(s || '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim();
+  return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -39,7 +31,7 @@ function norm(s) {
  * }
  *
  * We match by **schema field NAME** visible in Webflow (not the key).
- * If your visible labels differ, update the LABELS object below to whatever your UI uses.
+ * If your visible labels differ, update LABELS below to your UI names.
  */
 async function ensureFieldMap() {
   if (FIELD_MAP_CACHE) return FIELD_MAP_CACHE;
@@ -88,10 +80,7 @@ async function ensureFieldMap() {
   return map;
 }
 
-/**
- * Build Webflow fieldData from incoming UI JSON using the resolved schema map.
- * Only includes fields that exist in the collection.
- */
+/** Build Webflow fieldData from incoming UI JSON using the resolved schema map. */
 async function buildFieldData(ui) {
   const map = await ensureFieldMap();
 
