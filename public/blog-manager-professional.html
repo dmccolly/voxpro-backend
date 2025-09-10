@@ -58,10 +58,10 @@
           <textarea id="summary" class="form-textarea" rows="3" placeholder="Brief description of the post..."></textarea>
         </div>
 
-        <!-- REQUIRED by your Webflow schema -->
+        <!-- Auto-filled by image upload; you don't have to type this -->
         <div class="form-group">
           <label class="form-label" for="mediaUrl">Media URL *</label>
-          <input type="url" id="mediaUrl" class="form-input" placeholder="https://example.com/media.mp3" required />
+          <input type="url" id="mediaUrl" class="form-input" placeholder="Auto-filled when you upload an image" readonly />
         </div>
       </div>
 
@@ -200,9 +200,18 @@
         else { scheduleBtn.style.display='none'; publishBtn.style.display='inline-flex'; }
         updatePreview();
       });
-      ['author','tags','summary','heroUrl','heroAlt','scheduleAt','mediaUrl'].forEach(id => {
+
+      // If you paste a URL manually into heroUrl, mirror it into mediaUrl (once)
+      document.getElementById('heroUrl').addEventListener('input', () => {
+        const hero = document.getElementById('heroUrl').value.trim();
+        const media = document.getElementById('mediaUrl').value.trim();
+        if (hero && !media) document.getElementById('mediaUrl').value = hero;
+      });
+
+      ['author','tags','summary','heroAlt','scheduleAt','mediaUrl'].forEach(id => {
         document.getElementById(id).addEventListener('input', updatePreview);
       });
+
       document.getElementById('saveDraftBtn').addEventListener('click', (e)=>{ e.preventDefault(); savePost('draft'); });
       document.getElementById('publishBtn').addEventListener('click', (e)=>{ e.preventDefault(); savePost('published'); });
       document.getElementById('scheduleBtn').addEventListener('click', (e)=>{ e.preventDefault(); savePost('scheduled'); });
@@ -262,7 +271,7 @@
         summary: document.getElementById('summary').value,
         bodyHtml: quill ? quill.root.innerHTML : '',
         featureImageUrl: document.getElementById('heroUrl').value,
-        mediaUrl: document.getElementById('mediaUrl').value // REQUIRED
+        mediaUrl: document.getElementById('mediaUrl').value // auto-filled by upload
       };
 
       if (status === 'scheduled') {
@@ -280,7 +289,7 @@
       const title = document.getElementById('title').value.trim();
       const mediaUrl = document.getElementById('mediaUrl').value.trim();
       if (!title) return showMessage('Please enter a title','error');
-      if (!mediaUrl) return showMessage('Please enter a Media URL','error');
+      if (!mediaUrl) return showMessage('Upload an image first (Media URL will auto-fill).','error');
 
       const status = forceStatus || document.getElementById('status').value;
       const postId = document.getElementById('postId').value;
@@ -329,6 +338,8 @@
       if (file.size > 50*1024*1024) return showMessage('File too large. Max 50MB.','error');
       try {
         showMessage('Uploading image...','info');
+
+        // Try Cloudinary first
         if (CFG.cloudinary.uploadUrl && CFG.cloudinary.uploadPreset) {
           const form = new FormData();
           form.append('file', file);
@@ -336,20 +347,32 @@
           const r = await fetch(CFG.cloudinary.uploadUrl, { method:'POST', body: form });
           const j = await r.json();
           if (r.ok && j.secure_url) {
+            // Auto-fill both heroUrl and mediaUrl
             document.getElementById('heroUrl').value = j.secure_url;
-            updateHeroPreview(j.secure_url, file.name); updatePreview();
+            if (!document.getElementById('mediaUrl').value) {
+              document.getElementById('mediaUrl').value = j.secure_url;
+            }
+            updateHeroPreview(j.secure_url, file.name);
+            updatePreview();
             showMessage('Image uploaded successfully!','success');
             return;
           }
         }
+
+        // Fallback to Netlify file upload
         const form2 = new FormData(); form2.append('attachment', file);
         const r2 = await fetch(CFG.fns.upload, { method:'POST', body: form2 });
         const t2 = await r2.text(); const j2 = JSON.parse(t2);
         if (r2.ok && j2.url) {
           document.getElementById('heroUrl').value = j2.url;
-          updateHeroPreview(j2.url, file.name); updatePreview();
+          if (!document.getElementById('mediaUrl').value) {
+            document.getElementById('mediaUrl').value = j2.url;
+          }
+          updateHeroPreview(j2.url, file.name);
+          updatePreview();
           showMessage('Image uploaded successfully!','success');
         } else { throw new Error(j2.error || 'Upload failed'); }
+
       } catch (e) {
         console.error('Upload error:', e);
         showMessage('Upload failed: '+e.message,'error');
@@ -368,6 +391,8 @@
     function clearHeroImage() {
       document.getElementById('heroUrl').value = '';
       document.getElementById('heroAlt').value = '';
+      // If you clear the hero image, also clear mediaUrl (keeps validation honest)
+      document.getElementById('mediaUrl').value = '';
       document.getElementById('heroPreview').innerHTML = '';
       updatePreview();
     }
