@@ -4,14 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Blog Manager</title>
-  <!-- Tailwind CSS for quick styling. In production, you can bundle or remove this. -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind CSS compiled stylesheet. Using a static stylesheet avoids issues with dynamic injection. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@3.3.3/dist/tailwind.min.css">
   <script>
-    // Enable dark mode via Tailwind's class strategy. When `dark` class is present on html element,
+    // Enable dark mode via a class on the html element. When `dark` class is present on html element,
     // dark variant classes will be applied. Users can toggle this class via the theme toggle button.
-    tailwind.config = {
-      darkMode: 'class'
-    };
+    // Tailwind's dark mode works automatically with the compiled CSS when the `dark` class is set on the root.
   </script>
   <!-- Marked library for Markdown parsing -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
