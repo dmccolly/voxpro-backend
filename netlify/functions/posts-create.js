@@ -1,7 +1,7 @@
 // netlify/functions/posts-create.js
 // CommonJS + global fetch (Node 18 on Netlify). No node-fetch.
-// Reads the Webflow collection schema once, caches, and maps visible labels
-// to real keys. Adds a hard fallback for the required key "media-url".
+// Reads Webflow schema once, caches, maps visible labels to real keys.
+// Adds hard fallbacks for required keys: "media-url" and "thumbnail".
 
 const WEBFLOW_BASE = 'https://api.webflow.com/v2';
 const COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
@@ -17,13 +17,14 @@ function norm(s) {
 async function ensureFieldMap() {
   if (FIELD_MAP_CACHE) return FIELD_MAP_CACHE;
 
-  // If your visible CMS labels differ, change these strings to match
+  // Change label strings only if your visible CMS field names differ
   const LABELS = {
     summary: 'Summary',
     bodyHtml: 'Body',
     featureImage: 'Feature Image',
     publishDate: 'Publish Date',
-    mediaUrl: 'Media URL' // visible label in Webflow
+    mediaUrl: 'Media URL',
+    thumbnail: 'Thumbnail'
   };
 
   const res = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}`, {
@@ -47,17 +48,19 @@ async function ensureFieldMap() {
     bodyHtml: null,
     featureImage: null,
     publishDate: null,
-    mediaUrl: null
+    mediaUrl: null,
+    thumbnail: null
   };
 
-  for (const k of ['summary', 'bodyHtml', 'featureImage', 'publishDate', 'mediaUrl']) {
+  for (const k of ['summary','bodyHtml','featureImage','publishDate','mediaUrl','thumbnail']) {
     const hit = byName[norm(LABELS[k])];
     if (hit) map[k] = hit.key;
   }
 
-  // Known stable API keys we can fall back to if label lookup fails
+  // Known stable API keys to fall back to if label lookup ever misses
   map._fallback = {
-    mediaUrl: 'media-url'
+    mediaUrl: 'media-url',
+    thumbnail: 'thumbnail'
   };
 
   FIELD_MAP_CACHE = map;
@@ -76,22 +79,26 @@ async function buildFieldData(ui) {
   if (map.summary && ui.summary) fieldData[map.summary] = ui.summary;
   if (map.bodyHtml && ui.bodyHtml) fieldData[map.bodyHtml] = ui.bodyHtml;
 
-  // Feature image: pass a public URL; Webflow ingests it
-  if (map.featureImage && ui.featureImageUrl) {
-    fieldData[map.featureImage] = { url: ui.featureImageUrl };
+  // Feature image: public URL (Webflow ingests)
+  if (ui.featureImageUrl) {
+    const key = map.featureImage;
+    if (key) fieldData[key] = { url: ui.featureImageUrl };
+  }
+
+  // Thumbnail: use explicit ui.thumbnailUrl, else reuse featureImageUrl
+  const thumbUrl = ui.thumbnailUrl || ui.featureImageUrl;
+  if (thumbUrl) {
+    const key = map.thumbnail || map._fallback.thumbnail; // ensure we hit "thumbnail"
+    fieldData[key] = { url: thumbUrl };
   }
 
   // Publish date: ISO 8601 string
   if (map.publishDate && ui.publishDate) fieldData[map.publishDate] = ui.publishDate;
 
-  // Media URL (required in your collection)
+  // Media URL (required): plain text / URL field
   if (ui.mediaUrl) {
-    if (map.mediaUrl) {
-      fieldData[map.mediaUrl] = ui.mediaUrl;
-    } else {
-      // Hard fallback to the exact API key that Webflow says is required
-      fieldData['media-url'] = ui.mediaUrl;
-    }
+    const key = map.mediaUrl || map._fallback.mediaUrl; // ensure we hit "media-url"
+    fieldData[key] = ui.mediaUrl;
   }
 
   return fieldData;
@@ -107,15 +114,16 @@ exports.handler = async (event) => {
 
     // Build schema-safe field payload
     const fieldData = await buildFieldData(ui);
-
-    // Enforce required Media URL before calling Webflow
     const map = await ensureFieldMap();
+
+    // Enforce required fields before calling Webflow
     const mediaKey = map.mediaUrl || map._fallback.mediaUrl;
+    const thumbKey = map.thumbnail || map._fallback.thumbnail;
     if (mediaKey && !fieldData[mediaKey]) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Validation Error: 'Media URL' is required." })
-      };
+      return { statusCode: 400, body: JSON.stringify({ error: "Validation Error: 'Media URL' is required." }) };
+    }
+    if (thumbKey && !fieldData[thumbKey]) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Validation Error: 'Thumbnail' is required." }) };
     }
 
     const payload = {
