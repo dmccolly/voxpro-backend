@@ -51,20 +51,15 @@ exports.handler = async (event) => {
   const heroAlt = data.heroAlt || '';
   const scheduleAt = data.scheduleAt || data.publishDate || null;
   // Assemble the fieldData for Webflow.  These keys must match your
-  // collection's field slugs.  Adjust them as necessary.
+  // collection's field slugs.  Only include fields that exist in the schema.
   const fieldData = {
     name: title,
     slug,
-    Summary: summary,
-    Body: bodyContent,
-    // If heroUrl is provided, pass an object with a url property;
-    // otherwise set to null.
-    'Feature Image': heroUrl ? { url: heroUrl } : null,
-    'Publish Date': scheduleAt || new Date().toISOString(),
-    Author: author || undefined,
-    Tags: tags.length ? tags : undefined,
-    'Hero Alt': heroAlt || undefined,
   };
+  
+  // Only add optional fields if they have values
+  if (author) fieldData.Author = author;
+  if (tags.length) fieldData.Tags = tags;
   // Remove undefined values to avoid sending empty keys to Webflow.
   Object.keys(fieldData).forEach((key) => {
     if (fieldData[key] === undefined) {
