@@ -12,8 +12,8 @@ body {
 }
 
 .dark body {
-  color: #f9fafb;
-  background-color: #111827;
+  color: #f3f4f6;
+  background-color: #0a0e1a;
 }
 
 /* Container and layout */
@@ -35,9 +35,15 @@ input, select, textarea {
 }
 
 .dark input, .dark select, .dark textarea {
-  background-color: #1f2937;
-  color: #f9fafb;
+  background-color: #111827;
+  color: #f3f4f6;
   border-color: #374151;
+}
+
+.dark input:focus, .dark select:focus, .dark textarea:focus {
+  background-color: #1f2937;
+  border-color: #3b82f6;
+  color: #ffffff;
 }
 
 input:focus, select:focus, textarea:focus {
@@ -55,7 +61,8 @@ label {
 }
 
 .dark label {
-  color: #d1d5db;
+  color: #f3f4f6;
+  font-weight: 600;
 }
 
 /* Buttons */
@@ -236,5 +243,98 @@ button:hover {
 
 .dark .ql-editor {
   color: #f9fafb;
+}
+
+
+
+/* Additional dark mode improvements */
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6 {
+  color: #f3f4f6;
+}
+
+/* Better button styling for dark mode */
+.dark button:not([class]) {
+  background-color: #2563eb;
+  color: #ffffff;
+}
+
+.dark button:hover {
+  background-color: #1d4ed8;
+}
+
+/* Toggle Theme Button specific styling */
+button[onclick*="toggleTheme"] {
+  background-color: #f3f4f6;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
+}
+
+.dark button[onclick*="toggleTheme"] {
+  background-color: #374151;
+  color: #f3f4f6;
+  border-color: #4b5563;
+}
+
+/* Improved Quill editor dark mode */
+.dark .ql-toolbar {
+  background-color: #111827;
+  border-color: #374151;
+}
+
+.dark .ql-editor {
+  background-color: #1f2937;
+  color: #f3f4f6;
+}
+
+.dark .ql-toolbar .ql-stroke {
+  stroke: #f3f4f6;
+}
+
+.dark .ql-toolbar .ql-fill {
+  fill: #f3f4f6;
+}
+
+.dark .ql-toolbar .ql-picker-label {
+  color: #f3f4f6;
+}
+
+.dark .ql-toolbar .ql-picker-options {
+  background-color: #1f2937;
+  border-color: #374151;
+}
+
+.dark .ql-toolbar .ql-picker-item {
+  color: #f3f4f6;
+}
+
+.dark .ql-toolbar .ql-picker-item:hover {
+  background-color: #374151;
+}
+
+/* Placeholder text styling */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #9ca3af;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6b7280;
+}
+
+/* Error and status text */
+.dark .text-red-600 {
+  color: #f87171;
+}
+
+.dark .text-gray-600 {
+  color: #9ca3af;
+}
+
+/* Smooth transitions */
+body, input, select, textarea, button {
+  transition: all 0.3s ease;
 }
 
