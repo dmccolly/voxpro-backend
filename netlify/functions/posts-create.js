@@ -1,20 +1,20 @@
 // netlify/functions/posts-create.js
-// CommonJS + global fetch (Node 18 on Netlify).
-// Forces required keys 'media-url' (string) and 'thumbnail' ({url}) so Webflow always receives them.
-// Optional fields (Summary, Body, Feature Image, Publish Date) are mapped via schema if available.
+// CommonJS + global fetch (Node 18).
+// Creates the CMS item, enforces required fields, then PUBLISHES the item (v2 requires a second call).
+// Also keeps your 'media-url' (string) and 'thumbnail' ({url}) logic with a safe Cloudinary size for ingest.
 
 const WEBFLOW_BASE = 'https://api.webflow.com/v2';
 const COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
 const AUTH_HEADER = `Bearer ${process.env.WEBFLOW_API_TOKEN}`;
 
-// Cache schema between invocations
+// Cache for optional schema lookups (summary/body/featureImage/publishDate)
 let SCHEMA_CACHE = null;
 
 function norm(s) {
   return String(s || '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
-// If it's a Cloudinary URL, return a smaller/optimized variant (helps with Webflow 4MB ingest limit)
+// Make Cloudinary thumbs smaller (<~4MB) for Webflow ingestion
 function smallCloudinaryUrl(url, width = 800) {
   try {
     if (!url) return url;
@@ -40,11 +40,8 @@ async function ensureSchema() {
   const schema = await res.json();
 
   const byName = {};
-  for (const f of schema.fieldDefinitions || []) {
-    byName[norm(f.name)] = f; // f.key, f.type
-  }
+  for (const f of schema.fieldDefinitions || []) byName[norm(f.name)] = f;
 
-  // Adjust these if your visible field labels differ in Webflow
   const LABELS = {
     summary: 'Summary',
     bodyHtml: 'Body',
@@ -53,8 +50,10 @@ async function ensureSchema() {
   };
 
   SCHEMA_CACHE = {
+    // system keys
     title: { key: 'name', type: 'Plain Text' },
     slug: { key: 'slug', type: 'Plain Text' },
+    // optional content fields (only if present in your collection)
     summary: byName[norm(LABELS.summary)] || null,
     bodyHtml: byName[norm(LABELS.bodyHtml)] || null,
     featureImage: byName[norm(LABELS.featureImage)] || null,
@@ -66,7 +65,6 @@ async function ensureSchema() {
 function setField(fieldData, def, value, { imageSmall = false } = {}) {
   if (!def || value == null || value === '') return;
   const key = def.key;
-  // Image/File fields = object { url }, text/link = string
   if (def.type === 'ImageRef' || def.type === 'File') {
     fieldData[key] = { url: imageSmall ? smallCloudinaryUrl(value) : value };
   } else {
@@ -78,28 +76,42 @@ async function buildFieldData(ui) {
   const schema = await ensureSchema();
   const fd = {};
 
-  // Always
+  // Always include title/slug
   fd[schema.title.key] = ui.title || 'Untitled Post';
   fd[schema.slug.key] = ui.slug || 'untitled-post';
 
-  // Optional (only if schema says they exist)
+  // Optional fields (only if this collection actually has them)
   setField(fd, schema.summary, ui.summary);
   setField(fd, schema.bodyHtml, ui.bodyHtml);
-  setField(fd, schema.featureImage, ui.featureImageUrl);     // hero image
+  setField(fd, schema.featureImage, ui.featureImageUrl);
   setField(fd, schema.publishDate, ui.publishDate);
 
-  // REQUIRED: force exact API keys (bypass labels)
-  if (ui.mediaUrl) {
-    // 'media-url' is a Link/Text style field → plain string
-    fd['media-url'] = String(ui.mediaUrl);
-  }
-  // Thumbnail is an Image/File → object with { url } (use smaller Cloudinary variant)
+  // REQUIRED (force exact API keys expected by your collection)
+  // 'media-url' is a text/link style field -> send a plain string
+  if (ui.mediaUrl) fd['media-url'] = String(ui.mediaUrl);
+  // 'thumbnail' is an image/file -> send { url } (downsized for safe ingest)
   const thumbUrl = ui.thumbnailUrl || ui.featureImageUrl || '';
-  if (thumbUrl) {
-    fd['thumbnail'] = { url: smallCloudinaryUrl(thumbUrl) };
-  }
+  if (thumbUrl) fd['thumbnail'] = { url: smallCloudinaryUrl(thumbUrl) };
 
   return fd;
+}
+
+// Publish items (v2 requires this separate call)
+async function publishItems(collectionId, itemIds) {
+  const resp = await fetch(`${WEBFLOW_BASE}/collections/${collectionId}/items/publish`, {
+    method: 'POST',
+    headers: {
+      Authorization: AUTH_HEADER,
+      'Content-Type': 'application/json',
+      accept: 'application/json'
+    },
+    body: JSON.stringify({ itemIds })
+  });
+  const json = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(`Publish failed ${resp.status}: ${JSON.stringify(json)}`);
+  }
+  return json;
 }
 
 exports.handler = async (event) => {
@@ -109,39 +121,61 @@ exports.handler = async (event) => {
 
   try {
     const ui = JSON.parse(event.body || '{}');
+
+    // 1) Build the field payload
     const fieldData = await buildFieldData(ui);
 
-    // Enforce presence of the two required fields before calling Webflow
+    // Enforce presence of required fields before calling Webflow
     if (!fieldData['media-url'] || !fieldData['thumbnail']) {
       return {
         statusCode: 400,
         body: JSON.stringify({
-          error: "Validation: 'media-url' and 'thumbnail' are required. Ensure an image was uploaded."
+          error: "Validation: 'media-url' and 'thumbnail' are required. Upload an image so these auto-fill."
         })
       };
     }
 
-    const payload = {
-      isArchived: false,
-      isDraft: ui.status !== 'published',
-      fieldData
-    };
+    // 2) Create the item (staged)
+    const createResp = await fetch(
+      `${WEBFLOW_BASE}/collections/${COLLECTION_ID}/items?skipInvalidFiles=true`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: AUTH_HEADER,
+          'Content-Type': 'application/json',
+          accept: 'application/json'
+        },
+        body: JSON.stringify({
+          isArchived: false,
+          isDraft: ui.status !== 'published', // draft unless explicitly publishing now
+          fieldData
+        })
+      }
+    );
 
-    const resp = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}/items`, {
-      method: 'POST',
-      headers: {
-        Authorization: AUTH_HEADER,
-        'Content-Type': 'application/json',
-        accept: 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const json = await resp.json();
-    if (!resp.ok) {
-      return { statusCode: resp.status, body: JSON.stringify(json) };
+    const created = await createResp.json();
+    if (!createResp.ok) {
+      return { statusCode: createResp.status, body: JSON.stringify(created) };
     }
-    return { statusCode: 200, body: JSON.stringify(json) };
+
+    // 3) If this was a "Publish Now", publish the staged item to live
+    let published = null;
+    if (ui.status === 'published') {
+      try {
+        published = await publishItems(COLLECTION_ID, [created.id]); // publish the just-created item
+      } catch (e) {
+        // Surface publish error but still return the created item so you can debug
+        return {
+          statusCode: 502,
+          body: JSON.stringify({ error: String(e), created })
+        };
+      }
+    }
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ created, published })
+    };
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
