@@ -1,4 +1,3 @@
-// netlify/functions/blog-media-upload.js
 const cloudinary = require("cloudinary").v2;
 const Busboy = require("busboy");
 
@@ -9,7 +8,6 @@ cloudinary.config({
 });
 
 const allowOrigin = process.env.ALLOW_ORIGIN || "*";
-
 const ok = (body) => ({
   statusCode: 200,
   headers: {
@@ -29,13 +27,13 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: "Expected multipart/form-data" };
   }
 
-  const busboy = Busboy({ headers: { "content-type": contentType } });
-  const buf = Buffer.from(event.body || "", event.isBase64Encoded ? "base64" : "binary");
-
   const scopeParams = new URLSearchParams(event.rawQuery || "");
   const scope =
     scopeParams.get("collection") || scopeParams.get("folder") ||
     scopeParams.get("tag") || scopeParams.get("scope") || "blog";
+
+  const busboy = Busboy({ headers: { "content-type": contentType } });
+  const buf = Buffer.from(event.body || "", event.isBase64Encoded ? "base64" : "binary");
 
   const result = await new Promise((resolve, reject) => {
     let done = false;
