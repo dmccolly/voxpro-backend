@@ -27,8 +27,13 @@ exports.handler = async (event) => {
     params.get("collection") || params.get("folder") ||
     params.get("tag") || params.get("scope") || "blog";
 
-  let expr = "(resource_type:image OR resource_type:video OR resource_type:raw) AND tags=" + scope;
-  if (q) expr += ` AND (filename:${q}* OR public_id:${q}* OR context:${q}*)`;
+  // accept blog tag OR blog folder
+  const parts = [
+    "(resource_type:image OR resource_type:video OR resource_type:raw)",
+    `(tags:${scope} OR folder:${scope} OR public_id:${scope}/*)`
+  ];
+  if (q) parts.push(`(filename:${q}* OR public_id:${q}* OR context:${q}*)`);
+  const expr = parts.join(" AND ");
 
   try {
     const res = await cloudinary.search
@@ -40,7 +45,7 @@ exports.handler = async (event) => {
 
     const items = (res.resources || []).map((r) => {
       const id = r.public_id;
-      const type = r.resource_type; // image | video | raw
+      const type = r.resource_type;
       let thumb = "";
 
       if (type === "image") {
@@ -56,7 +61,8 @@ exports.handler = async (event) => {
       }
 
       return {
-        id, public_id: id,
+        id,
+        public_id: id,
         url: r.secure_url || r.url,
         secure_url: r.secure_url || r.url,
         resource_type: type,
