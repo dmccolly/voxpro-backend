@@ -7,13 +7,22 @@
 
   <!-- Your styles -->
   <link rel="stylesheet" href="css/blog-manager-professional.css" />
+  <!-- Quill theme (fallback editor) -->
+  <link rel="stylesheet" href="css/quill.snow.css" />
 
-  <!-- TinyMCE + DOMPurify (for rich text + safe HTML) -->
+  <!-- Rich text editors -->
+  <!-- TinyMCE (may be blocked by CSP; we detect/fallback if so) -->
   <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+  <!-- Quill (local file) for fallback -->
+  <script src="js/quill.min.js"></script>
+  <!-- Sanitize saved/rendered HTML -->
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
 
-  <!-- NOTE: If you want the editor to look like your live blog CSS, you can
-       add your published Webflow CSS URLs into tinymce `content_css` in initTinyEditor() -->
+  <style>
+    /* Ensure body editor area is visible even if WYSIWYG doesn’t mount */
+    .editor-container { border:1px solid var(--border); border-radius:6px; background:var(--bg-tertiary); }
+    #editor, #quillEditor { min-height:420px; width:100%; box-sizing:border-box; }
+  </style>
 </head>
 <body>
   <div class="header">
@@ -67,7 +76,7 @@
           <textarea id="summary" class="form-textarea" rows="3" placeholder="Brief description of the post..."></textarea>
         </div>
 
-        <!-- Auto-filled by image upload; no typing needed -->
+        <!-- Auto-filled by image upload -->
         <div class="form-group">
           <label class="form-label" for="mediaUrl">Media URL *</label>
           <input type="url" id="mediaUrl" class="form-input" placeholder="Auto-filled when you upload an image" readonly />
@@ -99,11 +108,14 @@
         </div>
       </div>
 
-      <!-- Content (TinyMCE) -->
+      <!-- Content: TinyMCE target + Quill fallback node -->
       <div class="form-section">
         <h2 class="section-title">Content</h2>
         <div class="editor-container">
-          <textarea id="editor"></textarea>
+          <!-- TinyMCE target (preferred) -->
+          <textarea id="editor" style="display:block;"></textarea>
+          <!-- Quill fallback node (hidden until used) -->
+          <div id="quillEditor" style="display:none;"></div>
         </div>
       </div>
 
@@ -178,27 +190,41 @@
       }
     };
 
+    let activeEditor = 'none';           // 'tinymce' | 'quill' | 'none'
+    let quill = null;                    // fallback editor instance
     let commentsData = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-      initTinyEditor();
+      initEditor();                      // NEW: auto-select editor with fallback
       setupEventListeners();
       loadComments();
       restoreTheme();
     });
 
-    /* -------------------- TinyMCE -------------------- */
+    /* -------------------- Editor bootstrap -------------------- */
+    function initEditor() {
+      // If TinyMCE loaded (not blocked by CSP), use it; else fallback to Quill.
+      if (window.tinymce && typeof tinymce.init === 'function') {
+        initTinyEditor();
+        activeEditor = 'tinymce';
+        document.getElementById('editor').style.display = 'block';
+        document.getElementById('quillEditor').style.display = 'none';
+      } else {
+        initQuillEditor();
+        activeEditor = 'quill';
+        document.getElementById('editor').style.display = 'none';
+        document.getElementById('quillEditor').style.display = 'block';
+      }
+    }
+
+    /* ---------- TinyMCE (preferred) ---------- */
     function initTinyEditor() {
       tinymce.init({
         selector: '#editor',
         height: 520,
         menubar: false,
-        // Inherit dark UI
         skin: 'oxide-dark',
         content_css: 'dark',
-        // If you want live blog CSS in the editor, add your published CSS URLs:
-        // content_css: ['https://YOUR-SITE.webflow.io/css/site.css', 'https://YOUR-SITE.com/path/to/custom.css'],
-
         plugins: 'advlist autolink link lists image media table codesample charmap emoticons hr ' +
                  'searchreplace visualblocks code fullscreen insertdatetime nonbreaking anchor ' +
                  'wordcount quickbars',
@@ -208,7 +234,6 @@
           'link image media table | blockquote hr codesample | removeformat | preview fullscreen code'
         ].join(' '),
 
-        // Styles dropdown to match your site’s look (adjust classes as needed)
         style_formats: [
           { title: 'Lead paragraph', block: 'p', classes: 'lead' },
           { title: 'Callout', block: 'div', classes: 'callout' },
@@ -220,7 +245,6 @@
           .small.muted{opacity:.8}
         `,
 
-        // Better links
         link_default_target: '_blank',
         link_context_toolbar: true,
         link_rel_list: [
@@ -229,7 +253,6 @@
           { title: 'noopener nofollow', value: 'noopener nofollow' }
         ],
 
-        // Body images/media → upload handler
         automatic_uploads: true,
         paste_data_images: false,
         file_picker_types: 'image media',
@@ -248,15 +271,63 @@
       });
     }
 
+    /* ---------- Quill (fallback) ---------- */
+    function initQuillEditor() {
+      const el = document.getElementById('quillEditor');
+      quill = new Quill(el, {
+        theme: 'snow',
+        placeholder: 'Write your post…',
+        modules: {
+          toolbar: [
+            [{ header: [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'color': [] }, { 'background': [] }],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+            ['blockquote', 'code-block'],
+            ['link', 'image', 'video'],
+            ['clean']
+          ]
+        }
+      });
+
+      // Replace base64 images with uploaded URLs
+      const toolbar = quill.getModule('toolbar');
+      toolbar.addHandler('image', async () => {
+        const input = document.createElement('input');
+        input.type = 'file'; input.accept = 'image/*';
+        input.onchange = async () => {
+          const file = input.files[0];
+          if (!file) return;
+          try {
+            const url = await uploadImage(file);
+            const range = quill.getSelection(true);
+            quill.insertEmbed(range ? range.index : 0, 'image', url, 'user');
+          } catch (e) {
+            showMessage('Image upload failed: ' + e.message, 'error');
+          }
+        };
+        input.click();
+      });
+
+      quill.on('text-change', updatePreview);
+    }
+
+    /* ---------- Common helpers ---------- */
     function getBodyHtml() {
-      const ed = tinymce.get('editor');
-      if (!ed) return '';
-      const raw = ed.getContent({ format: 'html' });
-      return DOMPurify.sanitize(raw, { ADD_ATTR: ['target','rel'] });
+      if (activeEditor === 'tinymce' && window.tinymce?.get('editor')) {
+        const raw = tinymce.get('editor').getContent({ format: 'html' });
+        return DOMPurify.sanitize(raw, { ADD_ATTR: ['target','rel'] });
+      }
+      if (activeEditor === 'quill' && quill) {
+        const raw = quill.root.innerHTML;
+        return DOMPurify.sanitize(raw, { ADD_ATTR: ['target','rel'] });
+      }
+      // last-resort: plain textarea content
+      return DOMPurify.sanitize(document.getElementById('editor').value || '');
     }
 
     async function uploadImage(file) {
-      // Try Cloudinary first (unsigned preset)
+      // Cloudinary (unsigned preset)
       if (CFG.cloudinary?.uploadUrl && CFG.cloudinary?.uploadPreset) {
         const form = new FormData();
         form.append('file', file);
@@ -265,7 +336,7 @@
         const j = await r.json();
         if (r.ok && j.secure_url) return j.secure_url;
       }
-      // Fallback to Netlify uploader
+      // Netlify fallback
       const form2 = new FormData();
       form2.append('attachment', file);
       const r2 = await fetch(CFG.fns.upload, { method: 'POST', body: form2 });
@@ -287,7 +358,7 @@
         updatePreview();
       });
 
-      // Mirror hero URL into media URL if user pastes a URL manually
+      // Mirror hero URL into media URL if pasted manually
       document.getElementById('heroUrl').addEventListener('input', () => {
         const hero  = document.getElementById('heroUrl').value.trim();
         const media = document.getElementById('mediaUrl').value.trim();
@@ -365,9 +436,9 @@
         slug,
         status,
         summary: document.getElementById('summary').value,
-        bodyHtml: getBodyHtml(),          // TinyMCE HTML
+        bodyHtml: getBodyHtml(),          // editor HTML
         featureImageUrl: hero,
-        thumbnailUrl: hero,               // server may use this if collection expects thumbnail
+        thumbnailUrl: hero,               // server may use if collection expects it
         mediaUrl: document.getElementById('mediaUrl').value
       };
 
@@ -387,7 +458,7 @@
       const mediaUrl = document.getElementById('mediaUrl').value.trim();
       const hero     = document.getElementById('heroUrl').value.trim();
 
-      if (!title)   return showMessage('Please enter a title','error');
+      if (!title)    return showMessage('Please enter a title','error');
       if (!mediaUrl) return showMessage('Upload an image first (Media URL auto-fills).','error');
       if (!hero)     return showMessage('Upload an image first (Hero/Thumbnail auto-fill).','error');
 
@@ -424,7 +495,7 @@
       w.document.close();
     }
 
-    /* -------------------- Hero Upload (Hero + Media URL auto-fill) -------------------- */
+    /* -------------------- Hero Upload (fills Hero + Media URL) -------------------- */
     function setupHeroUpload() {
       const dz = document.getElementById('heroDropZone');
       const input = document.getElementById('heroInput');
@@ -458,7 +529,7 @@
           }
         }
 
-        // Netlify Function fallback
+        // Netlify fallback
         const form2 = new FormData(); form2.append('attachment', file);
         const r2 = await fetch(CFG.fns.upload, { method:'POST', body: form2 });
         const t2 = await r2.text(); const j2 = JSON.parse(t2);
