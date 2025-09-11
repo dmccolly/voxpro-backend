@@ -3,11 +3,14 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Blog Manager — No-Picker Edition</title>
+<title>Blog Manager — Inline Media</title>
 <!-- Optional: set once at build time -->
 <!-- <meta name="admin-token" content="YOUR_ADMIN_TOKEN"> -->
 <style>
-  :root{--bg:#0f0f12;--panel:#151720;--ink:#e7e9ee;--muted:#9aa3b2;--accent:#7aa2ff;--ok:#2ecc71;--warn:#f39c12;--err:#ff6161;--edge:#222635;--panel2:#0e1118}
+  :root{
+    --bg:#0f0f12; --panel:#151720; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#7aa2ff;
+    --ok:#2ecc71; --warn:#f39c12; --err:#ff6161; --edge:#222635; --panel2:#0e1118;
+  }
   *{box-sizing:border-box}
   body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:linear-gradient(180deg,#0b0c10,#101217)}
   .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
@@ -15,22 +18,21 @@
   .brand{font-weight:700}
   .pill{padding:3px 8px;border:1px solid var(--edge);border-radius:999px;color:var(--muted)}
   .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 16px}
-  .tab{appearance:none;border:1px solid var(--edge);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer;transition:.15s transform}
-  .tab:hover{transform:translateY(-1px)} .tab.active{border-color:var(--accent);outline:1px solid color-mix(in oklab,var(--accent) 40%,transparent)}
-  .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
+  .tab{appearance:none;border:1px solid var(--edge);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer}
+  .tab.active{border-color:var(--accent);outline:1px solid color-mix(in oklab,var(--accent) 40%,transparent)}
+  .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:16px}
   .card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}
   .card .hd{padding:10px 12px;border-bottom:1px solid var(--edge);color:var(--muted);display:flex;align-items:center;justify-content:space-between}
   .card .bd{padding:12px}
   label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
-  input[type="text"],input[type="datetime-local"],textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--edge);background:#0e1016;color:var(--ink)}
+  input[type="text"],textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--edge);background:#0e1016;color:var(--ink)}
   textarea{min-height:160px;resize:vertical}
-  .hint{font-size:12px;color:var(--muted);margin:6px 0 0}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
   .btn{border:1px solid var(--edge);background:#0e1016;color:var(--ink);padding:8px 10px;border-radius:10px;cursor:pointer}
   .btn.primary{border-color:var(--accent)} .btn.ok{border-color:var(--ok)} .btn.warn{border-color:var(--warn)} .btn.ghost{background:transparent}
-  .muted{color:var(--muted)}
+  .muted{color:var(--muted)} .hint{font-size:12px;color:var(--muted);margin-top:6px}
   .preview{background:var(--panel2);border:1px dashed var(--edge);border-radius:12px;padding:12px;min-height:180px}
   .preview img,.preview video{max-width:100%;border-radius:10px;display:block;margin:8px 0}
   .list{display:flex;flex-direction:column;gap:10px}
@@ -41,14 +43,24 @@
   .status-dot{width:8px;height:8px;border-radius:999px;display:inline-block;margin-right:6px}
   .dot-draft{background:var(--muted)} .dot-scheduled{background:var(--warn)} .dot-published{background:var(--ok)}
   .hidden{display:none !important}
-  .drop-target{outline:2px dashed var(--accent)}
-  @media (max-width:980px){.grid{grid-template-columns:1fr}}
+  /* Inline media panel */
+  .media-tabs{display:flex;gap:8px;margin:0 0 8px 0}
+  .media-tabs .btn{display:flex;align-items:center;gap:6px}
+  .drop{border:1px dashed var(--edge);border-radius:12px;background:#0e1118;padding:16px;text-align:center}
+  .drop.drag{outline:2px dashed var(--accent)}
+  .media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:10px}
+  .thumb{border:1px solid var(--edge);border-radius:10px;background:#0c0e14;overflow:hidden}
+  .thumb .img{width:100%;height:120px;object-fit:cover;display:block;background:#0b0d12}
+  .thumb .meta{display:flex;justify-content:space-between;gap:6px;padding:6px}
+  .thumb .meta .name{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .thumb .actions{display:flex;gap:6px;padding:6px}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="brand">Blog Manager</div><span class="pill">Pro</span>
+    <div class="brand">Blog Manager</div>
+    <span class="pill">Pro</span>
     <span class="muted">Write · Posts · Comments · Settings</span>
   </div>
 
@@ -59,7 +71,6 @@
     <button class="tab" data-panel="settings">Settings</button>
   </div>
 
-  <!-- WRITE -->
   <section class="panel" id="panel-write">
     <div class="grid">
       <div class="card">
@@ -77,7 +88,7 @@
                 <input id="hero" type="text" placeholder="https://… (drop an image file here to upload)"/>
                 <button class="btn" id="heroUrl">Set by URL…</button>
               </div>
-              <div class="hint">Drop an image file onto the field to upload & set. Or click “Set by URL”.</div>
+              <div class="hint">Drop an image onto the field to upload & set.</div>
             </div>
           </div>
 
@@ -95,7 +106,7 @@
 
           <label>Body</label>
           <div id="body" contenteditable="true" style="border:1px solid var(--edge);border-radius:12px;padding:12px;min-height:260px;background:#0b0e14"></div>
-          <div class="hint">Drop files (image/video/audio) into Body or paste from clipboard—upload happens once, content appears immediately. Or click “Embed URL…” to insert by link.</div>
+          <div class="hint">Drop files (image/video/audio) into Body or paste from clipboard. Upload happens once and content appears immediately.</div>
 
           <div class="row-3" style="margin-top:12px">
             <button class="btn" id="saveDraft">Save Draft</button>
@@ -105,16 +116,31 @@
         </div>
       </div>
 
+      <!-- Inline Media panel (Upload + Library) -->
       <div class="card">
-        <div class="hd"><span>Live Preview</span><span class="muted">updates as you type</span></div>
+        <div class="hd"><span>Media (Blog)</span><span class="muted"><span id="mediaCounter">0</span> items</span></div>
         <div class="bd">
-          <div class="preview" id="preview">
-            <h2 id="p-title" style="margin:0 0 6px 0">Title</h2>
-            <div class="muted" id="p-slug">/posts/title</div>
-            <img id="p-img" class="hidden" alt="hero"/>
-            <p id="p-summary" class="muted">Summary appears here…</p>
-            <hr style="border:none;border-top:1px solid var(--edge)"/>
-            <article id="p-body" style="font-size:15px">Start writing…</article>
+          <div class="media-tabs">
+            <button class="btn" id="btnUpload"><span>⬆️</span> Upload</button>
+            <button class="btn" id="btnLibrary"><span>🗂</span> Blog Library</button>
+          </div>
+
+          <!-- Upload -->
+          <div id="pane-upload">
+            <div class="drop" id="drop">
+              <p style="margin:0 0 6px 0">Drag & drop files, paste from clipboard, or <label for="fileInput" style="text-decoration:underline;cursor:pointer">browse</label></p>
+              <input id="fileInput" type="file" accept="image/*,video/*,audio/*" multiple class="hidden"/>
+              <div class="muted" id="uploadHint">Ready</div>
+            </div>
+          </div>
+
+          <!-- Library -->
+          <div id="pane-library" class="hidden">
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+              <input id="mediaSearch" type="text" class="btn" placeholder="Search titles…" style="min-width:220px"/>
+              <button class="btn" id="refreshMedia">Refresh</button>
+            </div>
+            <div class="media-grid" id="mediaGrid"></div>
           </div>
         </div>
       </div>
@@ -182,9 +208,11 @@
 </div>
 
 <script>
-/* ========== Endpoints (with fallback to legacy names) ========== */
+/* ================== Endpoints (blog first, legacy fallback) ================== */
 const EP = {
+  mediaList:   ['/.netlify/functions/blog-media-list','/.netlify/functions/list-cloudinary'],
   mediaUpload: ['/.netlify/functions/blog-media-upload','/.netlify/functions/file-manager-upload'],
+  mediaDelete: ['/.netlify/functions/blog-media-delete','/.netlify/functions/delete-cloudinary'],
   postsList:   ['/.netlify/functions/blog-posts-list','/.netlify/functions/posts-list'],
   postsArchive:['/.netlify/functions/blog-posts-archive','/.netlify/functions/posts-archive'],
   postsDelete: ['/.netlify/functions/blog-posts-delete','/.netlify/functions/posts-delete'],
@@ -194,7 +222,7 @@ const EP = {
 };
 const CONFIG = { MEDIA_SCOPE:'blog', PREVIEW_DEBOUNCE_MS:120 };
 
-/* ========== helpers ========== */
+/* ================== helpers ================== */
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v);
 const toast=(m,t='ok')=>{const el=$('#toast');el.textContent=m;el.style.borderColor=t==='err'?css('--err'):t==='warn'?css('--warn'):css('--edge');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
@@ -210,10 +238,10 @@ function getMeta(name){const el=document.querySelector(`meta[name="${name}"]`);r
 function getAdminToken(){return getCookie('bm_admin')||localStorage.getItem('ADMIN_TOKEN')||getMeta('admin-token')||'';}
 function setAdminToken(tok){if(!tok)return;localStorage.setItem('ADMIN_TOKEN',tok);setCookie('bm_admin',tok,365);}
 
-/* ========== Tabs ========== */
+/* ================== Tabs ================== */
 $$('.tab').forEach(b=>b.addEventListener('click',()=>{$$('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.panel').forEach(p=>p.classList.add('hidden'));$('#panel-'+b.dataset.panel)?.classList.remove('hidden')}));
 
-/* ========== Editor + Preview ========== */
+/* ================== Editor + Preview ================== */
 const state={id:null,dirty:false,adminToken:''};
 const titleEl=$('#title'), slugEl=$('#slug'), sumEl=$('#summary'), heroEl=$('#hero'), bodyEl=$('#body');
 const pTitle=$('#p-title'), pSlug=$('#p-slug'), pImg=$('#p-img'), pSum=$('#p-summary'), pBody=$('#p-body');
@@ -231,75 +259,104 @@ $('#fg').addEventListener('click',()=>{const c=prompt('Text color','#e7e9ee');if
 $('#bg').addEventListener('click',()=>{const c=prompt('Highlight','#2b344a');if(c)document.execCommand('hiliteColor',false,c);setDirty(true);previewTick();});
 $('#clearFmt').addEventListener('click',()=>{document.execCommand('removeFormat',false,null);setDirty(true);previewTick();});
 
-/* ========== Inline media: Hero (drop/paste/url) ========== */
-function handleHeroFiles(files){
-  const [file]=files||[]; if(!file) return;
-  if(!file.type.startsWith('image/')){toast('Hero must be an image','warn');return;}
-  uploadFile(file).then(u=>{
-    heroEl.value=u.url; updatePreview(); toast('Hero set');
-  }).catch(e=>toast('Upload failed: '+e.message,'err'));
-}
-heroEl.addEventListener('dragover',e=>{e.preventDefault(); heroEl.classList.add('drop-target');});
-heroEl.addEventListener('dragleave',()=>heroEl.classList.remove('drop-target'));
-heroEl.addEventListener('drop',e=>{e.preventDefault(); heroEl.classList.remove('drop-target'); handleHeroFiles(e.dataTransfer.files);});
-$('#heroUrl').addEventListener('click',()=>{const url=prompt('Image URL:'); if(!url) return; heroEl.value=url.trim(); updatePreview();});
-document.addEventListener('paste',e=>{
-  if(document.activeElement===heroEl){
-    const files=Array.from(e.clipboardData.files||[]); if(files.length){ e.preventDefault(); handleHeroFiles(files); }
-  }
-});
-
-/* ========== Inline media: Body (drop/paste/url) ========== */
+/* ================== Inline media helpers ================== */
+function inferType(url){const u=(url||'').toLowerCase();if(/\.(mp4|mov|webm|mkv)(\?|$)/.test(u))return'video';if(/\.(mp3|wav|m4a|flac|ogg)(\?|$)/.test(u))return'audio';return'image';}
 async function insertByUrl(url){
-  const low=(url||'').toLowerCase();
-  if(/\.(mp4|mov|webm|mkv)(\?|$)/.test(low)){ const v=document.createElement('video'); v.src=url; v.controls=true; v.preload='none'; v.style.maxWidth='100%'; bodyEl.appendChild(v); }
-  else if(/\.(mp3|wav|m4a|flac|ogg)(\?|$)/.test(low)){ const a=document.createElement('audio'); a.src=url; a.controls=true; bodyEl.appendChild(a); }
-  else { const img=document.createElement('img'); img.src=url; img.alt=''; img.style.maxWidth='100%'; bodyEl.appendChild(img); }
-  setDirty(true); previewTick(); toast('Inserted');
+  const t=inferType(url);
+  if(t==='video'){const v=document.createElement('video');v.src=url;v.controls=true;v.preload='none';v.style.maxWidth='100%';bodyEl.appendChild(v);}
+  else if(t==='audio'){const a=document.createElement('audio');a.src=url;a.controls=true;bodyEl.appendChild(a);}
+  else{const img=document.createElement('img');img.src=url;img.alt='';img.style.maxWidth='100%';bodyEl.appendChild(img);}
+  setDirty(true);previewTick();toast('Inserted');
 }
 $('#embedUrl').addEventListener('click',()=>{const url=prompt('Media URL (image/video/audio):'); if(url) insertByUrl(url.trim());});
 
-// drop/paste files -> upload once -> insert
+/* Hero drop/paste */
+function handleHeroFiles(files){
+  const [f]=files||[]; if(!f) return;
+  if(!f.type.startsWith('image/')){toast('Hero must be an image','warn');return;}
+  uploadFile(f).then(u=>{heroEl.value=u.url;updatePreview();toast('Hero set');}).catch(e=>toast('Upload failed: '+e.message,'err'));
+}
+heroEl.addEventListener('dragover',e=>{e.preventDefault(); heroEl.style.outline='2px dashed var(--accent)';});
+heroEl.addEventListener('dragleave',()=>heroEl.style.outline='');
+heroEl.addEventListener('drop',e=>{e.preventDefault(); heroEl.style.outline=''; handleHeroFiles(e.dataTransfer.files);});
+$('#heroUrl').addEventListener('click',()=>{const url=prompt('Image URL:'); if(url){heroEl.value=url.trim(); updatePreview();}});
+
+/* Body drop/paste */
 function handleBodyFiles(files){
   const arr=Array.from(files||[]); if(!arr.length) return;
-  (async()=>{
-    for(const f of arr){
-      try{
-        const u=await uploadFile(f);
-        await insertByUrl(u.url);
-      }catch(e){ toast('Upload failed: '+e.message,'err'); }
-    }
-  })();
+  (async()=>{for(const f of arr){try{const u=await uploadFile(f); await insertByUrl(u.url);}catch(e){toast('Upload failed: '+e.message,'err');}}})();
 }
-bodyEl.addEventListener('dragover',e=>{e.preventDefault(); bodyEl.classList.add('drop-target');});
-bodyEl.addEventListener('dragleave',()=>bodyEl.classList.remove('drop-target'));
-bodyEl.addEventListener('drop',e=>{e.preventDefault(); bodyEl.classList.remove('drop-target'); handleBodyFiles(e.dataTransfer.files);});
-document.addEventListener('paste',e=>{
-  if(document.activeElement===bodyEl || bodyEl.contains(document.activeElement)){
-    const files=Array.from(e.clipboardData.files||[]); if(files.length){ e.preventDefault(); handleBodyFiles(files); }
-  }
-});
+bodyEl.addEventListener('dragover',e=>{e.preventDefault(); bodyEl.style.outline='2px dashed var(--accent)';});
+bodyEl.addEventListener('dragleave',()=>bodyEl.style.outline='');
+bodyEl.addEventListener('drop',e=>{e.preventDefault(); bodyEl.style.outline=''; handleBodyFiles(e.dataTransfer.files);});
 
-/* ========== Upload (single call, no modal) ========== */
+/* ================== Upload (single call, used by Hero & Body & panel) ================== */
 async function uploadFile(file){
-  const qs = `?collection=${encodeURIComponent(CONFIG.MEDIA_SCOPE)}&_=${Date.now()}`;
-  return await tryEndpoints(EP.mediaUpload, base=>{
+  const qs=`?collection=${encodeURIComponent(CONFIG.MEDIA_SCOPE)}&_=${Date.now()}`;
+  const res = await tryEndpoints(EP.mediaUpload, base=>{
     const fd=new FormData(); fd.append('file',file);
     return fetchJSON(base+qs,{method:'POST',body:fd});
-  }).then(res=>({ url: res.secure_url||res.url, type: res.resource_type||'' }));
+  });
+  return { url: res.secure_url||res.url, type: res.resource_type||inferType(res.secure_url||res.url) };
 }
 
-/* ========== Posts (create/publish/schedule) ========== */
-function collectForm(){return{title:titleEl.value.trim(),slug:slugEl.value.trim()||slugify(titleEl.value),summary:sumEl.value.trim(),featureImageUrl:heroEl.value.trim(),bodyHtml:bodyEl.innerHTML.trim()};}
-async function postsCreate(payload){return await fetchJSON(EP.postsCreate,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}
-async function saveDraft(){const p={...collectForm(),status:'draft'};if(!p.title){toast('Title required','warn');return;}try{await postsCreate(p);setDirty(false);toast('Draft saved');await loadPosts();}catch(e){toast('Save failed: '+e.message,'err');}}
-async function publishNow(){const p={...collectForm(),status:'published'};if(!p.title){toast('Title required','warn');return;}try{await postsCreate(p);setDirty(false);toast('Published');await loadPosts();}catch(e){toast('Publish failed: '+e.message,'err');}}
-async function schedule(){const when=prompt('Publish at (YYYY-MM-DD HH:MM) local:');if(!when)return;const iso=new Date(when.replace(' ','T')).toISOString();const p={...collectForm(),status:'scheduled',publishDate:iso};if(!p.title){toast('Title required','warn');return;}try{await postsCreate(p);setDirty(false);toast('Scheduled');await loadPosts();}catch(e){toast('Schedule failed: '+e.message,'err');}}
-$('#saveDraft').addEventListener('click',saveDraft);$('#publishBtn').addEventListener('click',publishNow);$('#scheduleBtn').addEventListener('click',schedule);
+/* ================== Inline Media Panel ================== */
+const btnUpload=$('#btnUpload'), btnLibrary=$('#btnLibrary'), paneUpload=$('#pane-upload'), paneLibrary=$('#pane-library');
+btnUpload.addEventListener('click',()=>{paneUpload.classList.remove('hidden');paneLibrary.classList.add('hidden');});
+btnLibrary.addEventListener('click',()=>{paneLibrary.classList.remove('hidden');paneUpload.classList.add('hidden');loadMedia();});
+$('#drop').addEventListener('dragenter',e=>{e.preventDefault();$('#drop').classList.add('drag');});
+$('#drop').addEventListener('dragover',e=>{e.preventDefault();});
+$('#drop').addEventListener('dragleave',()=>$('#drop').classList.remove('drag'));
+$('#drop').addEventListener('drop',e=>{e.preventDefault();$('#drop').classList.remove('drag'); handlePanelFiles(e.dataTransfer.files);});
+$('#fileInput').addEventListener('change',e=>handlePanelFiles(e.target.files));
+document.addEventListener('paste',e=>{ if(!paneUpload.classList.contains('hidden')){ const files=Array.from(e.clipboardData.files||[]); if(files.length){ e.preventDefault(); handlePanelFiles(files);} }});
+async function handlePanelFiles(files){
+  const arr=Array.from(files||[]); if(!arr.length) return;
+  for(const f of arr){
+    try{$('#uploadHint').textContent=`Uploading ${f.name}…`; await uploadFile(f); toast('Uploaded');}catch(e){toast('Upload failed: '+e.message,'err');}finally{$('#uploadHint').textContent='Ready';}
+  }
+  btnLibrary.click(); // swap to library and refresh
+}
+function tileHTML(m){
+  const url=m.url||m.secure_url||m.secureUrl||m.path||'';
+  const type=m.resource_type||m.type||inferType(url);
+  const thumb=m.thumb||m.thumbnail_url||(type==='image'?url:'');
+  const name=m.filename||m.public_id||m.name||(url.split('/').pop());
+  return `
+    <div class="thumb">
+      ${thumb ? `<img class="img" src="${thumb}" alt="">` : `<div class="img"></div>`}
+      <div class="meta"><span class="name" title="${name}">${name}</span><span class="muted">${type}</span></div>
+      <div class="actions">
+        <button class="btn ok" data-act="insert" data-url="${url}">Insert</button>
+        <button class="btn" data-act="hero" data-url="${url}">Set as Hero</button>
+        ${m.id ? `<button class="btn" data-act="del" data-id="${m.id}">Delete</button>` : ''}
+      </div>
+    </div>`;
+}
+async function loadMedia(){
+  try{
+    const q=$('#mediaSearch')?.value?.trim()||'';
+    const qs=new URLSearchParams(); qs.set('collection',CONFIG.MEDIA_SCOPE); if(q) qs.set('q',q); qs.set('_',String(Date.now()));
+    const data=await tryEndpoints(EP.mediaList, base=>fetchJSON(`${base}?${qs.toString()}`));
+    const items=Array.isArray(data)?data:(data.items||data.data||[]);
+    $('#mediaCounter').textContent=items.length;
+    const grid=$('#mediaGrid'); grid.innerHTML= items.map(tileHTML).join('');
+    grid.querySelectorAll('.actions .btn').forEach(btn=>{
+      const act=btn.dataset.act;
+      if(act==='insert') btn.addEventListener('click',()=>insertByUrl(btn.dataset.url));
+      if(act==='hero') btn.addEventListener('click',()=>{heroEl.value=btn.dataset.url; updatePreview(); toast('Hero set');});
+      if(act==='del')  btn.addEventListener('click',async()=>{ if(!confirm('Delete media?'))return; try{ await tryEndpoints(EP.mediaDelete, base=>fetchJSON(`${base}?id=${encodeURIComponent(btn.dataset.id)}&collection=${encodeURIComponent(CONFIG.MEDIA_SCOPE)}`,{method:'DELETE'})); toast('Deleted'); loadMedia(); }catch(e){ toast('Delete failed: '+e.message,'err'); } });
+    });
+  }catch(e){
+    $('#mediaGrid').innerHTML='<div class="muted">Couldn’t fetch media for BLOG collection.</div>';
+  }
+}
+$('#refreshMedia').addEventListener('click',loadMedia);
+$('#mediaSearch').addEventListener('input',debounce(loadMedia,300));
 
-/* ========== Posts list + archive/delete ========== */
-const postListEl=$('#postList'), filterPostsEl=$('#filterPosts');
+/* ================== Posts ================== */
 function statusDot(s){if(s==='published')return'<span class="status-dot dot-published"></span>Published';if(s==='scheduled')return'<span class="status-dot dot-scheduled"></span>Scheduled';if(s==='archived')return'<span class="status-dot dot-draft"></span>Archived';return'<span class="status-dot dot-draft"></span>Draft';}
+const postListEl=$('#postList'), filterPostsEl=$('#filterPosts');
 function renderPosts(items){
   postListEl.innerHTML='';
   if(!items?.length){postListEl.innerHTML='<div class="muted">No posts found.</div>';return;}
@@ -319,13 +376,20 @@ function renderPosts(items){
       </div>`;
     postListEl.appendChild(el);
   }
-  $$('#postList .btn').forEach(b=>b.addEventListener('click',async()=>{
+  postListEl.querySelectorAll('.btn').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.id, act=b.dataset.act;
     try{
       if(act==='pub'){await publishNow();return;}
       if(act==='archive'){if(!confirm('Archive this post?'))return;await tryEndpoints(EP.postsArchive, base=>fetchJSON(base,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}));toast('Archived');await loadPosts();return;}
       if(act==='delete'){if(!confirm('Delete this post? This cannot be undone.'))return;await tryEndpoints(EP.postsDelete, base=>fetchJSON(base,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}));toast('Deleted');await loadPosts();return;}
-      if(act==='edit'){const list=await loadPosts(true);const found=list.find(x=>String(x.id||x._id||'')===String(id));if(found){titleEl.value=found.title||'';slugEl.value=found.slug||'';sumEl.value=found.summary||found.seoDescription||'';heroEl.value=found.featureImageUrl||found.hero||'';bodyEl.innerHTML=found.bodyHtml||found.body_html||found.body||'';setDirty(false);updatePreview();document.querySelector('.tab[data-panel="write"]').click();toast('Loaded into editor');}}
+      if(act==='edit'){
+        const list=await loadPosts(true);
+        const found=list.find(x=>String(x.id||x._id||'')===String(id));
+        if(found){
+          titleEl.value=found.title||'';slugEl.value=found.slug||'';sumEl.value=found.summary||found.seoDescription||'';heroEl.value=found.featureImageUrl||found.hero||'';
+          bodyEl.innerHTML=found.bodyHtml||found.body_html||found.body||'';setDirty(false);updatePreview();document.querySelector('.tab[data-panel="write"]').click();toast('Loaded into editor');
+        }
+      }
     }catch(e){toast('Action failed: '+e.message,'err');}
   }));
 }
@@ -339,7 +403,7 @@ async function loadPosts(returnData=false){
 }
 $('#refreshPosts').addEventListener('click',()=>loadPosts());$('#filterPosts').addEventListener('change',()=>loadPosts());
 
-/* ========== Comments ========== */
+/* ================== Comments ================== */
 const commentListEl=$('#commentList');
 function renderComments(items){
   commentListEl.innerHTML='';if(!items?.length){commentListEl.innerHTML='<div class="muted">No comments.</div>';return;}
@@ -348,7 +412,7 @@ function renderComments(items){
     el.innerHTML=`<div><div style="display:flex;gap:8px;align-items:center"><strong>${c.authorName||c.name||'Anon'}</strong>${c.postId?`<span class="chip">/${c.postId}</span>`:''}<span class="muted">${new Date(c.createdOn||c.created_at||Date.now()).toLocaleString()}</span></div><div style="margin-top:6px">${(c.message||c.body||'').toString()}</div></div><div style="display:flex;gap:6px"><button class="btn ok" data-act="approve" data-id="${c.id}">Approve</button><button class="btn" data-act="delete" data-id="${c.id}">Delete</button></div>`;
     commentListEl.appendChild(el);
   }
-  $$('#commentList .btn').forEach(b=>b.addEventListener('click',async()=>{
+  commentListEl.querySelectorAll('.btn').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.id, act=b.dataset.act;
     try{
       const headers={'Content-Type':'application/json'};const tok=state.adminToken;if(tok)headers['Authorization']='Bearer '+tok;
@@ -361,18 +425,32 @@ async function loadComments(){
   try{const data=await fetchJSON(EP.commentsList);renderComments(Array.isArray(data)?data:(data.items||data.data||[]));}
   catch(e){commentListEl.innerHTML='<div class="muted">Couldn’t fetch comments.</div>';}
 }
-$('#refreshComments').addEventListener('click',loadComments);
 
-/* ========== Settings ========== */
+/* ================== Posts create/publish/schedule ================== */
+async function postsCreate(payload){return await fetchJSON(EP.postsCreate,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}
+async function saveDraft(){const p={...collectForm(),status:'draft'};if(!p.title){toast('Title required','warn');return;}try{await postsCreate(p);setDirty(false);toast('Draft saved');await loadPosts();}catch(e){toast('Save failed: '+e.message,'err');}}
+async function publishNow(){const p={...collectForm(),status:'published'};if(!p.title){toast('Title required','warn');return;}try{await postsCreate(p);setDirty(false);toast('Published');await loadPosts();}catch(e){toast('Publish failed: '+e.message,'err');}}
+async function schedule(){const when=prompt('Publish at (YYYY-MM-DD HH:MM) local:');if(!when)return;const iso=new Date(when.replace(' ','T')).toISOString();const p={...collectForm(),status:'scheduled',publishDate:iso};if(!p.title){toast('Title required','warn');return;}try{await postsCreate(p);setDirty(false);toast('Scheduled');await loadPosts();}catch(e){toast('Schedule failed: '+e.message,'err');}}
+$('#saveDraft').addEventListener('click',saveDraft);$('#publishBtn').addEventListener('click',publishNow);$('#scheduleBtn').addEventListener('click',schedule);
+
+/* ================== Settings ================== */
 $('#cfgDebounce').value=String(CONFIG.PREVIEW_DEBOUNCE_MS);
 $('#cfgCollection').value=CONFIG.MEDIA_SCOPE;
 $('#saveCfg').addEventListener('click',()=>{const tok=$('#cfgAdmin')?.value.trim();if(tok){state.adminToken=tok;setAdminToken(tok);}CONFIG.MEDIA_SCOPE=($('#cfgCollection')?.value.trim()||'blog');CONFIG.PREVIEW_DEBOUNCE_MS=parseInt($('#cfgDebounce')?.value||'120',10);toast('Settings saved');});
 
-/* ========== Init ========== */
+/* ================== Init ================== */
 (async function init(){
   const remembered=getAdminToken();if(remembered){state.adminToken=remembered;const i=$('#cfgAdmin');if(i)i.value=remembered;}
-  updatePreview(); await Promise.all([loadPosts(),loadComments()]);
+  updatePreview();
+  // default: show Library with contents; Upload remains visible if you click it
+  btnLibrary.click();
+  await Promise.all([loadPosts(), loadComments()]);
 })();
+
+/* utilities shared */
+function collectForm(){return{title:titleEl.value.trim(),slug:slugEl.value.trim()||slugify(titleEl.value),summary:sumEl.value.trim(),featureImageUrl:heroEl.value.trim(),bodyHtml:bodyEl.innerHTML.trim()};}
 </script>
+
+<div class="toast" id="toast">Saved</div>
 </body>
 </html>
