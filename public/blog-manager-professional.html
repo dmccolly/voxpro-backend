@@ -4,21 +4,21 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Blog Manager — Professional</title>
+<!-- Optional: set once at build time instead of typing in Settings -->
+<!-- <meta name="admin-token" content="YOUR_ADMIN_TOKEN_HERE"> -->
 <style>
   :root{
     --bg:#0f0f12; --panel:#151720; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#7aa2ff;
     --ok:#2ecc71; --warn:#f39c12; --err:#ff6161; --edge:#222635; --panel2:#0e1118;
   }
   *{box-sizing:border-box}
-  body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);
-       background:linear-gradient(180deg,#0b0c10,#101217)}
+  body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:linear-gradient(180deg,#0b0c10,#101217)}
   .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
   .topbar{display:flex;align-items:center;gap:12px;margin-bottom:8px}
   .brand{font-weight:700}
   .pill{padding:3px 8px;border:1px solid var(--edge);border-radius:999px;color:var(--muted)}
   .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 16px}
-  .tab{appearance:none;border:1px solid var(--edge);background:var(--panel);color:var(--ink);
-       padding:8px 12px;border-radius:10px;cursor:pointer;transition:.15s transform}
+  .tab{appearance:none;border:1px solid var(--edge);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer;transition:.15s transform}
   .tab:hover{transform:translateY(-1px)}
   .tab.active{border-color:var(--accent);outline:1px solid color-mix(in oklab,var(--accent) 40%,transparent)}
   .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
@@ -26,32 +26,23 @@
   .card .hd{padding:10px 12px;border-bottom:1px solid var(--edge);color:var(--muted);display:flex;align-items:center;justify-content:space-between}
   .card .bd{padding:12px}
   label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
-  input[type="text"],input[type="datetime-local"],textarea{
-    width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--edge);background:#0e1016;color:var(--ink)
-  }
+  input[type="text"],input[type="datetime-local"],textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--edge);background:#0e1016;color:var(--ink)}
   textarea{min-height:160px;resize:vertical}
   .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
   .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
   .btn{border:1px solid var(--edge);background:#0e1016;color:var(--ink);padding:8px 10px;border-radius:10px;cursor:pointer}
-  .btn.primary{border-color:var(--accent)}
-  .btn.ok{border-color:var(--ok)}
-  .btn.warn{border-color:var(--warn)}
-  .btn.ghost{background:transparent}
+  .btn.primary{border-color:var(--accent)} .btn.ok{border-color:var(--ok)} .btn.warn{border-color:var(--warn)} .btn.ghost{background:transparent}
   .muted{color:var(--muted)}
   .preview{background:var(--panel2);border:1px dashed var(--edge);border-radius:12px;padding:12px;min-height:180px}
   .preview img, .preview video{max-width:100%;border-radius:10px;display:block;margin:8px 0}
   .list{display:flex;flex-direction:column;gap:10px}
-  .item{border:1px solid var(--edge);border-radius:12px;padding:10px;background:#0d0f15;
-        display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+  .item{border:1px solid var(--edge);border-radius:12px;padding:10px;background:#0d0f15;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
   .item .meta{font-size:12px}
-  .toast{position:fixed;right:16px;bottom:16px;background:#0b0d13;border:1px solid var(--edge);color:var(--ink);
-         padding:10px 12px;border-radius:12px;opacity:0;transform:translateY(6px);transition:.2s;pointer-events:none}
+  .toast{position:fixed;right:16px;bottom:16px;background:#0b0d13;border:1px solid var(--edge);color:var(--ink);padding:10px 12px;border-radius:12px;opacity:0;transform:translateY(6px);transition:.2s;pointer-events:none}
   .toast.show{opacity:1;transform:none}
   .status-dot{width:8px;height:8px;border-radius:999px;display:inline-block;margin-right:6px}
-  .dot-draft{background:var(--muted)}
-  .dot-scheduled{background:var(--warn)}
-  .dot-published{background:var(--ok)}
+  .dot-draft{background:var(--muted)} .dot-scheduled{background:var(--warn)} .dot-published{background:var(--ok)}
   .hidden{display:none !important}
   .chip{font-size:12px;border:1px solid var(--edge);border-radius:999px;padding:2px 6px;color:var(--muted)}
   /* Modal */
@@ -161,9 +152,7 @@
           <button class="btn" id="refreshPosts">Refresh</button>
         </div>
       </div>
-      <div class="bd">
-        <div class="list" id="postList"></div>
-      </div>
+      <div class="bd"><div class="list" id="postList"></div></div>
     </div>
   </section>
 
@@ -182,9 +171,7 @@
           <button class="btn" id="refreshComments">Refresh</button>
         </div>
       </div>
-      <div class="bd">
-        <div class="list" id="commentList"></div>
-      </div>
+      <div class="bd"><div class="list" id="commentList"></div></div>
     </div>
   </section>
 
@@ -194,12 +181,12 @@
       <div class="hd"><span>Settings</span></div>
       <div class="bd">
         <div class="row">
-          <div><label>Admin Token (for moderation)</label><input id="cfgAdmin" type="text" placeholder="Set your shared token"/></div>
+          <div><label>Admin Token (auto-remembered)</label><input id="cfgAdmin" type="text" placeholder="Set once; page remembers"/></div>
           <div><label>Preview Debounce (ms)</label><input id="cfgDebounce" type="text" value="120"/></div>
         </div>
         <div class="row">
           <div><label>Media Scope</label><input id="cfgCollection" type="text" value="blog"/></div>
-          <div><label>Function autodetect</label><input type="text" value="On (list/create/comments/media)" disabled/></div>
+          <div><label>Endpoints (locked)</label><input type="text" value="/.netlify/functions/blog-*/posts-*/comments-*" disabled/></div>
         </div>
         <button class="btn primary" id="saveCfg">Save Settings</button>
       </div>
@@ -247,369 +234,162 @@
 </div>
 
 <script>
-/* =================== UX helpers =================== */
+/* ================== HARD-LOCKED BLOG ENDPOINTS ================== */
+const CONFIG = {
+  FNS: {
+    POSTS_LIST:   '/.netlify/functions/blog-posts-list',
+    POSTS_CREATE: '/.netlify/functions/posts-create',
+    COMMENTS_LIST:     '/.netlify/functions/comments-list',
+    COMMENTS_MODERATE: '/.netlify/functions/comments-moderate',
+    MEDIA_LIST:   '/.netlify/functions/blog-media-list',
+    MEDIA_UPLOAD: '/.netlify/functions/blog-media-upload',
+    MEDIA_DELETE: '/.netlify/functions/blog-media-delete'
+  },
+  MEDIA_COLLECTION_PARAM: 'collection',
+  MEDIA_COLLECTION_VALUE: 'blog',
+  PREVIEW_DEBOUNCE_MS: 120
+};
+
+/* ================== helpers ================== */
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v);
 const toast=(m,t='ok')=>{ const el=$('#toast'); el.textContent=m; el.style.borderColor=t==='err'?css('--err'):t==='warn'?css('--warn'):css('--edge'); el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2200); };
 const debounce=(fn,ms=150)=>{ let t; return(...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } };
 const slugify=s=>(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,96);
+async function getJson(url, opt={}){ const res=await fetch(url,{...opt}); const ct=res.headers.get('content-type')||''; const body=ct.includes('application/json')?await res.json().catch(()=>null):await res.text(); if(!res.ok) throw new Error(typeof body==='string'?body:JSON.stringify(body||{})); return body; }
 
-/* =================== Endpoint autodetect ===================
-   We try known names in order and cache the first one that responds 2xx.
-   This keeps parity with your earlier build(s) without manual edits.
-*/
-const Detect = {
-  postsList:   ['/.netlify/functions/posts-list','/.netlify/functions/blog-posts-list','/.netlify/functions/webflow-posts-list'],
-  postsCreate: ['/.netlify/functions/posts-create','/.netlify/functions/blog-posts-create'],
-  commentsList:['/.netlify/functions/comments-list'],
-  commentsMod: ['/.netlify/functions/comments-moderate'],
-  mediaList:   ['/.netlify/functions/blog-media-list','/.netlify/functions/list-media','/.netlify/functions/list-cloudinary'],
-  mediaUpload: ['/.netlify/functions/blog-media-upload','/.netlify/functions/file-manager-upload','/.netlify/functions/upload-cloudinary'],
-  mediaDelete: ['/.netlify/functions/blog-media-delete','/.netlify/functions/delete-media','/.netlify/functions/delete-cloudinary'],
-};
-const Resolved = {};
-async function pickEndpoint(key, initUrl){
-  if (Resolved[key]) return Resolved[key];
-  const list = Detect[key] || [initUrl];
-  for (const u of list){
-    try{
-      const ping = await fetch(u + (u.includes('?')?'&':'?') + '__ping=1', { method:'GET' });
-      if (ping.ok){ Resolved[key]=u; return u; }
-    }catch{}
-  }
-  // last resort: first candidate (will error visibly if missing)
-  Resolved[key] = list[0];
-  return Resolved[key];
-}
-async function getJson(url, opt={}){
-  const res = await fetch(url, opt);
-  const ct = res.headers.get('content-type')||'';
-  const body = ct.includes('application/json') ? await res.json().catch(()=>null) : await res.text();
-  if (!res.ok) throw new Error(typeof body==='string' ? body : JSON.stringify(body||{}));
-  return body;
-}
+/* --- admin token helpers (set once, remembered) --- */
+function setCookie(name, value, days=365){ const d=new Date(); d.setTime(d.getTime()+days*24*60*60*1000); document.cookie=`${name}=${encodeURIComponent(value)}; expires=${d.toUTCString()}; path=/; SameSite=Lax`; }
+function getCookie(name){ const m=document.cookie.match(new RegExp('(^|; )'+name+'=([^;]*)')); return m?decodeURIComponent(m[2]):''; }
+function getMeta(name){ const el=document.querySelector(`meta[name="${name}"]`); return el?el.content.trim():''; }
+function getAdminToken(){ return getCookie('bm_admin') || localStorage.getItem('ADMIN_TOKEN') || getMeta('admin-token') || ''; }
+function setAdminToken(tok){ if(!tok) return; localStorage.setItem('ADMIN_TOKEN', tok); setCookie('bm_admin', tok, 365); }
 
-/* =================== Tabs =================== */
-$$('.tab').forEach(b=>b.addEventListener('click',()=>{
-  $$('.tab').forEach(x=>x.classList.remove('active')); b.classList.add('active');
-  $$('.panel').forEach(p=>p.classList.add('hidden'));
-  $('#panel-'+b.dataset.panel)?.classList.remove('hidden');
-}));
+/* ================== Tabs ================== */
+$$('.tab').forEach(b=>b.addEventListener('click',()=>{ $$('.tab').forEach(x=>x.classList.remove('active')); b.classList.add('active'); $$('.panel').forEach(p=>p.classList.add('hidden')); $('#panel-'+b.dataset.panel)?.classList.remove('hidden'); }));
 
-/* =================== Editor + Preview =================== */
-const state={id:null,dirty:false, adminToken:''};
+/* ================== Editor + Preview ================== */
+const state={id:null,dirty:false,adminToken:''};
 const titleEl=$('#title'), slugEl=$('#slug'), sumEl=$('#summary'), heroEl=$('#hero'), bodyEl=$('#body');
 const pTitle=$('#p-title'), pSlug=$('#p-slug'), pImg=$('#p-img'), pSum=$('#p-summary'), pBody=$('#p-body');
 const setDirty=v=>{ state.dirty=v; $('#dirtyFlag').hidden=!v; };
 const updatePreview=()=>{ pTitle.textContent=titleEl.value||'Title'; pSlug.textContent='/posts/'+(slugEl.value||'title'); const h=(heroEl.value||'').trim(); if(h){ pImg.src=h; pImg.classList.remove('hidden'); } else pImg.classList.add('hidden'); pSum.textContent=sumEl.value||'Summary appears here…'; pBody.innerHTML=bodyEl.innerHTML||'Start writing…'; };
-const previewTick=debounce(updatePreview, 120);
+const previewTick=debounce(updatePreview, CONFIG.PREVIEW_DEBOUNCE_MS);
 const syncSlug=()=>{ if(!slugEl.dataset.manual) slugEl.value=slugify(titleEl.value); };
 titleEl.addEventListener('input',()=>{ syncSlug(); setDirty(true); previewTick(); });
 slugEl.addEventListener('input',()=>{ slugEl.dataset.manual='1'; setDirty(true); previewTick(); });
 sumEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
 heroEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
 bodyEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
-
-$$('.toolbar .btn[data-cmd]').forEach(b=>b.addEventListener('click',()=>{
-  const cmd=b.dataset.cmd; if(cmd==='createLink'){ const url=prompt('URL:'); if(url) document.execCommand('createLink',false,url); } else { document.execCommand(cmd,false,null); }
-  setDirty(true); previewTick();
-}));
+$$('.toolbar .btn[data-cmd]').forEach(b=>b.addEventListener('click',()=>{ const cmd=b.dataset.cmd; if(cmd==='createLink'){ const url=prompt('URL:'); if(url) document.execCommand('createLink',false,url); } else { document.execCommand(cmd,false,null); } setDirty(true); previewTick(); }));
 $('#fg').addEventListener('click',()=>{ const c=prompt('Text color','#e7e9ee'); if(c) document.execCommand('foreColor',false,c); setDirty(true); previewTick(); });
 $('#bg').addEventListener('click',()=>{ const c=prompt('Highlight','#2b344a'); if(c) document.execCommand('hiliteColor',false,c); setDirty(true); previewTick(); });
 $('#clearFmt').addEventListener('click',()=>{ document.execCommand('removeFormat',false,null); setDirty(true); previewTick(); });
 
-/* =================== Posts =================== */
-function collectForm(){
-  return {
-    title: titleEl.value.trim(),
-    slug: slugEl.value.trim() || slugify(titleEl.value),
-    summary: sumEl.value.trim(),
-    featureImageUrl: heroEl.value.trim(),
-    bodyHtml: bodyEl.innerHTML.trim()
-  };
-}
-async function postsCreate(payload){
-  const url = await pickEndpoint('postsCreate');
-  const data = await getJson(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-  return data;
-}
-async function saveDraft(){
-  const payload={...collectForm(), status:'draft'};
-  if(!payload.title){ toast('Title required','warn'); return; }
-  try{ await postsCreate(payload); setDirty(false); toast('Draft saved'); await loadPosts(); }
-  catch(e){ console.error(e); toast('Save failed: '+e.message,'err'); }
-}
-async function publishNow(){
-  const payload={...collectForm(), status:'published'};
-  if(!payload.title){ toast('Title required','warn'); return; }
-  try{ await postsCreate(payload); setDirty(false); toast('Published'); await loadPosts(); }
-  catch(e){ console.error(e); toast('Publish failed: '+e.message,'err'); }
-}
-async function schedule(){
-  const when = prompt('Publish at (YYYY-MM-DD HH:MM) local:'); if(!when) return;
-  const iso = new Date(when.replace(' ','T')).toISOString();
-  const payload={...collectForm(), status:'scheduled', publishDate: iso};
-  if(!payload.title){ toast('Title required','warn'); return; }
-  try{ await postsCreate(payload); setDirty(false); toast('Scheduled'); await loadPosts(); }
-  catch(e){ console.error(e); toast('Schedule failed: '+e.message,'err'); }
-}
-$('#saveDraft').addEventListener('click',saveDraft);
-$('#publishBtn').addEventListener('click',publishNow);
-$('#scheduleBtn').addEventListener('click',schedule);
+/* ================== Posts ================== */
+function collectForm(){ return { title:titleEl.value.trim(), slug: slugEl.value.trim()||slugify(titleEl.value), summary:sumEl.value.trim(), featureImageUrl:heroEl.value.trim(), bodyHtml:bodyEl.innerHTML.trim() }; }
+async function postsCreate(payload){ const data=await getJson(CONFIG.FNS.POSTS_CREATE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }); return data; }
+async function saveDraft(){ const payload={...collectForm(),status:'draft'}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Draft saved'); await loadPosts(); }catch(e){ toast('Save failed: '+e.message,'err'); } }
+async function publishNow(){ const payload={...collectForm(),status:'published'}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Published'); await loadPosts(); }catch(e){ toast('Publish failed: '+e.message,'err'); } }
+async function schedule(){ const when=prompt('Publish at (YYYY-MM-DD HH:MM) local:'); if(!when) return; const iso=new Date(when.replace(' ','T')).toISOString(); const payload={...collectForm(),status:'scheduled',publishDate:iso}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Scheduled'); await loadPosts(); }catch(e){ toast('Schedule failed: '+e.message,'err'); } }
+$('#saveDraft').addEventListener('click',saveDraft); $('#publishBtn').addEventListener('click',publishNow); $('#scheduleBtn').addEventListener('click',schedule);
 
 const postListEl=$('#postList'); const filterPostsEl=$('#filterPosts');
 function statusDot(s){ if(s==='published') return '<span class="status-dot dot-published"></span>Published'; if(s==='scheduled') return '<span class="status-dot dot-scheduled"></span>Scheduled'; return '<span class="status-dot dot-draft"></span>Draft'; }
 function renderPosts(items){
-  postListEl.innerHTML='';
-  if(!items?.length){ postListEl.innerHTML='<div class="muted">No posts found.</div>'; return; }
+  postListEl.innerHTML=''; if(!items?.length){ postListEl.innerHTML='<div class="muted">No posts found.</div>'; return; }
   for(const it of items){
     const el=document.createElement('div'); el.className='item';
-    el.innerHTML = `
-      <div>
-        <div style="font-weight:600">${it.title || '(untitled)'} <span class="muted">/${it.slug || ''}</span></div>
-        <div class="meta muted">${statusDot(it.status || 'draft')} · Updated ${new Date(it.updated_at || it.updatedOn || it.created_at || it.createdOn || Date.now()).toLocaleString()}</div>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn" data-act="edit" data-id="${it.id || it._id || ''}">Edit</button>
-        ${ (it.status||'')!=='published' ? `<button class="btn ok" data-act="pub" data-id="${it.id || it._id || ''}">Publish</button>` : '' }
-      </div>`;
+    el.innerHTML=`<div><div style="font-weight:600">${it.title||'(untitled)'} <span class="muted">/${it.slug||''}</span></div><div class="meta muted">${statusDot(it.status||'draft')} · Updated ${new Date(it.updated_at||it.updatedOn||it.created_at||it.createdOn||Date.now()).toLocaleString()}</div></div><div style="display:flex;gap:6px"><button class="btn" data-act="edit" data-id="${it.id||it._id||''}">Edit</button>${(it.status||'')!=='published'?`<button class="btn ok" data-act="pub" data-id="${it.id||it._id||''}">Publish</button>`:''}</div>`;
     postListEl.appendChild(el);
   }
   $$('#postList .btn').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.id, act=b.dataset.act;
-    if(act==='pub'){ // quick publish using existing form values
-      await publishNow(); return;
-    }
+    if(act==='pub'){ await publishNow(); return; }
     if(act==='edit'){
       try{
         const list = await loadPosts(true);
         const found = list.find(x=> String(x.id||x._id||'')===String(id));
         if(found){
           titleEl.value=found.title||''; slugEl.value=found.slug||''; sumEl.value=found.summary||found.seoDescription||''; heroEl.value=found.featureImageUrl||found.hero||'';
-          bodyEl.innerHTML = found.bodyHtml || found.body_html || found.body || '';
-          setDirty(false); updatePreview();
-          document.querySelector('.tab[data-panel="write"]').click();
-          toast('Loaded into editor');
+          bodyEl.innerHTML=found.bodyHtml||found.body_html||found.body||''; setDirty(false); updatePreview(); document.querySelector('.tab[data-panel="write"]').click(); toast('Loaded into editor');
         }
-      }catch(e){ console.error(e); toast('Load failed','err'); }
+      }catch(e){ toast('Load failed','err'); }
     }
   }));
 }
 async function loadPosts(returnData=false){
   try{
-    const url = await pickEndpoint('postsList');
-    const qs = new URLSearchParams(); const f=filterPostsEl.value; if(f) qs.set('status', f);
-    const data = await getJson(url + (qs.toString()?`?${qs.toString()}`:''), { method:'GET' });
-    const items = Array.isArray(data)?data:(data.items||data.data||[]);
-    if(returnData) return items;
-    renderPosts(items);
-    return items;
-  }catch(e){
-    console.error(e);
-    // Show helpful hint once
-    if(!postListEl.dataset.err){
-      postListEl.dataset.err='1';
-      postListEl.innerHTML = `<div class="muted">Couldn’t fetch posts from your function. Make sure one of these exists: <code>posts-list</code> | <code>blog-posts-list</code> | <code>webflow-posts-list</code>.</div>`;
-    }
-    return [];
-  }
+    const qs=new URLSearchParams(); const f=filterPostsEl.value; if(f) qs.set('status',f);
+    const data=await getJson(`${CONFIG.FNS.POSTS_LIST}?${qs.toString()}`); const items=Array.isArray(data)?data:(data.items||data.data||[]);
+    if(returnData) return items; renderPosts(items); return items;
+  }catch(e){ postListEl.innerHTML='<div class="muted">Couldn’t fetch posts from blog-posts-list.</div>'; return []; }
 }
-$('#refreshPosts').addEventListener('click',()=>loadPosts());
-$('#filterPosts').addEventListener('change',()=>loadPosts());
+$('#refreshPosts').addEventListener('click',()=>loadPosts()); $('#filterPosts').addEventListener('change',()=>loadPosts());
 
-/* =================== Comments =================== */
+/* ================== Comments ================== */
 const commentListEl=$('#commentList');
 function renderComments(items){
-  commentListEl.innerHTML='';
-  if(!items?.length){ commentListEl.innerHTML='<div class="muted">No comments.</div>'; return; }
+  commentListEl.innerHTML=''; if(!items?.length){ commentListEl.innerHTML='<div class="muted">No comments.</div>'; return; }
   for(const c of items){
     const el=document.createElement('div'); el.className='item';
-    el.innerHTML = `
-      <div>
-        <div style="display:flex;gap:8px;align-items:center">
-          <strong>${c.authorName || c.name || 'Anon'}</strong>
-          ${c.postId?`<span class="chip">/${c.postId}</span>`:''}
-          <span class="muted">${new Date(c.createdOn || c.created_at || Date.now()).toLocaleString()}</span>
-        </div>
-        <div style="margin-top:6px">${(c.message || c.body || '').toString()}</div>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn ok" data-act="approve" data-id="${c.id}">Approve</button>
-        <button class="btn" data-act="delete" data-id="${c.id}">Delete</button>
-      </div>`;
+    el.innerHTML=`<div><div style="display:flex;gap:8px;align-items:center"><strong>${c.authorName||c.name||'Anon'}</strong>${c.postId?`<span class="chip">/${c.postId}</span>`:''}<span class="muted">${new Date(c.createdOn||c.created_at||Date.now()).toLocaleString()}</span></div><div style="margin-top:6px">${(c.message||c.body||'').toString()}</div></div><div style="display:flex;gap:6px"><button class="btn ok" data-act="approve" data-id="${c.id}">Approve</button><button class="btn" data-act="delete" data-id="${c.id}">Delete</button></div>`;
     commentListEl.appendChild(el);
   }
   $$('#commentList .btn').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.id, act=b.dataset.act;
     try{
-      const url = await pickEndpoint('commentsMod');
-      await getJson(url, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+(state.adminToken||'')}, body: JSON.stringify({ id, action: act==='approve'?'approve':'delete' })});
+      const headers={'Content-Type':'application/json'}; const tok=state.adminToken; if(tok) headers['Authorization']='Bearer '+tok;
+      await getJson(CONFIG.FNS.COMMENTS_MODERATE,{ method:'POST', headers, body: JSON.stringify({ id, action: act==='approve'?'approve':'delete' })});
       toast('Updated'); await loadComments();
-    }catch(e){ console.error(e); toast('Action failed: '+e.message,'err'); }
+    }catch(e){ toast('Action failed: '+e.message,'err'); }
   }));
 }
 async function loadComments(){
   try{
-    const url = await pickEndpoint('commentsList');
-    const data = await getJson(url);
-    renderComments(Array.isArray(data)?data:(data.items||data.data||[]));
-  }catch(e){ console.error(e); commentListEl.innerHTML='<div class="muted">Couldn’t fetch comments.</div>'; }
+    const data=await getJson(CONFIG.FNS.COMMENTS_LIST); renderComments(Array.isArray(data)?data:(data.items||data.data||[]));
+  }catch(e){ commentListEl.innerHTML='<div class="muted">Couldn’t fetch comments.</div>'; }
 }
 $('#refreshComments').addEventListener('click',loadComments);
 
-/* =================== Media Picker =================== */
+/* ================== Media Picker (BLOG-only) ================== */
 let mediaTarget=null, selectedMedia=null;
 const modal=$('#mediaModal'), drop=$('#drop'), fileInput=$('#fileInput'), grid=$('#mediaGrid'), actions=$('#mediaActions');
-
 function openMedia(){ modal.classList.add('show'); setMiniTab('library'); loadMedia(); }
 $('#pickHero').addEventListener('click',()=>{ mediaTarget='hero'; openMedia(); });
 $('#insertMedia').addEventListener('click',()=>{ mediaTarget='body'; openMedia(); });
-$('#closeMedia').addEventListener('click',()=> modal.classList.remove('show'));
-$('#refreshMedia').addEventListener('click',loadMedia);
+$('#closeMedia').addEventListener('click',()=> modal.classList.remove('show')); $('#refreshMedia').addEventListener('click',loadMedia);
 $('#mediaSearch').addEventListener('input',debounce(loadMedia,300));
-
-/* mini tabs */
-function setMiniTab(v){
-  $$('.tab-mini').forEach(b=>b.classList.toggle('active', b.dataset.v===v));
-  $('#pane-upload').classList.toggle('hidden', v!=='upload');
-  $('#pane-library').classList.toggle('hidden', v!=='library');
-}
+function setMiniTab(v){ $$('.tab-mini').forEach(b=>b.classList.toggle('active', b.dataset.v===v)); $('#pane-upload').classList.toggle('hidden', v!=='upload'); $('#pane-library').classList.toggle('hidden', v!=='library'); }
 $$('.tab-mini').forEach(b=> b.addEventListener('click',()=> setMiniTab(b.dataset.v)));
-
 ;['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add('drag'); }));
 ;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
-drop.addEventListener('drop',e=> handleFiles(e.dataTransfer.files));
-drop.addEventListener('click',()=> fileInput.click());
-fileInput.addEventListener('change',()=> handleFiles(fileInput.files));
+drop.addEventListener('drop',e=> handleFiles(e.dataTransfer.files)); drop.addEventListener('click',()=> fileInput.click()); fileInput.addEventListener('change',()=> handleFiles(fileInput.files));
 document.addEventListener('paste',e=>{ if(!modal.classList.contains('show')) return; const files=Array.from(e.clipboardData.files||[]); if(files.length) handleFiles(files); });
 
-function inferType(url){
-  const u=(url||'').toLowerCase();
-  if (/\.(mp4|mov|webm|mkv)$/.test(u)) return 'video';
-  if (/\.(mp3|wav|m4a|flac|ogg)$/.test(u)) return 'audio';
-  return 'image';
-}
-function cldThumb(url,type){
-  if(!url) return '';
-  const isCld=/res\.cloudinary\.com/.test(url);
-  if(!isCld){ return type==='image'?url:''; }
-  if(type==='image') return url.replace('/upload/','/upload/c_fill,w_320,h_220,q_auto,f_auto/');
-  if(type==='video') return url.replace('/video/upload/','/video/upload/so_0/').replace(/\.(mp4|mov|webm|mkv)$/i,'.jpg');
-  return '';
-}
-function svg(kind){ return kind==='audio'
-  ? `<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M9 9h3l4-4v14l-4-4H9V9z" stroke="#9aa3b2" stroke-width="1.5"/><circle cx="6" cy="12" r="2" stroke="#9aa3b2"/></svg>`
-  : `<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="14" height="14" rx="2" stroke="#9aa3b2" stroke-width="1.5"/><path d="M17 9l4-2v10l-4-2z" stroke="#9aa3b2" stroke-width="1.5"/></svg>`;
-}
-function makeCard(m){
-  const url = m.url || m.secure_url || '';
-  const type = m.resource_type || m.type || inferType(url);
-  const thumb = m.thumb || cldThumb(url, type);
-  const title = m.filename || m.public_id || (url.split('/').pop());
-  const el=document.createElement('div'); el.className='thumb'; el.tabIndex=0; el.setAttribute('role','option');
-  el.innerHTML = `<div class="imgwrap">${ type==='image' && thumb ? `<img src="${thumb}" alt="" loading="lazy">` : svg(type==='audio'?'audio':'video') }</div>
-                   <div class="t"><span title="${title}">${title}</span><span class="type">${type}</span></div>`;
-  el.addEventListener('click',()=> selectMedia({url,type,raw:m}, el));
-  el.addEventListener('dblclick',insertSelected);
-  el.addEventListener('keydown',e=>{ if(e.key==='Enter') insertSelected(); });
-  return el;
-}
-function selectMedia(m, el){
-  selectedMedia=m;
-  $$('#mediaGrid .thumb').forEach(x=> x.style.outline='none');
-  el.style.outline=`2px solid ${css('--accent')}`;
-  actions.classList.remove('hidden');
-}
+function inferType(url){ const u=(url||'').toLowerCase(); if(/\.(mp4|mov|webm|mkv)$/.test(u)) return 'video'; if(/\.(mp3|wav|m4a|flac|ogg)$/.test(u)) return 'audio'; return 'image'; }
+function cldThumb(url,type){ if(!url) return ''; const isCld=/res\.cloudinary\.com/.test(url); if(!isCld) return type==='image'?url:''; if(type==='image') return url.replace('/upload/','/upload/c_fill,w_320,h_220,q_auto,f_auto/'); if(type==='video') return url.replace('/video/upload/','/video/upload/so_0/').replace(/\.(mp4|mov|webm|mkv)$/i,'.jpg'); return ''; }
+function svg(kind){ return kind==='audio' ? `<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M9 9h3l4-4v14l-4-4H9V9z" stroke="#9aa3b2" stroke-width="1.5"/><circle cx="6" cy="12" r="2" stroke="#9aa3b2"/></svg>` : `<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="14" height="14" rx="2" stroke="#9aa3b2" stroke-width="1.5"/><path d="M17 9l4-2v10l-4-2z" stroke="#9aa3b2" stroke-width="1.5"/></svg>`; }
+function makeCard(m){ const url=m.url||m.secure_url||''; const type=m.resource_type||m.type||inferType(url); const thumb=m.thumb||cldThumb(url,type); const title=m.filename||m.public_id||(url.split('/').pop()); const el=document.createElement('div'); el.className='thumb'; el.tabIndex=0; el.setAttribute('role','option'); el.innerHTML=`<div class="imgwrap">${ type==='image' && thumb ? `<img src="${thumb}" alt="" loading="lazy">` : svg(type==='audio'?'audio':'video') }</div><div class="t"><span title="${title}">${title}</span><span class="type">${type}</span></div>`; el.addEventListener('click',()=> selectMedia({url,type,raw:m}, el)); el.addEventListener('dblclick',insertSelected); el.addEventListener('keydown',e=>{ if(e.key==='Enter') insertSelected(); }); return el; }
+function selectMedia(m, el){ selectedMedia=m; $$('#mediaGrid .thumb').forEach(x=> x.style.outline='none'); el.style.outline=`2px solid ${css('--accent')}`; actions.classList.remove('hidden'); }
 $('#insertSelected').addEventListener('click', insertSelected);
-$('#deleteSelected').addEventListener('click', async ()=>{
-  if(!selectedMedia?.raw?.id){ toast('Missing media id','warn'); return; }
-  try{
-    const url = await pickEndpoint('mediaDelete');
-    const qs = new URLSearchParams({ id: selectedMedia.raw.id, collection: localStorage.getItem('__blog_media_scope') || 'blog' });
-    await getJson(url + '?' + qs.toString(), { method:'DELETE' });
-    toast('Deleted'); selectedMedia=null; actions.classList.add('hidden'); await loadMedia();
-  }catch(e){ console.error(e); toast('Delete failed: '+e.message,'err'); }
-});
-function insertSelected(){
-  if(!selectedMedia){ toast('Select an item','warn'); return; }
-  const {type,url}=selectedMedia;
-  if(mediaTarget==='hero'){
-    if(type!=='image'){ toast('Hero must be an image','warn'); return; }
-    heroEl.value=url; updatePreview(); toast('Hero set'); modal.classList.remove('show'); return;
-  }
-  if(type==='image'){
-    const img=document.createElement('img'); img.src=url; img.alt=''; img.style.maxWidth='100%'; bodyEl.appendChild(img);
-  }else if(type==='video'){
-    const v=document.createElement('video'); v.src=url; v.controls=true; v.preload='none'; v.style.maxWidth='100%'; bodyEl.appendChild(v);
-  }else{
-    const a=document.createElement('audio'); a.src=url; a.controls=true; bodyEl.appendChild(a);
-  }
-  setDirty(true); previewTick(); toast('Inserted'); modal.classList.remove('show');
-}
-async function handleFiles(fileList){
-  const files=Array.from(fileList||[]); if(!files.length) return;
-  const url = await pickEndpoint('mediaUpload');
-  for(const f of files){
-    try{
-      $('#uploadHint').textContent=`Uploading ${f.name}…`;
-      const fd=new FormData(); fd.append('file',f);
-      fd.append('collection', localStorage.getItem('__blog_media_scope') || 'blog');
-      await getJson(url,{ method:'POST', body:fd }); // expect JSON; function returns url/id
-      toast('Uploaded');
-    }catch(e){ console.error(e); toast('Upload failed: '+e.message,'err'); }
-    finally{ $('#uploadHint').textContent='Ready'; }
-  }
-  setMiniTab('library'); await loadMedia();
-}
-async function loadMedia(){
-  selectedMedia=null; actions.classList.add('hidden');
-  try{
-    const url = await pickEndpoint('mediaList');
-    const qs = new URLSearchParams();
-    const scope = localStorage.getItem('__blog_media_scope') || 'blog';
-    qs.set('collection', scope);
-    const q=$('#mediaSearch').value.trim(); if(q) qs.set('q', q);
-    const data = await getJson(url + '?' + qs.toString());
-    const items = Array.isArray(data)?data:(data.items||data.data||[]);
-    $('#mediaCount').textContent=items.length;
-    const gridEl=$('#mediaGrid'); gridEl.innerHTML='';
-    for(const m of items) gridEl.appendChild(makeCard(m));
-  }catch(e){ console.error(e); $('#mediaGrid').innerHTML='<div class="muted">Couldn’t fetch media for this collection.</div>'; }
-}
+$('#deleteSelected').addEventListener('click', async ()=>{ if(!selectedMedia?.raw?.id){ toast('Missing media id','warn'); return; } try{ const qs=new URLSearchParams(); qs.set(CONFIG.MEDIA_COLLECTION_PARAM, CONFIG.MEDIA_COLLECTION_VALUE); qs.set('id', selectedMedia.raw.id); await getJson(`${CONFIG.FNS.MEDIA_DELETE}?${qs.toString()}`, { method:'DELETE' }); toast('Deleted'); selectedMedia=null; actions.classList.add('hidden'); await loadMedia(); }catch(e){ toast('Delete failed: '+e.message,'err'); }});
+function insertSelected(){ if(!selectedMedia){ toast('Select an item','warn'); return; } const {type,url}=selectedMedia; if(mediaTarget==='hero'){ if(type!=='image'){ toast('Hero must be an image','warn'); return; } heroEl.value=url; updatePreview(); toast('Hero set'); modal.classList.remove('show'); return; } if(type==='image'){ const img=document.createElement('img'); img.src=url; img.alt=''; img.style.maxWidth='100%'; bodyEl.appendChild(img); } else if(type==='video'){ const v=document.createElement('video'); v.src=url; v.controls=true; v.preload='none'; v.style.maxWidth='100%'; bodyEl.appendChild(v); } else { const a=document.createElement('audio'); a.src=url; a.controls=true; bodyEl.appendChild(a); } setDirty(true); previewTick(); toast('Inserted'); modal.classList.remove('show'); }
+async function handleFiles(fileList){ const files=Array.from(fileList||[]); if(!files.length) return; for(const f of files){ try{ $('#uploadHint').textContent=`Uploading ${f.name}…`; const fd=new FormData(); fd.append('file',f); fd.append(CONFIG.MEDIA_COLLECTION_PARAM, CONFIG.MEDIA_COLLECTION_VALUE); await getJson(CONFIG.FNS.MEDIA_UPLOAD,{ method:'POST', body:fd }); toast('Uploaded'); }catch(e){ toast('Upload failed: '+e.message,'err'); } finally{ $('#uploadHint').textContent='Ready'; } } setMiniTab('library'); await loadMedia(); }
+async function loadMedia(){ selectedMedia=null; actions.classList.add('hidden'); try{ const qs=new URLSearchParams(); qs.set(CONFIG.MEDIA_COLLECTION_PARAM, CONFIG.MEDIA_COLLECTION_VALUE); const q=$('#mediaSearch').value.trim(); if(q) qs.set('q',q); const data=await getJson(`${CONFIG.FNS.MEDIA_LIST}?${qs.toString()}`); const items=Array.isArray(data)?data:(data.items||data.data||[]); $('#mediaCount').textContent=items.length; const gridEl=$('#mediaGrid'); gridEl.innerHTML=''; for(const m of items) gridEl.appendChild(makeCard(m)); }catch(e){ $('#mediaGrid').innerHTML='<div class="muted">Couldn’t fetch media for BLOG collection.</div>'; }}
 
-/* drag & paste hooks */
-document.addEventListener('paste',e=>{ if(!modal.classList.contains('show')) return; const files=Array.from(e.clipboardData.files||[]); if(files.length) handleFiles(files); });
+/* ================== Settings ================== */
+$('#cfgDebounce').value = String(CONFIG.PREVIEW_DEBOUNCE_MS);
+$('#cfgCollection').value = CONFIG.MEDIA_COLLECTION_VALUE;
+$('#saveCfg').addEventListener('click', ()=>{ const tok=$('#cfgAdmin')?.value.trim(); if(tok){ state.adminToken=tok; setAdminToken(tok); } CONFIG.MEDIA_COLLECTION_VALUE = ($('#cfgCollection')?.value.trim()||'blog'); CONFIG.PREVIEW_DEBOUNCE_MS = parseInt($('#cfgDebounce')?.value||'120',10); toast('Settings saved'); });
 
-/* =================== Settings =================== */
-$('#cfgDebounce').value = '120';
-$('#cfgCollection').value = localStorage.getItem('__blog_media_scope') || 'blog';
-$('#saveCfg').addEventListener('click', ()=>{
-  state.adminToken = $('#cfgAdmin').value.trim();
-  const scope = $('#cfgCollection').value.trim() || 'blog';
-  localStorage.setItem('__blog_media_scope', scope);
-  toast('Settings saved');
-});
-
-/* =================== Init =================== */
+/* ================== Init ================== */
 (async function init(){
+  // load remembered admin token automatically (no retyping)
+  const remembered = getAdminToken(); if(remembered){ state.adminToken = remembered; const i=$('#cfgAdmin'); if(i) i.value=remembered; }
   updatePreview();
-  // default scope
-  if(!localStorage.getItem('__blog_media_scope')) localStorage.setItem('__blog_media_scope','blog');
-  // warm endpoints silently
-  pickEndpoint('postsList'); pickEndpoint('mediaList'); pickEndpoint('postsCreate');
-  await loadPosts();
-  await loadComments();
+  await Promise.all([loadPosts(), loadComments()]);
 })();
-
-/* =========== Events for uploads after modal open =========== */
-function bindUploadArea(){
-  ;['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add('drag'); }));
-  ;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
-  drop.addEventListener('drop',e=> handleFiles(e.dataTransfer.files));
-  drop.addEventListener('click',()=> fileInput.click());
-  fileInput.addEventListener('change',()=> handleFiles(fileInput.files));
-}
-bindUploadArea();
 </script>
 </body>
 </html>
