@@ -1,63 +1,69 @@
 // netlify/functions/posts-create.js
 // CommonJS + global fetch (Node 18).
-// Creates a CMS item (live if requested), sends ONLY fields that exist
-// in the target collection, retries once on duplicate slug, and returns
-// FULL Webflow validation details so you can see exactly what's wrong.
+// Creates a LIVE CMS item (when status === 'published') and reliably maps your
+// Blog Posts fields: Feature Image, Summary (Rich text), Body (Rich text), Publish Date.
+// Field discovery is resilient: by label, by slug, and by type fallback.
 
 const WEBFLOW_BASE = 'https://api.webflow.com/v2';
 const COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
 const AUTH_HEADER = `Bearer ${process.env.WEBFLOW_API_TOKEN}`;
 
+// cache schema between invocations
 let SCHEMA = null;
 
 function norm(s){ return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
-function nowSuffix(){ return ('-' + Date.now().toString().slice(-5)); }
 
-// Safer (smaller) Cloudinary variant for API ingest if needed later
+// Safer Cloudinary variant for thumbnails/ingest if you ever use it later
 function smallCloudinaryUrl(url, width=800){
-  try{
+  try {
     if(!url) return url;
     const u = new URL(url);
     if(!/res\.cloudinary\.com/i.test(u.hostname)) return url;
     const p = u.pathname.replace(/\/upload\/(?!.*\/upload\/)/, `/upload/f_auto,q_auto,w_${width}/`);
     return `${u.origin}${p}${u.search}${u.hash}`;
-  }catch{ return url; }
+  } catch { return url; }
 }
 
 async function readSchema(){
   if (SCHEMA) return SCHEMA;
+
   const r = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}`, {
     headers: { Authorization: AUTH_HEADER, accept: 'application/json' }
   });
-  const text = await r.text();
-  if(!r.ok) throw new Error(`Schema read failed: ${r.status} ${text}`);
-  const json = JSON.parse(text);
+  const txt = await r.text();
+  if(!r.ok) throw new Error(`Schema read failed: ${r.status} ${txt}`);
+  const json = JSON.parse(txt);
 
-  const byKey = {}, byName = {};
-  for (const f of json.fieldDefinitions || []) {
-    byKey[f.key] = f; byName[norm(f.name)] = f;
-  }
+  const defs = json.fieldDefinitions || [];
 
-  // Adjust labels only if you renamed them in Webflow
-  const LABELS = {
-    summary: 'Summary',
-    bodyHtml: 'Body',
-    featureImage: 'Feature Image',
-    publishDate: 'Publish Date',
-    mediaUrl: 'Media URL',     // optional (some collections)
-    thumbnail: 'Thumbnail'     // optional (some collections)
+  // index by slug (key) and by visible label (name)
+  const byKey = Object.fromEntries(defs.map(f => [f.key, f]));
+  const byName = Object.fromEntries(defs.map(f => [norm(f.name), f]));
+
+  // helpers to find by label or by a slug guess
+  const find = (label, slugGuesses = [], type = null) => {
+    if (label && byName[norm(label)]) return byName[norm(label)];
+    for (const g of slugGuesses) if (byKey[g]) return byKey[g];
+    if (type) return defs.find(f => f.type === type) || null; // type fallback
+    return null;
   };
 
+  // try common slugs for resilience
+  const summary = find('Summary', ['summary'], 'RichText');
+  const body    = find('Body',    ['body','post-body','content','rich-text','body-html'], 'RichText');
+  const featImg = find('Feature Image', ['main-image','feature-image','hero','image'], 'ImageRef');
+  const pubDate = find('Publish Date',  ['publish-date','date','date-published'], 'DateTime');
+
+  // sometimes other collections require these; send only if present
+  const mediaUrl = byKey['media-url'] || byName['media url'] || null;
+  const thumbnail = byKey['thumbnail'] || byName['thumbnail'] || null;
+
   SCHEMA = {
-    byKey,
-    title: { key: 'name', type: 'Plain Text' }, // always exists
-    slug:  { key: 'slug', type: 'Plain Text' }, // always exists
-    summary:      byName[norm(LABELS.summary)]      || null,
-    bodyHtml:     byName[norm(LABELS.bodyHtml)]     || null,
-    featureImage: byName[norm(LABELS.featureImage)] || null,
-    publishDate:  byName[norm(LABELS.publishDate)]  || null,
-    mediaUrl:     byKey['media-url']  || byName[norm(LABELS.mediaUrl)]  || null,
-    thumbnail:    byKey['thumbnail']  || byName[norm(LABELS.thumbnail)] || null
+    defs, byKey, byName,
+    title: { key: 'name', type: 'Plain Text' },
+    slug:  { key: 'slug', type: 'Plain Text' },
+    summary, bodyHtml: body, featureImage: featImg, publishDate: pubDate,
+    mediaUrl, thumbnail
   };
   return SCHEMA;
 }
@@ -67,6 +73,7 @@ function setField(fd, def, value, { imageSmall=false } = {}){
   if (def.type === 'ImageRef' || def.type === 'File') {
     fd[def.key] = { url: imageSmall ? smallCloudinaryUrl(value) : value };
   } else {
+    // Rich Text in v2 accepts an HTML string
     fd[def.key] = String(value);
   }
 }
@@ -75,41 +82,38 @@ async function buildFieldData(ui){
   const s = await readSchema();
   const fd = {};
 
-  // Required system fields
+  // required system fields
   fd[s.title.key] = ui.title || 'Untitled Post';
   fd[s.slug.key]  = ui.slug  || 'untitled-post';
 
-  // Optional content — send only if the field exists in this collection
-  setField(fd, s.summary,      ui.summary);
-  setField(fd, s.bodyHtml,     ui.bodyHtml);
-  setField(fd, s.featureImage, ui.featureImageUrl);
-  setField(fd, s.publishDate,  ui.publishDate);
+  // optional content (only if those fields exist for THIS collection)
+  setField(fd, s.summary,      ui.summary);                 // plain string OK
+  setField(fd, s.bodyHtml,     ui.bodyHtml);                // HTML from Quill
+  setField(fd, s.featureImage, ui.featureImageUrl);         // image url
+  setField(fd, s.publishDate,  ui.publishDate);             // ISO string
 
-  // media-url (only if the key exists in this collection)
-  const mediaVal = ui.mediaUrl || ui.featureImageUrl || '';
-  setField(fd, s.mediaUrl, mediaVal);
+  // only send these if the collection actually has them
+  setField(fd, s.mediaUrl, ui.mediaUrl || ui.featureImageUrl);
+  setField(fd, s.thumbnail, ui.thumbnailUrl || ui.featureImageUrl, { imageSmall: true });
 
-  // thumbnail (only if the key exists)
-  const thumbUrl = ui.thumbnailUrl || ui.featureImageUrl || '';
-  setField(fd, s.thumbnail, thumbUrl, { imageSmall: true });
-
-  return { fd, schema: s };
+  return { fd, s };
 }
 
-async function createOrPublish(fieldData, publishNow){
-  // Create LIVE item (published immediately) uses a different endpoint/shape
-  if (publishNow) {
-    const r = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}/items/live?skipInvalidFiles=true`, {
-      method:'POST',
-      headers:{ Authorization: AUTH_HEADER, 'Content-Type':'application/json', accept:'application/json' },
-      body: JSON.stringify({ items: [{ isArchived:false, isDraft:false, fieldData }] })
-    });
-    const txt = await r.text();
-    const json = tryJson(txt);
-    return { ok: r.ok, status: r.status, json, raw: txt, endpoint: 'live' };
-  }
+// Create LIVE (single item object body)
+async function createLive(fieldData){
+  const r = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}/items/live?skipInvalidFiles=true`, {
+    method:'POST',
+    headers:{ Authorization: AUTH_HEADER, 'Content-Type':'application/json', accept:'application/json' },
+    body: JSON.stringify({ isArchived:false, isDraft:false, fieldData }) // single-item shape
+  });
+  const txt = await r.text();
+  const json = tryJson(txt);
+  if (!r.ok) throw Object.assign(new Error('create live failed'), { status:r.status, response:json });
+  return json;
+}
 
-  // Create DRAFT (staged) item
+// Create STAGED draft
+async function createDraft(fieldData){
   const r = await fetch(`${WEBFLOW_BASE}/collections/${COLLECTION_ID}/items?skipInvalidFiles=true`, {
     method:'POST',
     headers:{ Authorization: AUTH_HEADER, 'Content-Type':'application/json', accept:'application/json' },
@@ -117,68 +121,39 @@ async function createOrPublish(fieldData, publishNow){
   });
   const txt = await r.text();
   const json = tryJson(txt);
-  return { ok: r.ok, status: r.status, json, raw: txt, endpoint: 'staged' };
+  if (!r.ok) throw Object.assign(new Error('create failed'), { status:r.status, response:json });
+  return json;
 }
 
-function tryJson(t){ try{ return JSON.parse(t); } catch { return { _unparsed: String(t).slice(0,500) }; } }
-
-// Retry once with a unique slug if Webflow says the slug is already used
-function looksLikeSlugConflict(objOrText){
-  const s = typeof objOrText === 'string' ? objOrText : JSON.stringify(objOrText);
-  return /slug/i.test(s) && /(already|in use|must be unique)/i.test(s);
-}
+function tryJson(t){ try{ return JSON.parse(t); } catch { return { _raw: String(t).slice(0,400) }; } }
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'POST only' };
 
   try {
     const ui = JSON.parse(event.body || '{}');
-    const publishNow = ui.status === 'published';
 
-    const { fd, schema } = await buildFieldData(ui);
-    const slugKey = schema.slug.key;
+    // build fieldData with resilient mapping
+    const { fd, s } = await buildFieldData(ui);
 
-    // 1st attempt
-    let attempt = await createOrPublish(fd, publishNow);
-    if (!attempt.ok && looksLikeSlugConflict(attempt.json || attempt.raw)) {
-      // Auto-unique the slug and retry once
-      fd[slugKey] = (fd[slugKey] || 'untitled-post') + nowSuffix();
-      attempt = await createOrPublish(fd, publishNow);
+    // if publishing now and Publish Date exists but is empty, auto-fill now
+    if (ui.status === 'published' && s.publishDate && !fd[s.publishDate.key]) {
+      fd[s.publishDate.key] = new Date().toISOString();
     }
 
-    if (!attempt.ok) {
-      // Return the exact error + what we sent, so you can act on it immediately
-      return {
-        statusCode: attempt.status || 400,
-        body: JSON.stringify({
-          error: 'webflow_validation_failed',
-          targetCollectionId: COLLECTION_ID,
-          endpoint: attempt.endpoint,
-          sentFieldKeys: Object.keys(fd),
-          sentPreview: pick(fd, [schema.title.key, schema.slug.key]), // small preview
-          webflow: attempt.json
-        })
-      };
-    }
+    const item = (ui.status === 'published') ? await createLive(fd) : await createDraft(fd);
 
-    // Success — return minimal details and what collection we hit
     return {
       statusCode: 200,
       body: JSON.stringify({
         ok: true,
         targetCollectionId: COLLECTION_ID,
-        endpoint: attempt.endpoint,
-        item: attempt.json
+        sentKeys: Object.keys(fd),        // helps verify what we populated
+        item
       })
     };
-
   } catch (e) {
-    return { statusCode: 500, body: JSON.stringify({ error: String(e), targetCollectionId: COLLECTION_ID }) };
+    // bubble the real Webflow error
+    return { statusCode: e.status || 500, body: JSON.stringify(e.response || { error: String(e) }) };
   }
 };
-
-function pick(obj, keys){
-  const out = {};
-  for (const k of keys) if (k in obj) out[k] = obj[k];
-  return out;
-}
