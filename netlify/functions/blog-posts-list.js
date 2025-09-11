@@ -1,4 +1,3 @@
-// netlify/functions/blog-posts-list.js
 const API = "https://api.webflow.com/v2";
 
 const allowOrigin = process.env.ALLOW_ORIGIN || "*";
@@ -32,7 +31,6 @@ exports.handler = async (event) => {
   const q = (params.get("q") || "").trim().toLowerCase();
 
   try {
-    // NOTE: Webflow v2 returns {items, pagination}
     const url = `${API}/collections/${collectionId}/items?limit=${limit}&offset=${offset}`;
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` }});
     if (!res.ok) return err(res.status, await res.text());
@@ -60,13 +58,11 @@ exports.handler = async (event) => {
 };
 
 function normalize(raw) {
-  // Webflow v2 item fields
   const {
     id, slug, name, createdOn, updatedOn, lastPublished,
     isArchived, isDraft, fieldData = {}
   } = raw;
 
-  // Try common field names you likely used
   const title   = fieldData.name || name || "";
   const summary = fieldData.summary || fieldData.seoDescription || fieldData.description || "";
   const hero    = fieldData.featureImageUrl || fieldData.hero || fieldData.mainImage || fieldData.image || "";
