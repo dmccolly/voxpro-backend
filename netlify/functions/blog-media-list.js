@@ -1,4 +1,3 @@
-// netlify/functions/blog-media-list.js
 const cloudinary = require("cloudinary").v2;
 
 cloudinary.config({
@@ -8,7 +7,6 @@ cloudinary.config({
 });
 
 const allowOrigin = process.env.ALLOW_ORIGIN || "*";
-
 const ok = (body) => ({
   statusCode: 200,
   headers: {
@@ -42,7 +40,7 @@ exports.handler = async (event) => {
 
     const items = (res.resources || []).map((r) => {
       const id = r.public_id;
-      const type = r.resource_type;
+      const type = r.resource_type; // image | video | raw
       let thumb = "";
 
       if (type === "image") {
