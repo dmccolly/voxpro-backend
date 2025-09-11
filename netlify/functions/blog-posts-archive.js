@@ -1,4 +1,3 @@
-// netlify/functions/blog-posts-archive.js
 const API = "https://api.webflow.com/v2";
 
 const allowOrigin = process.env.ALLOW_ORIGIN || "*";
