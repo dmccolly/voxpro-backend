@@ -22,31 +22,25 @@ const ok = (body) => ({
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return ok({ ok: true });
-  if (event.httpMethod !== "POST")
-    return { statusCode: 405, body: "Method Not Allowed" };
+  if (event.httpMethod !== "POST") return { statusCode: 405, body: "Method Not Allowed" };
 
   const contentType = event.headers["content-type"] || event.headers["Content-Type"];
   if (!contentType || !contentType.includes("multipart/form-data")) {
     return { statusCode: 400, body: "Expected multipart/form-data" };
   }
 
-  const busboy = Busboy({
-    headers: { "content-type": contentType }
-  });
-
-  const scope =
-    (new URLSearchParams(event.rawQuery || "")).get("collection") ||
-    (new URLSearchParams(event.rawQuery || "")).get("folder") ||
-    (new URLSearchParams(event.rawQuery || "")).get("tag") ||
-    (new URLSearchParams(event.rawQuery || "")).get("scope") ||
-    "blog";
-
+  const busboy = Busboy({ headers: { "content-type": contentType } });
   const buf = Buffer.from(event.body || "", event.isBase64Encoded ? "base64" : "binary");
 
-  const result = await new Promise((resolve, reject) => {
-    let resolved = false;
+  const scopeParams = new URLSearchParams(event.rawQuery || "");
+  const scope =
+    scopeParams.get("collection") || scopeParams.get("folder") ||
+    scopeParams.get("tag") || scopeParams.get("scope") || "blog";
 
-    busboy.on("file", (_name, file, info) => {
+  const result = await new Promise((resolve, reject) => {
+    let done = false;
+
+    busboy.on("file", (_name, file) => {
       const chunks = [];
       file.on("data", (d) => chunks.push(d));
       file.on("end", async () => {
@@ -63,7 +57,8 @@ exports.handler = async (event) => {
           let thumb = "";
           if (type === "image") {
             thumb = cloudinary.url(upload.public_id, {
-              secure: true, width: 320, height: 220, crop: "fill", quality: "auto", fetch_format: "auto"
+              secure: true, width: 320, height: 220, crop: "fill",
+              quality: "auto", fetch_format: "auto"
             });
           } else if (type === "video") {
             thumb = cloudinary.url(upload.public_id, {
@@ -72,8 +67,8 @@ exports.handler = async (event) => {
             });
           }
 
-          if (!resolved) {
-            resolved = true;
+          if (!done) {
+            done = true;
             resolve({
               id: upload.public_id,
               public_id: upload.public_id,
@@ -81,23 +76,19 @@ exports.handler = async (event) => {
               secure_url: upload.secure_url || upload.url,
               resource_type: type,
               filename: upload.original_filename,
-              width: upload.width,
-              height: upload.height,
+              width: upload.width, height: upload.height,
               tags: upload.tags || [],
               thumb
             });
           }
         } catch (e) {
-          if (!resolved) { resolved = true; reject(e); }
+          if (!done) { done = true; reject(e); }
         }
       });
     });
 
     busboy.on("error", reject);
-    busboy.on("finish", () => {
-      if (!resolved) reject(new Error("No file found in form data"));
-    });
-
+    busboy.on("finish", () => { if (!done) reject(new Error("No file found in form data")); });
     busboy.end(buf);
   });
 
