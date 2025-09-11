@@ -26,19 +26,19 @@ async function tryDelete(publicId, resource_type) {
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return ok({ ok: true });
-  if (event.httpMethod !== "DELETE")
-    return { statusCode: 405, body: "Method Not Allowed" };
+  if (event.httpMethod !== "DELETE") return { statusCode: 405, body: "Method Not Allowed" };
 
   const qs = new URLSearchParams(event.rawQuery || "");
   const id = (qs.get("id") || "").trim();
   if (!id) return { statusCode: 400, body: "Missing id (public_id)" };
 
   try {
-    // try image → video → raw
-    const done = (await tryDelete(id, "image")) ||
-                 (await tryDelete(id, "video")) ||
-                 (await tryDelete(id, "raw"));
-    return ok({ ok: true, id, deleted: !!done });
+    const deleted =
+      (await tryDelete(id, "image")) ||
+      (await tryDelete(id, "video")) ||
+      (await tryDelete(id, "raw"));
+
+    return ok({ ok: true, id, deleted: !!deleted });
   } catch (e) {
     return ok({ error: String(e.message || e), id });
   }
