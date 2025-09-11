@@ -5,29 +5,69 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Blog Manager — Professional</title>
 <style>
-  :root{--bg:#0f0f12;--panel:#151720;--ink:#e7e9ee;--muted:#9aa3b2;--accent:#7aa2ff;--ok:#2ecc71;--warn:#f39c12;--err:#ff6161;--edge:#222635;--panel2:#0e1118}
-  *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:linear-gradient(180deg,#0b0c10,#101217)}
-  .wrap{max-width:1200px;margin:24px auto;padding:0 16px}.topbar{display:flex;align-items:center;gap:12px;margin-bottom:8px}.brand{font-weight:700}.pill{padding:3px 8px;border:1px solid var(--edge);border-radius:999px;color:var(--muted)}
-  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 16px}.tab{appearance:none;border:1px solid var(--edge);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer;transition:.15s transform}.tab:hover{transform:translateY(-1px)}.tab.active{border-color:var(--accent);outline:1px solid color-mix(in oklab,var(--accent) 40%,transparent)}
-  .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}.card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}.card .hd{padding:10px 12px;border-bottom:1px solid var(--edge);color:var(--muted);display:flex;align-items:center;justify-content:space-between}.card .bd{padding:12px}
-  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}input[type="text"],input[type="datetime-local"],textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--edge);background:#0e1016;color:var(--ink)}textarea{min-height:160px;resize:vertical}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
-  .btn{border:1px solid var(--edge);background:#0e1016;color:var(--ink);padding:8px 10px;border-radius:10px;cursor:pointer}.btn.primary{border-color:var(--accent)}.btn.ok{border-color:var(--ok)}.btn.warn{border-color:var(--warn)}.btn.ghost{background:transparent}.muted{color:var(--muted)}
-  .preview{background:var(--panel2);border:1px dashed var(--edge);border-radius:12px;padding:12px;min-height:180px}.preview img{max-width:100%;border-radius:10px;display:block;margin:8px 0}
-  .list{display:flex;flex-direction:column;gap:10px}.item{border:1px solid var(--edge);border-radius:12px;padding:10px;background:#0d0f15;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.item .meta{font-size:12px}
-  .toast{position:fixed;right:16px;bottom:16px;background:#0b0d13;border:1px solid var(--edge);color:var(--ink);padding:10px 12px;border-radius:12px;opacity:0;transform:translateY(6px);transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:none}
-  .status-dot{width:8px;height:8px;border-radius:999px;display:inline-block;margin-right:6px}.dot-draft{background:var(--muted)}.dot-scheduled{background:var(--warn)}.dot-published{background:var(--ok)}.hidden{display:none !important}.chip{font-size:12px;border:1px solid var(--edge);border-radius:999px;padding:2px 6px;color:var(--muted)}
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:24px}.modal.show{display:flex}
-  .dialog{width:min(900px,96vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--edge);border-radius:16px}.dialog .hd{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--edge)}.dialog .bd{padding:12px}
-  .drop{border:1px dashed var(--edge);border-radius:12px;background:var(--panel2);padding:16px;text-align:center}.drop.drag{outline:2px dashed var(--accent)}
-  .media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px}.thumb{border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:#0c0e14;cursor:pointer}.thumb img{display:block;width:100%;height:110px;object-fit:cover}.thumb .t{padding:6px 8px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  :root{
+    --bg:#0f0f12; --panel:#151720; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#7aa2ff;
+    --ok:#2ecc71; --warn:#f39c12; --err:#ff6161; --edge:#222635; --panel2:#0e1118;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:linear-gradient(180deg,#0b0c10,#101217)}
+  .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
+  .topbar{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+  .brand{font-weight:700}
+  .pill{padding:3px 8px;border:1px solid var(--edge);border-radius:999px;color:var(--muted)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 16px}
+  .tab{appearance:none;border:1px solid var(--edge);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer;transition:.15s transform}
+  .tab:hover{transform:translateY(-1px)} .tab.active{border-color:var(--accent);outline:1px solid color-mix(in oklab,var(--accent) 40%,transparent)}
+  .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
+  .card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  .card .hd{padding:10px 12px;border-bottom:1px solid var(--edge);color:var(--muted);display:flex;align-items:center;justify-content:space-between}
+  .card .bd{padding:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  input[type="text"],input[type="datetime-local"],textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--edge);background:#0e1016;color:var(--ink)}
+  textarea{min-height:160px;resize:vertical}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+  .btn{border:1px solid var(--edge);background:#0e1016;color:var(--ink);padding:8px 10px;border-radius:10px;cursor:pointer}
+  .btn.primary{border-color:var(--accent)} .btn.ok{border-color:var(--ok)} .btn.warn{border-color:var(--warn)} .btn.ghost{background:transparent}
+  .muted{color:var(--muted)}
+  .preview{background:var(--panel2);border:1px dashed var(--edge);border-radius:12px;padding:12px;min-height:180px}
+  .preview img{max-width:100%;border-radius:10px;display:block;margin:8px 0}
+  .list{display:flex;flex-direction:column;gap:10px}
+  .item{border:1px solid var(--edge);border-radius:12px;padding:10px;background:#0d0f15;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
+  .item .meta{font-size:12px}
+  .toast{position:fixed;right:16px;bottom:16px;background:#0b0d13;border:1px solid var(--edge);color:var(--ink);padding:10px 12px;border-radius:12px;opacity:0;transform:translateY(6px);transition:.2s;pointer-events:none}
+  .toast.show{opacity:1;transform:none}
+  .status-dot{width:8px;height:8px;border-radius:999px;display:inline-block;margin-right:6px}
+  .dot-draft{background:var(--muted)} .dot-scheduled{background:var(--warn)} .dot-published{background:var(--ok)}
+  .hidden{display:none !important}
+  .chip{font-size:12px;border:1px solid var(--edge);border-radius:999px;padding:2px 6px;color:var(--muted)}
+  /* Media Modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:24px}
+  .modal.show{display:flex}
+  .dialog{width:min(900px,96vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--edge);border-radius:16px}
+  .dialog .hd{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--edge)}
+  .dialog .bd{padding:12px}
+  .tabs-mini{display:flex;gap:6px;margin-bottom:10px}
+  .tab-mini{padding:6px 10px;border:1px solid var(--edge);border-radius:8px;background:#0e1016;cursor:pointer}
+  .tab-mini.active{border-color:var(--accent)}
+  .drop{border:1px dashed var(--edge);border-radius:12px;background:var(--panel2);padding:16px;text-align:center}
+  .drop.drag{outline:2px dashed var(--accent)}
+  .media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px}
+  .thumb{border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:#0c0e14;cursor:pointer;display:flex;flex-direction:column}
+  .thumb .imgwrap{width:100%;height:110px;background:#0b0d12;display:flex;align-items:center;justify-content:center}
+  .thumb img{display:block;width:100%;height:110px;object-fit:cover}
+  .thumb .t{padding:6px 8px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;justify-content:space-between;gap:8px}
+  .thumb .t .type{font-variant:all-small-caps}
+  .actions{display:flex;gap:6px;margin-top:10px}
   @media (max-width:980px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="topbar">
-    <div class="brand">Blog Manager</div><span class="pill">Pro</span>
+    <div class="brand">Blog Manager</div>
+    <span class="pill">Pro</span>
     <span class="muted">Write · Posts · Comments · Settings</span>
   </div>
 
@@ -50,13 +90,23 @@
           </div>
           <div class="row">
             <div><label>Summary</label><input id="summary" type="text" placeholder="Short teaser for cards & SEO"/></div>
-            <div><label>Hero Image URL</label><div style="display:flex;gap:6px"><input id="hero" type="text" placeholder="https://…"/><button class="btn" id="pickHero">Pick…</button></div></div>
+            <div><label>Hero Image URL</label>
+              <div style="display:flex;gap:6px">
+                <input id="hero" type="text" placeholder="https://…"/>
+                <button class="btn" id="pickHero">Pick…</button>
+              </div>
+            </div>
           </div>
           <div class="toolbar">
-            <button class="btn" data-cmd="bold"><b>B</b></button><button class="btn" data-cmd="italic"><i>I</i></button><button class="btn" data-cmd="underline"><u>U</u></button>
-            <button class="btn" data-cmd="insertUnorderedList">• List</button><button class="btn" data-cmd="createLink">Link</button>
-            <button class="btn" id="fg">Text Color</button><button class="btn" id="bg">Highlight</button>
-            <button class="btn" id="insertImg">Insert Image…</button><button class="btn ghost" id="clearFmt">Clear</button>
+            <button class="btn" data-cmd="bold"><b>B</b></button>
+            <button class="btn" data-cmd="italic"><i>I</i></button>
+            <button class="btn" data-cmd="underline"><u>U</u></button>
+            <button class="btn" data-cmd="insertUnorderedList">• List</button>
+            <button class="btn" data-cmd="createLink">Link</button>
+            <button class="btn" id="fg">Text Color</button>
+            <button class="btn" id="bg">Highlight</button>
+            <button class="btn" id="insertImg">Insert Media…</button>
+            <button class="btn ghost" id="clearFmt">Clear</button>
           </div>
           <label>Body</label>
           <div id="body" contenteditable="true" style="border:1px solid var(--edge);border-radius:12px;padding:12px;min-height:260px;background:#0b0e14"></div>
@@ -87,10 +137,7 @@
   <!-- POSTS -->
   <section class="panel hidden" id="panel-posts">
     <div class="card">
-      <div class="hd">
-        <span>Posts</span>
-        <div><button class="btn" id="refreshPosts">Refresh</button></div>
-      </div>
+      <div class="hd"><span>Posts</span><div><button class="btn" id="refreshPosts">Refresh</button></div></div>
       <div class="bd"><div class="list" id="postList"></div></div>
     </div>
   </section>
@@ -115,15 +162,16 @@
 
   <!-- SETTINGS -->
   <section class="panel hidden" id="panel-settings">
-    <div class="card"><div class="hd"><span>Settings</span></div>
+    <div class="card">
+      <div class="hd"><span>Settings</span></div>
       <div class="bd">
         <div class="row">
-          <div><label>Admin Token (for moderation)</label><input id="cfgAdmin" type="text" placeholder="Set a short shared token"/></div>
+          <div><label>Admin Token (moderation)</label><input id="cfgAdmin" type="text" placeholder="Set your token"/></div>
           <div><label>Preview Debounce (ms)</label><input id="cfgDebounce" type="text" value="120"/></div>
         </div>
         <div class="row">
-          <div><label>Xano Base (read-only)</label><input type="text" value="https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX" disabled/></div>
-          <div><label>Media via Netlify Functions</label><input type="text" value="/.netlify/functions/*" disabled/></div>
+          <div><label>Media Collection</label><input id="cfgCollection" type="text" value="blog"/></div>
+          <div><label>Endpoints</label><input type="text" value="/.netlify/functions/blog-media-*, posts-create, comments-*" disabled/></div>
         </div>
         <button class="btn primary" id="saveCfg">Save Settings</button>
       </div>
@@ -133,71 +181,83 @@
   <div class="toast" id="toast">Saved</div>
 </div>
 
-<!-- MEDIA PICKER -->
+<!-- MEDIA MODAL -->
 <div class="modal" id="mediaModal" aria-hidden="true">
   <div class="dialog">
-    <div class="hd"><strong>Media</strong>
+    <div class="hd">
+      <strong>Media</strong>
       <div style="display:flex;gap:8px;align-items:center">
         <input id="mediaSearch" type="text" placeholder="Search…" class="btn" style="min-width:220px"/>
         <button class="btn ghost" id="closeMedia">Close</button>
       </div>
     </div>
     <div class="bd">
-      <div id="drop" class="drop">
-        <p style="margin:0 0 6px 0">Drag & drop files, paste from clipboard, or <label for="fileInput" style="text-decoration:underline;cursor:pointer">browse</label></p>
-        <input id="fileInput" type="file" accept="image/*,video/*,audio/*" multiple class="hidden"/>
-        <div class="muted" id="uploadHint">Ready</div>
+      <div class="tabs-mini">
+        <button class="tab-mini active" data-v="upload">Upload</button>
+        <button class="tab-mini" data-v="library">Library</button>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
-        <span class="muted">Recent uploads</span><span id="mediaCount" class="chip">0</span>
-        <button class="btn" id="refreshMedia">Refresh</button>
+      <div id="pane-upload">
+        <div id="drop" class="drop">
+          <p style="margin:0 0 6px 0">Drag & drop files, paste from clipboard, or <label for="fileInput" style="text-decoration:underline;cursor:pointer">browse</label></p>
+          <input id="fileInput" type="file" accept="image/*,video/*,audio/*" multiple class="hidden"/>
+          <div class="muted" id="uploadHint">Ready</div>
+        </div>
       </div>
-      <div id="mediaGrid" class="media-grid"></div>
+      <div id="pane-library" class="hidden">
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+          <span class="muted">Items</span><span id="mediaCount" class="chip">0</span>
+          <button class="btn" id="refreshMedia">Refresh</button>
+        </div>
+        <div id="mediaGrid" class="media-grid" role="listbox" aria-label="Media library"></div>
+      </div>
+      <div class="actions hidden" id="mediaActions">
+        <button class="btn ok" id="insertSelected">Insert</button>
+        <button class="btn" id="deleteSelected">Delete</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-/* ===== Concrete config pulled from your builds ===== */
+/* ===== CONFIG (scoped to BLOG library) ===== */
 const CONFIG = {
-  // Posts & comments go through Netlify functions (Webflow tokens stay server-side)
   FNS: {
-    POSTS_CREATE: '/.netlify/functions/posts-create',        // create draft/publish/schedule
+    POSTS_CREATE: '/.netlify/functions/posts-create',
     COMMENTS_LIST: '/.netlify/functions/comments-list',
     COMMENTS_MODERATE: '/.netlify/functions/comments-moderate',
-    MEDIA_LIST: '/.netlify/functions/list-media',
-    MEDIA_UPLOAD: '/.netlify/functions/file-manager-upload',
-    MEDIA_DELETE: '/.netlify/functions/delete-media'
+    MEDIA_LIST: '/.netlify/functions/blog-media-list',
+    MEDIA_UPLOAD: '/.netlify/functions/blog-media-upload',
+    MEDIA_DELETE: '/.netlify/functions/blog-media-delete'
   },
-  // Admin token for moderation function (server validates against ADMIN_TOKEN env)
   ADMIN_TOKEN: '',
   PREVIEW_DEBOUNCE_MS: 120,
-  // For reference, your Xano base (used behind the media functions)
-  XANO_API_BASE: 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX'
+  MEDIA_COLLECTION_PARAM: 'collection',   // change to 'folder' if your function expects it
+  MEDIA_COLLECTION_VALUE: 'blog'
 };
 
-const $ = (s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
-const getCss = v => getComputedStyle(document.documentElement).getPropertyValue(v);
-const toast = (msg,type='ok')=>{ const el=$('#toast'); el.textContent=msg; el.style.borderColor = type==='err'?getCss('--err'):type==='warn'?getCss('--warn'):getCss('--edge'); el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2200); };
-const debounce=(fn,ms=150)=>{let t; return(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);}};
+/* ===== UTIL ===== */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v);
+const toast=(m,t='ok')=>{ const el=$('#toast'); el.textContent=m; el.style.borderColor=t==='err'?css('--err'):t==='warn'?css('--warn'):css('--edge'); el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2200); };
+const debounce=(fn,ms=150)=>{ let t; return(...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } };
+const slugify=s=>(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,96);
 
-/* = Tabs = */
+/* ===== Tabs ===== */
 $$('.tab').forEach(b=>b.addEventListener('click',()=>{
   $$('.tab').forEach(x=>x.classList.remove('active')); b.classList.add('active');
-  $$('.panel').forEach(p=>p.classList.add('hidden')); const panel = document.querySelector('#panel-'+b.dataset.panel);
-  if(panel) panel.classList.remove('hidden');
+  $$('.panel').forEach(p=>p.classList.add('hidden'));
+  $('#panel-'+b.dataset.panel)?.classList.remove('hidden');
 }));
 
-/* = Editor + Preview = */
-const state = { id:null, dirty:false };
+/* ===== Editor + Preview ===== */
+const state={id:null,dirty:false};
 const titleEl=$('#title'), slugEl=$('#slug'), sumEl=$('#summary'), heroEl=$('#hero'), bodyEl=$('#body');
 const pTitle=$('#p-title'), pSlug=$('#p-slug'), pImg=$('#p-img'), pSum=$('#p-summary'), pBody=$('#p-body');
 const setDirty=v=>{ state.dirty=v; $('#dirtyFlag').hidden=!v; };
-const slugify=s=>(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,96);
-const updatePreview=()=>{ pTitle.textContent=titleEl.value||'Title'; pSlug.textContent='/posts/'+(slugEl.value||'title'); const h=(heroEl.value||'').trim(); if(h){pImg.src=h;pImg.classList.remove('hidden');} else pImg.classList.add('hidden'); pSum.textContent=sumEl.value||'Summary appears here…'; pBody.innerHTML=bodyEl.innerHTML||'Start writing…'; };
+const updatePreview=()=>{ pTitle.textContent=titleEl.value||'Title'; pSlug.textContent='/posts/'+(slugEl.value||'title'); const h=(heroEl.value||'').trim(); if(h){ pImg.src=h; pImg.classList.remove('hidden'); } else pImg.classList.add('hidden'); pSum.textContent=sumEl.value||'Summary appears here…'; pBody.innerHTML=bodyEl.innerHTML||'Start writing…'; };
 const previewTick=debounce(updatePreview, CONFIG.PREVIEW_DEBOUNCE_MS);
-const syncSlugFromTitle=()=>{ if(!slugEl.dataset.manual) slugEl.value=slugify(titleEl.value); };
-titleEl.addEventListener('input',()=>{ syncSlugFromTitle(); setDirty(true); previewTick(); });
+const syncSlug=()=>{ if(!slugEl.dataset.manual) slugEl.value = slugify(titleEl.value); };
+titleEl.addEventListener('input',()=>{ syncSlug(); setDirty(true); previewTick(); });
 slugEl.addEventListener('input',()=>{ slugEl.dataset.manual='1'; setDirty(true); previewTick(); });
 sumEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
 heroEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
@@ -211,52 +271,34 @@ $('#fg').addEventListener('click',()=>{ const c=prompt('Text color','#e7e9ee'); 
 $('#bg').addEventListener('click',()=>{ const c=prompt('Highlight','#2b344a'); if(c) document.execCommand('hiliteColor',false,c); setDirty(true); previewTick(); });
 $('#clearFmt').addEventListener('click',()=>{ document.execCommand('removeFormat',false,null); setDirty(true); previewTick(); });
 
-/* = Posts (via Netlify posts-create) = */
-function collectForm(){
-  return {
-    title: titleEl.value.trim(),
-    slug: slugEl.value.trim() || slugify(titleEl.value),
-    summary: sumEl.value.trim(),
-    featureImageUrl: heroEl.value.trim(),
-    bodyHtml: bodyEl.innerHTML.trim(),
-    status: 'draft' // overridden by publish/schedule actions
-  };
-}
+/* ===== Posts (Netlify function writes to Webflow) ===== */
+function collectForm(){ return { title:titleEl.value.trim(), slug: slugEl.value.trim()||slugify(titleEl.value), summary:sumEl.value.trim(), featureImageUrl:heroEl.value.trim(), bodyHtml:bodyEl.innerHTML.trim(), status:'draft' }; }
 async function postsCreate(payload){
-  const res = await fetch(CONFIG.FNS.POSTS_CREATE, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
-  const txt = await res.text(); let data; try{ data=JSON.parse(txt); }catch{ data={_raw:txt}; }
-  if(!res.ok) throw new Error(`posts-create ${res.status}: ${txt}`);
-  return data;
+  const res = await fetch(CONFIG.FNS.POSTS_CREATE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const txt=await res.text(); let data; try{data=JSON.parse(txt);}catch{data={_raw:txt};}
+  if(!res.ok) throw new Error(`posts-create ${res.status}: ${txt}`); return data;
 }
-async function saveDraft(){ const payload = { ...collectForm(), status:'draft' }; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Draft saved'); await loadPosts(); }catch(e){ console.error(e); toast('Save failed','err'); } }
-async function publishNow(){ const payload = { ...collectForm(), status:'published' }; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Published'); await loadPosts(); }catch(e){ console.error(e); toast('Publish failed','err'); } }
-async function schedule(){ const when=prompt('Publish at (YYYY-MM-DD HH:MM) local:'); if(!when) return; const payload = { ...collectForm(), status:'scheduled', publishDate: new Date(when.replace(' ','T')).toISOString() }; try{ await postsCreate(payload); setDirty(false); toast('Scheduled'); await loadPosts(); }catch(e){ console.error(e); toast('Schedule failed','err'); } }
+async function saveDraft(){ const payload={...collectForm(),status:'draft'}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Draft saved'); cachePostLocal(payload);}catch(e){ console.error(e); toast('Save failed','err'); } }
+async function publishNow(){ const payload={...collectForm(),status:'published'}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Published'); cachePostLocal(payload);}catch(e){ console.error(e); toast('Publish failed','err'); } }
+async function schedule(){ const when=prompt('Publish at (YYYY-MM-DD HH:MM) local:'); if(!when) return; const payload={...collectForm(),status:'scheduled',publishDate:new Date(when.replace(' ','T')).toISOString()}; try{ await postsCreate(payload); setDirty(false); toast('Scheduled'); cachePostLocal(payload);}catch(e){ console.error(e); toast('Schedule failed','err'); } }
 $('#saveDraft').addEventListener('click',saveDraft); $('#publishBtn').addEventListener('click',publishNow); $('#scheduleBtn').addEventListener('click',schedule);
 
+/* Posts list — simple session cache so the tab isn’t empty */
 const postListEl=$('#postList');
-// Minimal session list so Posts tab is usable today (Webflow list function is not in repo)
-function renderPostsSession(){
-  const sess = JSON.parse(localStorage.getItem('blogSessionPosts')||'[]');
-  postListEl.innerHTML = '';
-  if(!sess.length){ postListEl.innerHTML = '<div class="muted">No recent posts in this session.</div>'; return; }
-  for(const it of sess){
-    const el=document.createElement('div'); el.className='item';
-    el.innerHTML = `<div><div style="font-weight:600">${it.title} <span class="muted">/${it.slug}</span></div><div class="meta muted"><span class="status-dot ${it.status==='published'?'dot-published':it.status==='scheduled'?'dot-scheduled':'dot-draft'}"></span>${it.status} · ${new Date(it.when).toLocaleString()}</div></div>`;
-    postListEl.appendChild(el);
-  }
-}
-async function loadPosts(){ renderPostsSession(); }
-$('#refreshPosts').addEventListener('click',loadPosts);
+function cachePostLocal(p){ const arr=JSON.parse(localStorage.getItem('blogSessionPosts')||'[]'); arr.unshift({title:p.title,slug:p.slug,status:p.status,when:Date.now()}); localStorage.setItem('blogSessionPosts',JSON.stringify(arr.slice(0,25))); renderPostsSession(); }
+function renderPostsSession(){ const arr=JSON.parse(localStorage.getItem('blogSessionPosts')||'[]'); postListEl.innerHTML=''; if(!arr.length){ postListEl.innerHTML='<div class="muted">No recent posts this session.</div>'; return; } for(const it of arr){ const el=document.createElement('div'); el.className='item'; el.innerHTML=`<div><div style="font-weight:600">${it.title}<span class="muted">/${it.slug}</span></div><div class="meta muted"><span class="status-dot ${it.status==='published'?'dot-published':it.status==='scheduled'?'dot-scheduled':'dot-draft'}"></span>${it.status} · ${new Date(it.when).toLocaleString()}</div></div>`; postListEl.appendChild(el); } }
+$('#refreshPosts').addEventListener('click',renderPostsSession); renderPostsSession();
 
-// Store the last action locally so Posts tab isn’t empty
-function cachePostLocal(actionPayload){ const arr = JSON.parse(localStorage.getItem('blogSessionPosts')||'[]'); arr.unshift({ title: actionPayload.title, slug: actionPayload.slug, status: actionPayload.status, when: Date.now() }); localStorage.setItem('blogSessionPosts', JSON.stringify(arr.slice(0,25))); }
-['saveDraft','publishNow','schedule'].forEach(fn=>{
-  const orig = {saveDraft,publishNow,schedule}[fn];
-  window[fn] = async function(){ const payload = { ...collectForm(), status: fn==='publishNow'?'published':fn==='schedule'?'scheduled':'draft' }; try{ await orig.apply(this,arguments); cachePostLocal(payload);}catch(e){/* already toasted */} }
-});
-
-/* = Comments = */
+/* ===== Comments ===== */
 const commentListEl=$('#commentList');
+async function loadComments(){
+  try{
+    const qs=new URLSearchParams(); const st=$('#filterComments').value; const pid=$('#commentsPostId').value.trim();
+    if(st) qs.set('status',st); if(pid) qs.set('postId',pid);
+    const res=await fetch(`${CONFIG.FNS.COMMENTS_LIST}?${qs.toString()}`,{headers:{'Accept':'application/json'}});
+    const data=await res.json().catch(()=>[]); renderComments(Array.isArray(data)?data:(data.items||[]));
+  }catch(e){ console.error(e); toast('Fetch failed','err'); }
+}
 function renderComments(items){
   commentListEl.innerHTML=''; if(!items?.length){ commentListEl.innerHTML='<div class="muted">No comments.</div>'; return; }
   for(const c of items){
@@ -267,66 +309,159 @@ function renderComments(items){
   $$('#commentList .btn').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.id, act=b.dataset.act;
     try{
-      const res = await fetch(CONFIG.FNS.COMMENTS_MODERATE, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization': 'Bearer '+(CONFIG.ADMIN_TOKEN||'') }, body: JSON.stringify({ id, action: act==='approve'?'approve':'delete' }) });
+      const res=await fetch(CONFIG.FNS.COMMENTS_MODERATE,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+(CONFIG.ADMIN_TOKEN||'')},body:JSON.stringify({id,action:act==='approve'?'approve':'delete'})});
       if(!res.ok) throw new Error(await res.text()); toast('Updated'); await loadComments();
     }catch(e){ console.error(e); toast('Action failed','err'); }
   }));
 }
-async function loadComments(){
-  try{
-    const qs = new URLSearchParams(); const postId=$('#commentsPostId').value.trim(); if(postId) qs.set('postId', postId);
-    const res = await fetch(`${CONFIG.FNS.COMMENTS_LIST}?${qs.toString()}`, { headers: { 'Accept':'application/json' }});
-    const data = await res.json().catch(()=>[]);
-    renderComments(Array.isArray(data)?data:(data.items||[]));
-  }catch(e){ console.error(e); toast('Fetch failed','err'); }
-}
 $('#refreshComments').addEventListener('click',loadComments); $('#filterComments').addEventListener('change',loadComments);
 
-/* = Media Picker (Netlify functions wrap Xano) = */
-let mediaTarget=null; const modal=$('#mediaModal'), drop=$('#drop'), fileInput=$('#fileInput'), grid=$('#mediaGrid');
+/* ===== Media Picker (BLOG collection only) ===== */
+let mediaTarget=null, selectedMedia=null;
+const modal=$('#mediaModal'), drop=$('#drop'), fileInput=$('#fileInput'), grid=$('#mediaGrid'), actions=$('#mediaActions');
+const paneUpload=$('#pane-upload'), paneLibrary=$('#pane-library');
+
+function openMedia(){ modal.classList.add('show'); setMiniTab('library'); loadMedia(); }
 $('#pickHero').addEventListener('click',()=>{ mediaTarget='hero'; openMedia(); });
 $('#insertImg').addEventListener('click',()=>{ mediaTarget='body'; openMedia(); });
-function openMedia(){ modal.classList.add('show'); loadMedia(); } $('#closeMedia').addEventListener('click',()=> modal.classList.remove('show'));
-$('#refreshMedia').addEventListener('click',loadMedia); $('#mediaSearch').addEventListener('input',debounce(loadMedia,300));
+$('#closeMedia').addEventListener('click',()=> modal.classList.remove('show'));
+$('#refreshMedia').addEventListener('click',loadMedia);
+$('#mediaSearch').addEventListener('input',debounce(loadMedia,300));
+
+/* mini-tabs */
+function setMiniTab(v){
+  $$('.tab-mini').forEach(b=>{ b.classList.toggle('active', b.dataset.v===v); });
+  paneUpload.classList.toggle('hidden', v!=='upload');
+  paneLibrary.classList.toggle('hidden', v!=='library');
+}
+$$('.tab-mini').forEach(b=> b.addEventListener('click',()=> setMiniTab(b.dataset.v)));
+
 ;['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add('drag'); }));
 ;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
-drop.addEventListener('drop',e=> handleFiles(e.dataTransfer.files)); drop.addEventListener('click',()=> fileInput.click()); fileInput.addEventListener('change',()=> handleFiles(fileInput.files));
+drop.addEventListener('drop',e=> handleFiles(e.dataTransfer.files));
+drop.addEventListener('click',()=> fileInput.click());
+fileInput.addEventListener('change',()=> handleFiles(fileInput.files));
 document.addEventListener('paste',e=>{ if(!modal.classList.contains('show')) return; const files=Array.from(e.clipboardData.files||[]); if(files.length) handleFiles(files); });
+
 async function handleFiles(fileList){
   const files=Array.from(fileList||[]); if(!files.length) return;
   for(const f of files){
     try{
       $('#uploadHint').textContent=`Uploading ${f.name}…`;
       const fd=new FormData(); fd.append('file',f);
-      const res=await fetch(CONFIG.FNS.MEDIA_UPLOAD,{ method:'POST', body:fd });
-      if(!res.ok) throw new Error(await res.text()); const data=await res.json();
-      await loadMedia();
-      if(mediaTarget==='hero' && data.url){ heroEl.value=data.url; updatePreview(); toast('Hero set'); }
-      if(mediaTarget==='body' && data.url){ const img=document.createElement('img'); img.src=data.url; img.style.maxWidth='100%'; bodyEl.appendChild(img); setDirty(true); previewTick(); toast('Inserted'); }
-    }catch(e){ console.error(e); toast('Upload failed','err'); } finally{ $('#uploadHint').textContent='Ready'; }
+      fd.append(CONFIG.MEDIA_COLLECTION_PARAM, CONFIG.MEDIA_COLLECTION_VALUE);
+      const res=await fetch(CONFIG.FNS.MEDIA_UPLOAD,{method:'POST',body:fd});
+      if(!res.ok) throw new Error(await res.text());
+      await loadMedia(); setMiniTab('library'); toast('Uploaded');
+    }catch(e){ console.error(e); toast('Upload failed','err'); }
+    finally{ $('#uploadHint').textContent='Ready'; }
   }
 }
-async function loadMedia(){
+
+function cldThumb(url,type){
+  if(!url) return '';
+  const isCld = /res\.cloudinary\.com/.test(url);
+  if(!isCld){
+    // Non-Cloudinary: for images, just use the url; for video, no thumb; for audio, icon
+    return type==='image' ? url : '';
+  }
+  // Cloudinary transform
+  // image: /upload/ -> /upload/c_fill,w_320,h_220,q_auto,f_auto/
+  // video thumb: /video/upload/ -> fetch jpg with so_0
+  if(type==='image') return url.replace('/upload/','/upload/c_fill,w_320,h_220,q_auto,f_auto/');
+  if(type==='video') return url.replace('/video/upload/','/video/upload/so_0/').replace(/\.(mp4|mov|webm)$/i,'.jpg');
+  return ''; // audio
+}
+
+function mediaCard(m){
+  const type = m.resource_type || m.type || (/\.(mp4|mov|webm)$/i.test(m.url||'')?'video':/\.(mp3|wav|m4a|flac)$/i.test(m.url||'')?'audio':'image');
+  const url  = m.url || m.secure_url || '';
+  const thumb= m.thumb || cldThumb(url,type);
+  const title = m.filename || m.public_id || (url.split('/').pop());
+  const el = document.createElement('div'); el.className='thumb'; el.setAttribute('role','option'); el.tabIndex=0;
+  el.innerHTML = `
+    <div class="imgwrap">${type==='audio' ? svgAudio() : (thumb ? `<img alt="" src="${thumb}" loading="lazy" onerror="this.remove()"/>` : svgVideo())}</div>
+    <div class="t"><span title="${title}">${title}</span><span class="type">${type}</span></div>
+  `;
+  el.addEventListener('click',()=> selectMedia({type,url,thumb,title,raw:m}, el));
+  el.addEventListener('dblclick',()=> insertSelected());
+  el.addEventListener('keydown',e=>{ if(e.key==='Enter') insertSelected(); });
+  return el;
+}
+function svgAudio(){ return `<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M9 9h3l4-4v14l-4-4H9V9z" stroke="#9aa3b2" stroke-width="1.5"/><circle cx="6" cy="12" r="2" stroke="#9aa3b2"/></svg>`;}
+function svgVideo(){ return `<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="14" height="14" rx="2" stroke="#9aa3b2" stroke-width="1.5"/><path d="M17 9l4-2v10l-4-2z" stroke="#9aa3b2" stroke-width="1.5"/></svg>`;}
+
+function selectMedia(m, el){
+  selectedMedia = m;
+  $$('#mediaGrid .thumb').forEach(x=> x.style.outline='none');
+  el.style.outline = `2px solid ${css('--accent')}`;
+  $('#mediaActions').classList.remove('hidden');
+}
+$('#insertSelected').addEventListener('click', insertSelected);
+$('#deleteSelected').addEventListener('click', async ()=>{
+  if(!selectedMedia?.raw?.id){ toast('Cannot delete: missing id','warn'); return; }
+  if(!confirm('Delete media?')) return;
   try{
-    const s=$('#mediaSearch').value.trim(); const url = s? `${CONFIG.FNS.MEDIA_LIST}?q=${encodeURIComponent(s)}` : CONFIG.FNS.MEDIA_LIST;
-    const res=await fetch(url); const data=await res.json().catch(()=>[]);
+    const qs = new URLSearchParams({ [CONFIG.MEDIA_COLLECTION_PARAM]: CONFIG.MEDIA_COLLECTION_VALUE, id: selectedMedia.raw.id });
+    const res = await fetch(`${CONFIG.FNS.MEDIA_DELETE}?${qs.toString()}`, { method:'DELETE' });
+    if(!res.ok) throw new Error(await res.text());
+    toast('Deleted'); selectedMedia=null; $('#mediaActions').classList.add('hidden'); await loadMedia();
+  }catch(e){ console.error(e); toast('Delete failed','err'); }
+});
+
+function insertSelected(){
+  if(!selectedMedia){ toast('Select an item first','warn'); return; }
+  const {type,url} = selectedMedia;
+  if(mediaTarget==='hero'){
+    if(type!=='image'){ toast('Hero must be an image','warn'); return; }
+    heroEl.value = url; updatePreview(); toast('Hero set'); modal.classList.remove('show');
+    return;
+  }
+  // Insert into body
+  if(type==='image'){
+    const img=document.createElement('img'); img.src=url; img.alt=''; img.style.maxWidth='100%'; bodyEl.appendChild(img);
+  }else if(type==='video'){
+    const v=document.createElement('video'); v.src=url; v.controls=true; v.style.maxWidth='100%'; bodyEl.appendChild(v);
+  }else{
+    const a=document.createElement('audio'); a.src=url; a.controls=true; bodyEl.appendChild(a);
+  }
+  setDirty(true); previewTick(); toast('Inserted'); modal.classList.remove('show');
+}
+
+async function loadMedia(){
+  selectedMedia=null; $('#mediaActions').classList.add('hidden');
+  try{
+    const s=$('#mediaSearch').value.trim();
+    const qs = new URLSearchParams({ [CONFIG.MEDIA_COLLECTION_PARAM]: CONFIG.MEDIA_COLLECTION_VALUE });
+    if(s) qs.set('q', s);
+    const res=await fetch(`${CONFIG.FNS.MEDIA_LIST}?${qs.toString()}`);
+    const data=await res.json().catch(()=>[]);
     const items=Array.isArray(data)?data:(data.items||[]);
-    $('#mediaCount').textContent=items.length; grid.innerHTML='';
-    for(const m of items){
-      const url=m.thumb||m.thumbnail_url||m.url||m.secure_url||''; const card=document.createElement('div'); card.className='thumb'; card.title=url;
-      card.innerHTML=`<img src="${url}" alt=""/><div class="t">${(m.filename||m.public_id||'media')}</div>`;
-      card.addEventListener('click',()=>{ if(mediaTarget==='hero'){ heroEl.value=(m.url||m.secure_url||''); updatePreview(); toast('Hero set'); } else { const img=document.createElement('img'); img.src=(m.url||m.secure_url||''); img.style.maxWidth='100%'; bodyEl.appendChild(img); setDirty(true); previewTick(); toast('Inserted'); } modal.classList.remove('show'); });
-      grid.appendChild(card);
-    }
+    $('#mediaCount').textContent=items.length;
+    const grid=$('#mediaGrid'); grid.innerHTML='';
+    for(const m of items) grid.appendChild(mediaCard(m));
   }catch(e){ console.error(e); toast('Media fetch failed','err'); }
 }
 
-/* = Settings = */
+/* ===== Settings ===== */
 $('#cfgDebounce').value = String(CONFIG.PREVIEW_DEBOUNCE_MS);
-$('#saveCfg').addEventListener('click',()=>{ CONFIG.PREVIEW_DEBOUNCE_MS = parseInt($('#cfgDebounce').value||'120',10); CONFIG.ADMIN_TOKEN = $('#cfgAdmin').value.trim(); toast('Settings saved'); });
+$('#cfgCollection').value = CONFIG.MEDIA_COLLECTION_VALUE;
+$('#saveCfg').addEventListener('click', ()=>{
+  CONFIG.PREVIEW_DEBOUNCE_MS = parseInt($('#cfgDebounce').value||'120',10);
+  CONFIG.ADMIN_TOKEN = $('#cfgAdmin').value.trim();
+  CONFIG.MEDIA_COLLECTION_VALUE = $('#cfgCollection').value.trim() || 'blog';
+  toast('Settings saved');
+});
 
-/* = Init = */
-(async function init(){ updatePreview(); await Promise.all([loadPosts(), loadComments()]); })();
+/* ===== Mini-init ===== */
+function setUpMini(){
+  // default to Library on open
+  setMiniTab('library');
+}
+setUpMini();
+
+/* ===== Init ===== */
+(function init(){ updatePreview(); renderPostsSession(); })();
 </script>
 </body>
 </html>
