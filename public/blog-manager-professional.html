@@ -4,8 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Professional Blog Manager</title>
+
+  <!-- Your styles -->
   <link rel="stylesheet" href="css/blog-manager-professional.css" />
-  <link rel="stylesheet" href="css/quill.snow.css" />
+
+  <!-- TinyMCE + DOMPurify (for rich text + safe HTML) -->
+  <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.5/dist/purify.min.js"></script>
+
+  <!-- NOTE: If you want the editor to look like your live blog CSS, you can
+       add your published Webflow CSS URLs into tinymce `content_css` in initTinyEditor() -->
 </head>
 <body>
   <div class="header">
@@ -15,6 +23,7 @@
 
   <div class="container">
     <div class="main-content">
+      <!-- Post Details -->
       <div class="form-section">
         <h2 class="section-title">Post Details</h2>
 
@@ -58,13 +67,14 @@
           <textarea id="summary" class="form-textarea" rows="3" placeholder="Brief description of the post..."></textarea>
         </div>
 
-        <!-- Auto-filled by image upload; you don't type this -->
+        <!-- Auto-filled by image upload; no typing needed -->
         <div class="form-group">
           <label class="form-label" for="mediaUrl">Media URL *</label>
           <input type="url" id="mediaUrl" class="form-input" placeholder="Auto-filled when you upload an image" readonly />
         </div>
       </div>
 
+      <!-- Hero Image -->
       <div class="form-section">
         <h2 class="section-title">Hero Image</h2>
 
@@ -89,21 +99,26 @@
         </div>
       </div>
 
+      <!-- Content (TinyMCE) -->
       <div class="form-section">
         <h2 class="section-title">Content</h2>
-        <div class="editor-container"><div id="editor"></div></div>
+        <div class="editor-container">
+          <textarea id="editor"></textarea>
+        </div>
       </div>
 
+      <!-- Actions -->
       <div class="btn-group">
         <button id="saveDraftBtn" class="btn btn-secondary">💾 Save Draft</button>
-        <button id="previewBtn" class="btn btn-warning">👁️ Preview</button>
-        <button id="publishBtn" class="btn btn-success">🚀 Publish Now</button>
-        <button id="scheduleBtn" class="btn btn-primary" style="display:none;">⏰ Schedule Post</button>
+        <button id="previewBtn"    class="btn btn-warning">👁️ Preview</button>
+        <button id="publishBtn"    class="btn btn-success">🚀 Publish Now</button>
+        <button id="scheduleBtn"   class="btn btn-primary" style="display:none;">⏰ Schedule Post</button>
       </div>
 
       <div id="messages"></div>
     </div>
 
+    <!-- Sidebar -->
     <div class="sidebar">
       <div class="preview-panel">
         <h3 class="section-title">Live Preview</h3>
@@ -143,9 +158,9 @@
 
   <input type="hidden" id="postId" value="" />
 
-  <script src="js/quill.min.js"></script>
-  <script src="js/marked.min.js"></script>
+  <!-- App scripts -->
   <script>
+    /* -------------------- Config -------------------- */
     const CFG = {
       fns: {
         create: '/.netlify/functions/posts-create',
@@ -163,47 +178,118 @@
       }
     };
 
-    let quill, commentsData = [];
+    let commentsData = [];
 
     document.addEventListener('DOMContentLoaded', () => {
-      initQuill();
+      initTinyEditor();
       setupEventListeners();
       loadComments();
       restoreTheme();
     });
 
-    function initQuill() {
-      const el = document.getElementById('editor');
-      if (!el) return;
-      quill = new Quill(el, {
-        theme: 'snow',
-        modules: {
-          toolbar: [
-            ['bold','italic','underline','strike'],
-            [{ 'header': [1,2,3,false] }],
-            ['blockquote','code-block'],
-            [{ 'list':'ordered' },{ 'list':'bullet' }],
-            ['link','image'],
-            ['clean']
-          ]
+    /* -------------------- TinyMCE -------------------- */
+    function initTinyEditor() {
+      tinymce.init({
+        selector: '#editor',
+        height: 520,
+        menubar: false,
+        // Inherit dark UI
+        skin: 'oxide-dark',
+        content_css: 'dark',
+        // If you want live blog CSS in the editor, add your published CSS URLs:
+        // content_css: ['https://YOUR-SITE.webflow.io/css/site.css', 'https://YOUR-SITE.com/path/to/custom.css'],
+
+        plugins: 'advlist autolink link lists image media table codesample charmap emoticons hr ' +
+                 'searchreplace visualblocks code fullscreen insertdatetime nonbreaking anchor ' +
+                 'wordcount quickbars',
+        toolbar: [
+          'undo redo | styles | bold italic underline | forecolor backcolor | ' +
+          'alignleft aligncenter alignright | bullist numlist outdent indent | ' +
+          'link image media table | blockquote hr codesample | removeformat | preview fullscreen code'
+        ].join(' '),
+
+        // Styles dropdown to match your site’s look (adjust classes as needed)
+        style_formats: [
+          { title: 'Lead paragraph', block: 'p', classes: 'lead' },
+          { title: 'Callout', block: 'div', classes: 'callout' },
+          { title: 'Small note', block: 'p', classes: 'small muted' }
+        ],
+        content_style: `
+          .lead{font-size:1.125rem;line-height:1.6}
+          .callout{background:rgba(59,130,246,.08);border-left:3px solid var(--accent);padding:1rem;border-radius:4px;margin:1rem 0}
+          .small.muted{opacity:.8}
+        `,
+
+        // Better links
+        link_default_target: '_blank',
+        link_context_toolbar: true,
+        link_rel_list: [
+          { title: 'noopener', value: 'noopener' },
+          { title: 'nofollow', value: 'nofollow' },
+          { title: 'noopener nofollow', value: 'noopener nofollow' }
+        ],
+
+        // Body images/media → upload handler
+        automatic_uploads: true,
+        paste_data_images: false,
+        file_picker_types: 'image media',
+        images_upload_handler: async (blobInfo, progress) => {
+          const url = await uploadImage(blobInfo.blob());
+          return url;
+        },
+
+        quickbars_insert_toolbar: 'link image media table hr',
+        quickbars_selection_toolbar: 'bold italic underline | forecolor backcolor | h2 h3 blockquote',
+        branding: false,
+
+        setup: (ed) => {
+          ed.on('change input undo redo', updatePreview);
         }
       });
-      quill.on('text-change', updatePreview);
     }
 
+    function getBodyHtml() {
+      const ed = tinymce.get('editor');
+      if (!ed) return '';
+      const raw = ed.getContent({ format: 'html' });
+      return DOMPurify.sanitize(raw, { ADD_ATTR: ['target','rel'] });
+    }
+
+    async function uploadImage(file) {
+      // Try Cloudinary first (unsigned preset)
+      if (CFG.cloudinary?.uploadUrl && CFG.cloudinary?.uploadPreset) {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('upload_preset', CFG.cloudinary.uploadPreset);
+        const r = await fetch(CFG.cloudinary.uploadUrl, { method: 'POST', body: form });
+        const j = await r.json();
+        if (r.ok && j.secure_url) return j.secure_url;
+      }
+      // Fallback to Netlify uploader
+      const form2 = new FormData();
+      form2.append('attachment', file);
+      const r2 = await fetch(CFG.fns.upload, { method: 'POST', body: form2 });
+      const t2 = await r2.text();
+      const j2 = JSON.parse(t2);
+      if (r2.ok && j2.url) return j2.url;
+      throw new Error(j2.error || 'Upload failed');
+    }
+
+    /* -------------------- UI Events -------------------- */
     function setupEventListeners() {
       document.getElementById('title').addEventListener('input', () => { updateSlug(); updatePreview(); });
+
       document.getElementById('status').addEventListener('change', function() {
         const scheduleBtn = document.getElementById('scheduleBtn');
-        const publishBtn = document.getElementById('publishBtn');
+        const publishBtn  = document.getElementById('publishBtn');
         if (this.value === 'scheduled') { scheduleBtn.style.display='inline-flex'; publishBtn.style.display='none'; }
         else { scheduleBtn.style.display='none'; publishBtn.style.display='inline-flex'; }
         updatePreview();
       });
 
-      // If a URL is manually pasted into heroUrl, mirror to media automatically if empty
+      // Mirror hero URL into media URL if user pastes a URL manually
       document.getElementById('heroUrl').addEventListener('input', () => {
-        const hero = document.getElementById('heroUrl').value.trim();
+        const hero  = document.getElementById('heroUrl').value.trim();
         const media = document.getElementById('mediaUrl').value.trim();
         if (hero && !media) document.getElementById('mediaUrl').value = hero;
         updatePreview();
@@ -219,11 +305,13 @@
       document.getElementById('previewBtn').addEventListener('click', openPreview);
 
       setupHeroUpload();
+
       document.getElementById('refreshComments').addEventListener('click', loadComments);
       document.getElementById('commentSearch').addEventListener('input', filterComments);
       document.getElementById('filterState').addEventListener('change', filterComments);
     }
 
+    /* -------------------- Preview -------------------- */
     function updateSlug() {
       const title = document.getElementById('title').value;
       const slug = title.toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
@@ -231,13 +319,15 @@
     }
 
     function updatePreview() {
-      const title = document.getElementById('title').value || 'Untitled Post';
+      const title  = document.getElementById('title').value || 'Untitled Post';
       const author = document.getElementById('author').value || 'Anonymous';
       const status = document.getElementById('status').value;
-      const heroUrl = document.getElementById('heroUrl').value;
-      const summary = document.getElementById('summary').value;
-      const content = quill ? quill.root.innerHTML : '';
+      const heroUrl= document.getElementById('heroUrl').value;
+      const summary= document.getElementById('summary').value;
+      const body   = getBodyHtml();
+
       const statusBadge = `<span class="status-${status}">${getStatusLabel(status)}</span>`;
+
       let html = `
         <div style="margin-bottom:1rem;">
           <h1 style="margin-bottom:.5rem;">${title}</h1>
@@ -245,9 +335,11 @@
             <span>By ${author}</span>${statusBadge}
           </div>
         </div>`;
+
       if (heroUrl) html += `<img src="${heroUrl}" alt="${document.getElementById('heroAlt').value}" style="width:100%;height:200px;object-fit:cover;border-radius:6px;margin-bottom:1rem;">`;
       if (summary) html += `<div style="font-style:italic;margin-bottom:1rem;padding:1rem;background:rgba(59,130,246,.1);border-left:3px solid var(--accent);border-radius:4px;">${summary}</div>`;
-      html += `<div>${content}</div>`;
+      html += `<div>${body}</div>`;
+
       document.getElementById('previewContent').innerHTML = html;
     }
 
@@ -255,6 +347,7 @@
       return ({ draft:'📝 Draft', published:'✅ Published', scheduled:'⏰ Scheduled' })[status] || status;
     }
 
+    /* -------------------- Save / Publish -------------------- */
     function toIsoOrEmpty(localValue) {
       if (!localValue) return '';
       const dt = new Date(localValue);
@@ -262,21 +355,20 @@
     }
 
     function buildPayload(forceStatus) {
-      const title = document.getElementById('title').value.trim();
-      const slug = document.getElementById('slug').value.trim() || generateSlug(title);
+      const title  = document.getElementById('title').value.trim();
+      const slug   = document.getElementById('slug').value.trim() || generateSlug(title);
       const status = forceStatus || document.getElementById('status').value;
-      const hero = document.getElementById('heroUrl').value;
+      const hero   = document.getElementById('heroUrl').value;
 
-      // We always mirror hero -> thumbnailUrl (server falls back too)
       const payload = {
         title,
         slug,
         status,
         summary: document.getElementById('summary').value,
-        bodyHtml: quill ? quill.root.innerHTML : '',
+        bodyHtml: getBodyHtml(),          // TinyMCE HTML
         featureImageUrl: hero,
-        thumbnailUrl: hero,                 // <-- auto
-        mediaUrl: document.getElementById('mediaUrl').value // auto from upload
+        thumbnailUrl: hero,               // server may use this if collection expects thumbnail
+        mediaUrl: document.getElementById('mediaUrl').value
       };
 
       if (status === 'scheduled') {
@@ -291,13 +383,13 @@
     }
 
     async function savePost(forceStatus = null) {
-      const title = document.getElementById('title').value.trim();
+      const title    = document.getElementById('title').value.trim();
       const mediaUrl = document.getElementById('mediaUrl').value.trim();
-      const hero = document.getElementById('heroUrl').value.trim();
+      const hero     = document.getElementById('heroUrl').value.trim();
 
-      if (!title) return showMessage('Please enter a title','error');
+      if (!title)   return showMessage('Please enter a title','error');
       if (!mediaUrl) return showMessage('Upload an image first (Media URL auto-fills).','error');
-      if (!hero) return showMessage('Upload an image first (Hero/Thumbnail auto-fill).','error');
+      if (!hero)     return showMessage('Upload an image first (Hero/Thumbnail auto-fill).','error');
 
       const status = forceStatus || document.getElementById('status').value;
       const postId = document.getElementById('postId').value;
@@ -312,7 +404,7 @@
         });
         const text = await res.text();
         let result; try { result = JSON.parse(text); } catch { throw new Error('Invalid JSON: '+text.slice(0,200)); }
-        if (!res.ok) throw new Error(result?.error || result?.message || 'Save failed');
+        if (!res.ok) throw new Error(result?.error || result?.message || JSON.stringify(result));
 
         if (!postId && result.id) document.getElementById('postId').value = result.id;
         document.getElementById('status').value = status;
@@ -324,6 +416,7 @@
       }
     }
 
+    /* -------------------- Preview Window -------------------- */
     function openPreview() {
       const previewContent = document.getElementById('previewContent').innerHTML;
       const w = window.open('', '_blank');
@@ -331,6 +424,7 @@
       w.document.close();
     }
 
+    /* -------------------- Hero Upload (Hero + Media URL auto-fill) -------------------- */
     function setupHeroUpload() {
       const dz = document.getElementById('heroDropZone');
       const input = document.getElementById('heroInput');
@@ -347,7 +441,7 @@
       try {
         showMessage('Uploading image...','info');
 
-        // Try Cloudinary first
+        // Cloudinary first
         if (CFG.cloudinary.uploadUrl && CFG.cloudinary.uploadPreset) {
           const form = new FormData();
           form.append('file', file);
@@ -364,7 +458,7 @@
           }
         }
 
-        // Fallback to Netlify upload
+        // Netlify Function fallback
         const form2 = new FormData(); form2.append('attachment', file);
         const r2 = await fetch(CFG.fns.upload, { method:'POST', body: form2 });
         const t2 = await r2.text(); const j2 = JSON.parse(t2);
@@ -374,8 +468,9 @@
           updateHeroPreview(j2.url, file.name);
           updatePreview();
           showMessage('Image uploaded successfully!','success');
-        } else { throw new Error(j2.error || 'Upload failed'); }
-
+        } else {
+          throw new Error(j2.error || 'Upload failed');
+        }
       } catch (e) {
         console.error('Upload error:', e);
         showMessage('Upload failed: '+e.message,'error');
@@ -394,15 +489,15 @@
     function clearHeroImage() {
       document.getElementById('heroUrl').value = '';
       document.getElementById('heroAlt').value = '';
-      // Clearing the hero image also invalidates auto thumbnail/media
       document.getElementById('mediaUrl').value = '';
       document.getElementById('heroPreview').innerHTML = '';
       updatePreview();
     }
 
+    /* -------------------- Comments -------------------- */
     async function loadComments() {
       try {
-        const state = document.getElementById('filterState').value;
+        const state  = document.getElementById('filterState').value;
         const postId = document.getElementById('filterPostId').value.trim();
         if (!postId) {
           commentsData = [];
@@ -413,7 +508,10 @@
         const params = new URLSearchParams(); if (state) params.set('state', state); params.set('postId', postId);
         const r = await fetch(CFG.fns.listComments + '?' + params.toString());
         const t = await r.text();
-        let list; try { list = JSON.parse(t); } catch {
+
+        let list;
+        try { list = JSON.parse(t); }
+        catch {
           if (t.includes('Missing postId')) {
             document.getElementById('commentsList').innerHTML =
               `<p style="color:var(--text-secondary);text-align:center;padding:1rem;">Enter a valid Post ID to load comments</p>`;
@@ -433,16 +531,22 @@
 
     function filterComments() {
       const q = document.getElementById('commentSearch').value.toLowerCase();
-      const filtered = (commentsData||[]).filter(c => (c.content||'').toLowerCase().includes(q) || (c.author||'').toLowerCase().includes(q));
+      const filtered = (commentsData||[]).filter(c =>
+        (c.content||'').toLowerCase().includes(q) ||
+        (c.author||'').toLowerCase().includes(q)
+      );
       const el = document.getElementById('commentsList');
-      if (!filtered.length) { el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:1rem;">No comments found</p>'; return; }
+      if (!filtered.length) {
+        el.innerHTML = '<p style="color:var(--text-secondary);text-align:center;padding:1rem;">No comments found</p>';
+        return;
+      }
       el.innerHTML = filtered.map(c => `
         <div style="border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:1rem;background:var(--bg-tertiary);">
           <div style="font-weight:500;margin-bottom:.5rem;">${c.author||'Anonymous'}</div>
           <div style="margin-bottom:.5rem;font-size:.875rem;">${c.content||''}</div>
           <div style="display:flex;gap:.5rem;">
             <button onclick="moderateComment('${c.id}','approve')" class="btn btn-success" style="padding:.25rem .5rem;font-size:.75rem;">Approve</button>
-            <button onclick="moderateComment('${c.id}','reject')" class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.75rem;">Reject</button>
+            <button onclick="moderateComment('${c.id}','reject')"  class="btn btn-secondary" style="padding:.25rem .5rem;font-size:.75rem;">Reject</button>
           </div>
         </div>`).join('');
     }
@@ -455,10 +559,15 @@
         });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || 'Moderation failed');
-        showMessage(`Comment ${action}d successfully!`,'success'); loadComments();
-      } catch (e) { console.error('Moderation error:', e); showMessage('Error: '+e.message,'error'); }
+        showMessage(`Comment ${action}d successfully!`,'success');
+        loadComments();
+      } catch (e) {
+        console.error('Moderation error:', e);
+        showMessage('Error: '+e.message,'error');
+      }
     }
 
+    /* -------------------- Utilities -------------------- */
     function showMessage(text, type='info') {
       const wrap = document.getElementById('messages');
       const el = document.createElement('div');
