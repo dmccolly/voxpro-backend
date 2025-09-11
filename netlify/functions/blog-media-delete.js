@@ -1,4 +1,3 @@
-// netlify/functions/blog-media-delete.js
 const cloudinary = require("cloudinary").v2;
 
 cloudinary.config({
