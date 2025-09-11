@@ -1,4 +1,3 @@
-// netlify/functions/blog-posts-delete.js
 const API = "https://api.webflow.com/v2";
 
 const allowOrigin = process.env.ALLOW_ORIGIN || "*";
@@ -31,12 +30,10 @@ exports.handler = async (event) => {
   if (!id) return err(400, "Missing id");
 
   try {
-    // Webflow v2 delete
     const res = await fetch(`${API}/collections/${collectionId}/items/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` }
     });
-
     if (!res.ok) return err(res.status, await res.text());
     return ok({ ok: true, id, deleted: true });
   } catch (e) {
