@@ -4,10 +4,13 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Blog Manager — Professional</title>
-<!-- Optional: set once at build time -->
-<!-- <meta name="admin-token" content="YOUR_ADMIN_TOKEN_HERE"> -->
+<!-- Optional: set once at build time so you never type the token -->
+<!-- <meta name="admin-token" content="YOUR_ADMIN_TOKEN"> -->
 <style>
-  :root{ --bg:#0f0f12; --panel:#151720; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#7aa2ff; --ok:#2ecc71; --warn:#f39c12; --err:#ff6161; --edge:#222635; --panel2:#0e1118; }
+  :root{
+    --bg:#0f0f12; --panel:#151720; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#7aa2ff;
+    --ok:#2ecc71; --warn:#f39c12; --err:#ff6161; --edge:#222635; --panel2:#0e1118;
+  }
   *{box-sizing:border-box}
   body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:linear-gradient(180deg,#0b0c10,#101217)}
   .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
@@ -31,7 +34,7 @@
   .btn.primary{border-color:var(--accent)} .btn.ok{border-color:var(--ok)} .btn.warn{border-color:var(--warn)} .btn.ghost{background:transparent}
   .muted{color:var(--muted)}
   .preview{background:var(--panel2);border:1px dashed var(--edge);border-radius:12px;padding:12px;min-height:180px}
-  .preview img, .preview video{max-width:100%;border-radius:10px;display:block;margin:8px 0}
+  .preview img,.preview video{max-width:100%;border-radius:10px;display:block;margin:8px 0}
   .list{display:flex;flex-direction:column;gap:10px}
   .item{border:1px solid var(--edge);border-radius:12px;padding:10px;background:#0d0f15;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
   .item .meta{font-size:12px}
@@ -41,7 +44,6 @@
   .dot-draft{background:var(--muted)} .dot-scheduled{background:var(--warn)} .dot-published{background:var(--ok)}
   .hidden{display:none !important}
   .chip{font-size:12px;border:1px solid var(--edge);border-radius:999px;padding:2px 6px;color:var(--muted)}
-  /* Modal */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:24px}
   .modal.show{display:flex}
   .dialog{width:min(900px,96vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--edge);border-radius:16px}
@@ -185,7 +187,7 @@
         </div>
         <div class="row">
           <div><label>Media Scope</label><input id="cfgCollection" type="text" value="blog"/></div>
-          <div><label>Endpoints (locked)</label><input type="text" value="/.netlify/functions/blog-*/posts-*/comments-*" disabled/></div>
+          <div><label>Endpoints</label><input type="text" value="blog-media-* / blog-posts-* / posts-create" disabled/></div>
         </div>
         <button class="btn primary" id="saveCfg">Save Settings</button>
       </div>
@@ -237,85 +239,83 @@
 </div>
 
 <script>
-/* ================== HARD-LOCKED BLOG ENDPOINTS ================== */
+/* ================== ENDPOINT CONFIG ================== */
 const CONFIG = {
   FNS: {
-    POSTS_LIST:    '/.netlify/functions/blog-posts-list',
-    POSTS_CREATE:  '/.netlify/functions/posts-create',
-    POSTS_ARCHIVE: '/.netlify/functions/blog-posts-archive',
-    POSTS_DELETE:  '/.netlify/functions/blog-posts-delete',
-    COMMENTS_LIST:     '/.netlify/functions/comments-list',
-    COMMENTS_MODERATE: '/.netlify/functions/comments-moderate',
     MEDIA_LIST:   '/.netlify/functions/blog-media-list',
     MEDIA_UPLOAD: '/.netlify/functions/blog-media-upload',
-    MEDIA_DELETE: '/.netlify/functions/blog-media-delete'
+    MEDIA_DELETE: '/.netlify/functions/blog-media-delete',
+    POSTS_LIST:    '/.netlify/functions/blog-posts-list',
+    POSTS_ARCHIVE: '/.netlify/functions/blog-posts-archive',
+    POSTS_DELETE:  '/.netlify/functions/blog-posts-delete',
+    POSTS_CREATE:  '/.netlify/functions/posts-create',
+    COMMENTS_LIST: '/.netlify/functions/comments-list',
+    COMMENTS_MOD:  '/.netlify/functions/comments-moderate'
   },
-  MEDIA_COLLECTION_VALUE: 'blog',
+  MEDIA_SCOPE_VALUE: 'blog',
   PREVIEW_DEBOUNCE_MS: 120
 };
-const SCOPE_KEYS = ['collection','folder','tag','scope']; // try in order
 
 /* ================== helpers ================== */
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v);
-const toast=(m,t='ok')=>{ const el=$('#toast'); el.textContent=m; el.style.borderColor=t==='err'?css('--err'):t==='warn'?css('--warn'):css('--edge'); el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2200); };
-const debounce=(fn,ms=150)=>{ let t; return(...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } };
+const toast=(m,t='ok')=>{const el=$('#toast');el.textContent=m;el.style.borderColor=t==='err'?css('--err'):t==='warn'?css('--warn'):css('--edge');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
+const debounce=(fn,ms=150)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)};}
 const slugify=s=>(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,96);
-async function getJson(url, opt={}){ const res=await fetch(url,{...opt}); const ct=res.headers.get('content-type')||''; const body=ct.includes('application/json')?await res.json().catch(()=>null):await res.text(); if(!res.ok) throw new Error(typeof body==='string'?body:JSON.stringify(body||{})); return body; }
+async function getJson(url,opt={}){const res=await fetch(url,{cache:'no-store',...opt});const ct=res.headers.get('content-type')||'';const body=ct.includes('application/json')?await res.json().catch(()=>null):await res.text();if(!res.ok)throw new Error(typeof body==='string'?body:JSON.stringify(body||{}));return body;}
 
-/* --- admin token helpers (set once, remembered) --- */
-function setCookie(name, value, days=365){ const d=new Date(); d.setTime(d.getTime()+days*24*60*60*1000); document.cookie=`${name}=${encodeURIComponent(value)}; expires=${d.toUTCString()}; path=/; SameSite=Lax`; }
-function getCookie(name){ const m=document.cookie.match(new RegExp('(^|; )'+name+'=([^;]*)')); return m?decodeURIComponent(m[2]):''; }
-function getMeta(name){ const el=document.querySelector(`meta[name="${name}"]`); return el?el.content.trim():''; }
-function getAdminToken(){ return getCookie('bm_admin') || localStorage.getItem('ADMIN_TOKEN') || getMeta('admin-token') || ''; }
-function setAdminToken(tok){ if(!tok) return; localStorage.setItem('ADMIN_TOKEN', tok); setCookie('bm_admin', tok, 365); }
+/* admin token helpers */
+function setCookie(name,value,days=365){const d=new Date();d.setTime(d.getTime()+days*24*60*60*1000);document.cookie=`${name}=${encodeURIComponent(value)}; expires=${d.toUTCString()}; path=/; SameSite=Lax`;}
+function getCookie(name){const m=document.cookie.match(new RegExp('(^|; )'+name+'=([^;]*)'));return m?decodeURIComponent(m[2]):'';}
+function getMeta(name){const el=document.querySelector(`meta[name="${name}"]`);return el?el.content.trim():'';}
+function getAdminToken(){return getCookie('bm_admin')||localStorage.getItem('ADMIN_TOKEN')||getMeta('admin-token')||'';}
+function setAdminToken(tok){if(!tok)return;localStorage.setItem('ADMIN_TOKEN',tok);setCookie('bm_admin',tok,365);}
 
 /* ================== Tabs ================== */
-$$('.tab').forEach(b=>b.addEventListener('click',()=>{ $$('.tab').forEach(x=>x.classList.remove('active')); b.classList.add('active'); $$('.panel').forEach(p=>p.classList.add('hidden')); $('#panel-'+b.dataset.panel)?.classList.remove('hidden'); }));
+$$('.tab').forEach(b=>b.addEventListener('click',()=>{$$('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.panel').forEach(p=>p.classList.add('hidden'));$('#panel-'+b.dataset.panel)?.classList.remove('hidden')}));
 
 /* ================== Editor + Preview ================== */
 const state={id:null,dirty:false,adminToken:''};
 const titleEl=$('#title'), slugEl=$('#slug'), sumEl=$('#summary'), heroEl=$('#hero'), bodyEl=$('#body');
 const pTitle=$('#p-title'), pSlug=$('#p-slug'), pImg=$('#p-img'), pSum=$('#p-summary'), pBody=$('#p-body');
-const setDirty=v=>{ state.dirty=v; $('#dirtyFlag').hidden=!v; };
-const updatePreview=()=>{ pTitle.textContent=titleEl.value||'Title'; pSlug.textContent='/posts/'+(slugEl.value||'title'); const h=(heroEl.value||'').trim(); if(h){ pImg.src=h; pImg.classList.remove('hidden'); } else pImg.classList.add('hidden'); pSum.textContent=sumEl.value||'Summary appears here…'; pBody.innerHTML=bodyEl.innerHTML||'Start writing…'; };
-const previewTick=debounce(updatePreview, CONFIG.PREVIEW_DEBOUNCE_MS);
-const syncSlug=()=>{ if(!slugEl.dataset.manual) slugEl.value=slugify(titleEl.value); };
-titleEl.addEventListener('input',()=>{ syncSlug(); setDirty(true); previewTick(); });
-slugEl.addEventListener('input',()=>{ slugEl.dataset.manual='1'; setDirty(true); previewTick(); });
-sumEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
-heroEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
-bodyEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
-$$('.toolbar .btn[data-cmd]').forEach(b=>b.addEventListener('click',()=>{ const cmd=b.dataset.cmd; if(cmd==='createLink'){ const url=prompt('URL:'); if(url) document.execCommand('createLink',false,url); } else { document.execCommand(cmd,false,null); } setDirty(true); previewTick(); }));
-$('#fg').addEventListener('click',()=>{ const c=prompt('Text color','#e7e9ee'); if(c) document.execCommand('foreColor',false,c); setDirty(true); previewTick(); });
-$('#bg').addEventListener('click',()=>{ const c=prompt('Highlight','#2b344a'); if(c) document.execCommand('hiliteColor',false,c); setDirty(true); previewTick(); });
-$('#clearFmt').addEventListener('click',()=>{ document.execCommand('removeFormat',false,null); setDirty(true); previewTick(); });
+const setDirty=v=>{state.dirty=v;$('#dirtyFlag').hidden=!v;}
+const updatePreview=()=>{pTitle.textContent=titleEl.value||'Title';pSlug.textContent='/posts/'+(slugEl.value||'title');const h=(heroEl.value||'').trim();if(h){pImg.src=h;pImg.classList.remove('hidden')}else pImg.classList.add('hidden');pSum.textContent=sumEl.value||'Summary appears here…';pBody.innerHTML=bodyEl.innerHTML||'Start writing…';}
+const previewTick=debounce(updatePreview,CONFIG.PREVIEW_DEBOUNCE_MS);
+const syncSlug=()=>{if(!slugEl.dataset.manual)slugEl.value=slugify(titleEl.value);}
+titleEl.addEventListener('input',()=>{syncSlug();setDirty(true);previewTick();});
+slugEl.addEventListener('input',()=>{slugEl.dataset.manual='1';setDirty(true);previewTick();});
+sumEl.addEventListener('input',()=>{setDirty(true);previewTick();});
+heroEl.addEventListener('input',()=>{setDirty(true);previewTick();});
+bodyEl.addEventListener('input',()=>{setDirty(true);previewTick();});
+$$('.toolbar .btn[data-cmd]').forEach(b=>b.addEventListener('click',()=>{const cmd=b.dataset.cmd;if(cmd==='createLink'){const url=prompt('URL:');if(url)document.execCommand('createLink',false,url);}else{document.execCommand(cmd,false,null);}setDirty(true);previewTick();}));
+$('#fg').addEventListener('click',()=>{const c=prompt('Text color','#e7e9ee');if(c)document.execCommand('foreColor',false,c);setDirty(true);previewTick();});
+$('#bg').addEventListener('click',()=>{const c=prompt('Highlight','#2b344a');if(c)document.execCommand('hiliteColor',false,c);setDirty(true);previewTick();});
+$('#clearFmt').addEventListener('click',()=>{document.execCommand('removeFormat',false,null);setDirty(true);previewTick();});
 
 /* ================== Posts ================== */
-function collectForm(){ return { title:titleEl.value.trim(), slug: slugEl.value.trim()||slugify(titleEl.value), summary:sumEl.value.trim(), featureImageUrl:heroEl.value.trim(), bodyHtml:bodyEl.innerHTML.trim() }; }
-async function postsCreate(payload){ return await getJson(CONFIG.FNS.POSTS_CREATE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }); }
-async function postsArchive(id){ return await getJson(CONFIG.FNS.POSTS_ARCHIVE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id })}); }
-async function postsDelete(id){ return await getJson(CONFIG.FNS.POSTS_DELETE,  { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id })}); }
-async function saveDraft(){ const payload={...collectForm(),status:'draft'}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Draft saved'); await loadPosts(); }catch(e){ toast('Save failed: '+e.message,'err'); } }
-async function publishNow(){ const payload={...collectForm(),status:'published'}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Published'); await loadPosts(); }catch(e){ toast('Publish failed: '+e.message,'err'); } }
-async function schedule(){ const when=prompt('Publish at (YYYY-MM-DD HH:MM) local:'); if(!when) return; const iso=new Date(when.replace(' ','T')).toISOString(); const payload={...collectForm(),status:'scheduled',publishDate:iso}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Scheduled'); await loadPosts(); }catch(e){ toast('Schedule failed: '+e.message,'err'); } }
-$('#saveDraft').addEventListener('click',saveDraft); $('#publishBtn').addEventListener('click',publishNow); $('#scheduleBtn').addEventListener('click',schedule);
+function collectForm(){return{title:titleEl.value.trim(),slug:slugEl.value.trim()||slugify(titleEl.value),summary:sumEl.value.trim(),featureImageUrl:heroEl.value.trim(),bodyHtml:bodyEl.innerHTML.trim()};}
+async function postsCreate(payload){return await getJson(CONFIG.FNS.POSTS_CREATE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}
+async function saveDraft(){const payload={...collectForm(),status:'draft'};if(!payload.title){toast('Title required','warn');return;}try{await postsCreate(payload);setDirty(false);toast('Draft saved');await loadPosts();}catch(e){toast('Save failed: '+e.message,'err');}}
+async function publishNow(){const payload={...collectForm(),status:'published'};if(!payload.title){toast('Title required','warn');return;}try{await postsCreate(payload);setDirty(false);toast('Published');await loadPosts();}catch(e){toast('Publish failed: '+e.message,'err');}}
+async function schedule(){const when=prompt('Publish at (YYYY-MM-DD HH:MM) local:');if(!when)return;const iso=new Date(when.replace(' ','T')).toISOString();const payload={...collectForm(),status:'scheduled',publishDate:iso};if(!payload.title){toast('Title required','warn');return;}try{await postsCreate(payload);setDirty(false);toast('Scheduled');await loadPosts();}catch(e){toast('Schedule failed: '+e.message,'err');}}
+$('#saveDraft').addEventListener('click',saveDraft);$('#publishBtn').addEventListener('click',publishNow);$('#scheduleBtn').addEventListener('click',schedule);
 
-const postListEl=$('#postList'); const filterPostsEl=$('#filterPosts');
-function statusDot(s){ if(s==='published') return '<span class="status-dot dot-published"></span>Published'; if(s==='scheduled') return '<span class="status-dot dot-scheduled"></span>Scheduled'; if(s==='archived') return '<span class="status-dot dot-draft"></span>Archived'; return '<span class="status-dot dot-draft"></span>Draft'; }
+const postListEl=$('#postList'), filterPostsEl=$('#filterPosts');
+function statusDot(s){if(s==='published')return'<span class="status-dot dot-published"></span>Published';if(s==='scheduled')return'<span class="status-dot dot-scheduled"></span>Scheduled';if(s==='archived')return'<span class="status-dot dot-draft"></span>Archived';return'<span class="status-dot dot-draft"></span>Draft';}
 function renderPosts(items){
-  postListEl.innerHTML=''; if(!items?.length){ postListEl.innerHTML='<div class="muted">No posts found.</div>'; return; }
+  postListEl.innerHTML='';
+  if(!items?.length){postListEl.innerHTML='<div class="muted">No posts found.</div>';return;}
   for(const it of items){
-    const id = it.id || it._id || '';
-    const el=document.createElement('div'); el.className='item';
-    el.innerHTML = `
+    const id=it.id||it._id||'';
+    const el=document.createElement('div');el.className='item';
+    el.innerHTML=`
       <div>
-        <div style="font-weight:600">${it.title || '(untitled)'} <span class="muted">/${it.slug || ''}</span></div>
-        <div class="meta muted">${statusDot(it.status || 'draft')} · Updated ${new Date(it.updated_at || it.updatedOn || it.created_at || it.createdOn || Date.now()).toLocaleString()}</div>
+        <div style="font-weight:600">${it.title||'(untitled)'} <span class="muted">/${it.slug||''}</span></div>
+        <div class="meta muted">${statusDot(it.status||'draft')} · Updated ${new Date(it.updatedOn||it.updated_at||it.createdOn||it.created_at||Date.now()).toLocaleString()}</div>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
         <button class="btn" data-act="edit" data-id="${id}">Edit</button>
-        ${ (it.status||'')!=='published' ? `<button class="btn ok" data-act="pub" data-id="${id}">Publish</button>` : '' }
+        ${(it.status||'')!=='published'?`<button class="btn ok" data-act="pub" data-id="${id}">Publish</button>`:''}
         <button class="btn warn" data-act="archive" data-id="${id}">Archive</button>
         <button class="btn" data-act="delete" data-id="${id}">Delete</button>
       </div>`;
@@ -324,142 +324,119 @@ function renderPosts(items){
   $$('#postList .btn').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.id, act=b.dataset.act;
     try{
-      if(act==='pub'){ await publishNow(); return; }
-      if(act==='archive'){ if(!confirm('Archive this post?')) return; await postsArchive(id); toast('Archived'); await loadPosts(); return; }
-      if(act==='delete'){ if(!confirm('Delete this post? This cannot be undone.')) return; await postsDelete(id); toast('Deleted'); await loadPosts(); return; }
+      if(act==='pub'){await publishNow();return;}
+      if(act==='archive'){if(!confirm('Archive this post?'))return;await getJson(CONFIG.FNS.POSTS_ARCHIVE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});toast('Archived');await loadPosts();return;}
+      if(act==='delete'){if(!confirm('Delete this post? This cannot be undone.'))return;await getJson(CONFIG.FNS.POSTS_DELETE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})});toast('Deleted');await loadPosts();return;}
       if(act==='edit'){
-        const list = await loadPosts(true);
-        const found = list.find(x=> String(x.id||x._id||'')===String(id));
+        const list=await loadPosts(true);
+        const found=list.find(x=>String(x.id||x._id||'')===String(id));
         if(found){
-          titleEl.value=found.title||''; slugEl.value=found.slug||''; sumEl.value=found.summary||found.seoDescription||''; heroEl.value=found.featureImageUrl||found.hero||'';
-          bodyEl.innerHTML=found.bodyHtml||found.body_html||found.body||''; setDirty(false); updatePreview(); document.querySelector('.tab[data-panel="write"]').click(); toast('Loaded into editor');
+          titleEl.value=found.title||'';slugEl.value=found.slug||'';sumEl.value=found.summary||found.seoDescription||'';heroEl.value=found.featureImageUrl||found.hero||'';
+          bodyEl.innerHTML=found.bodyHtml||found.body_html||found.body||'';setDirty(false);updatePreview();document.querySelector('.tab[data-panel="write"]').click();toast('Loaded into editor');
         }
       }
-    }catch(e){ toast('Action failed: '+e.message,'err'); }
+    }catch(e){toast('Action failed: '+e.message,'err');}
   }));
 }
 async function loadPosts(returnData=false){
   try{
-    const qs=new URLSearchParams(); const f=filterPostsEl.value; if(f) qs.set('status',f);
-    const data=await getJson(`${CONFIG.FNS.POSTS_LIST}?${qs.toString()}`); const items=Array.isArray(data)?data:(data.items||data.data||[]);
-    if(returnData) return items; renderPosts(items); return items;
-  }catch(e){ postListEl.innerHTML='<div class="muted">Couldn’t fetch posts from blog-posts-list.</div>'; return []; }
+    const qs=new URLSearchParams();const f=filterPostsEl.value;if(f)qs.set('status',f);qs.set('_',String(Date.now()));
+    const data=await getJson(`${CONFIG.FNS.POSTS_LIST}?${qs.toString()}`);
+    const items=Array.isArray(data)?data:(data.items||data.data||[]);
+    if(returnData)return items;renderPosts(items);return items;
+  }catch(e){postListEl.innerHTML='<div class="muted">Couldn’t fetch posts.</div>';return[];}
 }
-$('#refreshPosts').addEventListener('click',()=>loadPosts()); $('#filterPosts').addEventListener('change',()=>loadPosts());
+$('#refreshPosts').addEventListener('click',()=>loadPosts());$('#filterPosts').addEventListener('change',()=>loadPosts());
 
 /* ================== Comments ================== */
 const commentListEl=$('#commentList');
 function renderComments(items){
-  commentListEl.innerHTML=''; if(!items?.length){ commentListEl.innerHTML='<div class="muted">No comments.</div>'; return; }
+  commentListEl.innerHTML='';if(!items?.length){commentListEl.innerHTML='<div class="muted">No comments.</div>';return;}
   for(const c of items){
-    const el=document.createElement('div'); el.className='item';
+    const el=document.createElement('div');el.className='item';
     el.innerHTML=`<div><div style="display:flex;gap:8px;align-items:center"><strong>${c.authorName||c.name||'Anon'}</strong>${c.postId?`<span class="chip">/${c.postId}</span>`:''}<span class="muted">${new Date(c.createdOn||c.created_at||Date.now()).toLocaleString()}</span></div><div style="margin-top:6px">${(c.message||c.body||'').toString()}</div></div><div style="display:flex;gap:6px"><button class="btn ok" data-act="approve" data-id="${c.id}">Approve</button><button class="btn" data-act="delete" data-id="${c.id}">Delete</button></div>`;
     commentListEl.appendChild(el);
   }
   $$('#commentList .btn').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.id, act=b.dataset.act;
     try{
-      const headers={'Content-Type':'application/json'}; const tok=state.adminToken; if(tok) headers['Authorization']='Bearer '+tok;
-      await getJson(CONFIG.FNS.COMMENTS_MODERATE,{ method:'POST', headers, body: JSON.stringify({ id, action: act==='approve'?'approve':'delete' })});
-      toast('Updated'); await loadComments();
-    }catch(e){ toast('Action failed: '+e.message,'err'); }
+      const headers={'Content-Type':'application/json'};const tok=state.adminToken;if(tok)headers['Authorization']='Bearer '+tok;
+      await getJson(CONFIG.FNS.COMMENTS_MOD,{method:'POST',headers,body:JSON.stringify({id,action:act==='approve'?'approve':'delete'})});
+      toast('Updated');await loadComments();
+    }catch(e){toast('Action failed: '+e.message,'err');}
   }));
 }
 async function loadComments(){
   try{
-    const data=await getJson(CONFIG.FNS.COMMENTS_LIST); renderComments(Array.isArray(data)?data:(data.items||data.data||[]));
-  }catch(e){ commentListEl.innerHTML='<div class="muted">Couldn’t fetch comments.</div>'; }
+    const data=await getJson(CONFIG.FNS.COMMENTS_LIST);
+    renderComments(Array.isArray(data)?data:(data.items||data.data||[]));
+  }catch(e){commentListEl.innerHTML='<div class="muted">Couldn’t fetch comments.</div>';}
 }
 $('#refreshComments').addEventListener('click',loadComments);
 
-/* ================== Media Picker (BLOG-only) ================== */
+/* ================== Media Picker (BLOG only) ================== */
 let mediaTarget=null, selectedMedia=null;
 const modal=$('#mediaModal'), drop=$('#drop'), fileInput=$('#fileInput'), grid=$('#mediaGrid'), actions=$('#mediaActions');
-function openMedia(){ modal.classList.add('show'); setMiniTab('library'); loadMedia(); }
-$('#pickHero').addEventListener('click',()=>{ mediaTarget='hero'; openMedia(); });
-$('#insertMedia').addEventListener('click',()=>{ mediaTarget='body'; openMedia(); });
-$('#closeMedia').addEventListener('click',()=> modal.classList.remove('show')); $('#refreshMedia').addEventListener('click',loadMedia);
+function openMedia(){modal.classList.add('show');setMiniTab('library');loadMedia();}
+$('#pickHero').addEventListener('click',()=>{mediaTarget='hero';openMedia();});
+$('#insertMedia').addEventListener('click',()=>{mediaTarget='body';openMedia();});
+$('#closeMedia').addEventListener('click',()=>modal.classList.remove('show'));
+$('#refreshMedia').addEventListener('click',loadMedia);
 $('#mediaSearch').addEventListener('input',debounce(loadMedia,300));
-function setMiniTab(v){ $$('.tab-mini').forEach(b=>b.classList.toggle('active', b.dataset.v===v)); $('#pane-upload').classList.toggle('hidden', v!=='upload'); $('#pane-library').classList.toggle('hidden', v!=='library'); }
-$$('.tab-mini').forEach(b=> b.addEventListener('click',()=> setMiniTab(b.dataset.v)));
-;['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add('drag'); }));
-;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
-drop.addEventListener('drop',e=> handleFiles(e.dataTransfer.files)); drop.addEventListener('click',()=> fileInput.click()); fileInput.addEventListener('change',()=> handleFiles(fileInput.files));
-document.addEventListener('paste',e=>{ if(!modal.classList.contains('show')) return; const files=Array.from(e.clipboardData.files||[]); if(files.length) handleFiles(files); });
+function setMiniTab(v){$$('.tab-mini').forEach(b=>b.classList.toggle('active',b.dataset.v===v));$('#pane-upload').classList.toggle('hidden',v!=='upload');$('#pane-library').classList.toggle('hidden',v!=='library');}
+$$('.tab-mini').forEach(b=>b.addEventListener('click',()=>setMiniTab(b.dataset.v)));
+;['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+drop.addEventListener('drop',e=>handleFiles(e.dataTransfer.files));drop.addEventListener('click',()=>fileInput.click());fileInput.addEventListener('change',()=>handleFiles(fileInput.files));
+document.addEventListener('paste',e=>{if(!modal.classList.contains('show'))return;const files=Array.from(e.clipboardData.files||[]);if(files.length)handleFiles(files);});
 
-function inferType(url){ const u=(url||'').toLowerCase(); if(/\.(mp4|mov|webm|mkv)$/.test(u)) return 'video'; if(/\.(mp3|wav|m4a|flac|ogg)$/.test(u)) return 'audio'; return 'image'; }
-function cldThumb(url,type){ if(!url) return ''; const isCld=/res\.cloudinary\.com/.test(url); if(!isCld) return type==='image'?url:''; if(type==='image') return url.replace('/upload/','/upload/c_fill,w_320,h_220,q_auto,f_auto/'); if(type==='video') return url.replace('/video/upload/','/video/upload/so_0/').replace(/\.(mp4|mov|webm|mkv)$/i,'.jpg'); return ''; }
-function svg(kind){ return kind==='audio' ? `<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M9 9h3l4-4v14l-4-4H9V9z" stroke="#9aa3b2" stroke-width="1.5"/><circle cx="6" cy="12" r="2" stroke="#9aa3b2"/></svg>` : `<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="14" height="14" rx="2" stroke="#9aa3b2" stroke-width="1.5"/><path d="M17 9l4-2v10l-4-2z" stroke="#9aa3b2" stroke-width="1.5"/></svg>`; }
-function makeCard(m){ const url=m.url||m.secure_url||''; const type=m.resource_type||m.type||inferType(url); const thumb=m.thumb||cldThumb(url,type); const title=m.filename||m.public_id||(url.split('/').pop()); const el=document.createElement('div'); el.className='thumb'; el.tabIndex=0; el.setAttribute('role','option'); el.innerHTML=`<div class="imgwrap">${ type==='image' && thumb ? `<img src="${thumb}" alt="" loading="lazy">` : svg(type==='audio'?'audio':'video') }</div><div class="t"><span title="${title}">${title}</span><span class="type">${type}</span></div>`; el.addEventListener('click',()=> selectMedia({url,type,raw:m}, el)); el.addEventListener('dblclick',insertSelected); el.addEventListener('keydown',e=>{ if(e.key==='Enter') insertSelected(); }); return el; }
-function selectMedia(m, el){ selectedMedia=m; $$('#mediaGrid .thumb').forEach(x=> x.style.outline='none'); el.style.outline=`2px solid ${css('--accent')}`; actions.classList.remove('hidden'); }
-$('#insertSelected').addEventListener('click', insertSelected);
-$('#deleteSelected').addEventListener('click', async ()=>{ if(!selectedMedia?.raw?.id){ toast('Missing media id','warn'); return; } try{ await mediaDelete(selectedMedia.raw.id); toast('Deleted'); selectedMedia=null; actions.classList.add('hidden'); await loadMedia(); }catch(e){ toast('Delete failed: '+e.message,'err'); }});
-function insertSelected(){ if(!selectedMedia){ toast('Select an item','warn'); return; } const {type,url}=selectedMedia; if(mediaTarget==='hero'){ if(type!=='image'){ toast('Hero must be an image','warn'); return; } heroEl.value=url; updatePreview(); toast('Hero set'); modal.classList.remove('show'); return; } if(type==='image'){ const img=document.createElement('img'); img.src=url; img.alt=''; img.style.maxWidth='100%'; bodyEl.appendChild(img); } else if(type==='video'){ const v=document.createElement('video'); v.src=url; v.controls=true; v.preload='none'; v.style.maxWidth='100%'; bodyEl.appendChild(v); } else { const a=document.createElement('audio'); a.src=url; a.controls=true; bodyEl.appendChild(a); } setDirty(true); previewTick(); toast('Inserted'); modal.classList.remove('show'); }
-
-async function mediaList(query){
-  let lastErr=null;
-  for(const key of SCOPE_KEYS){
-    const qs=new URLSearchParams(); qs.set(key, CONFIG.MEDIA_COLLECTION_VALUE); if(query) qs.set('q', query);
-    try{ return await getJson(`${CONFIG.FNS.MEDIA_LIST}?${qs.toString()}`); }catch(e){ lastErr=e; }
-  }
-  throw lastErr || new Error('Media list failed');
-}
-async function mediaUpload(file){
-  let lastErr=null;
-  for(const key of SCOPE_KEYS){
-    try{
-      const fd=new FormData(); fd.append('file', file); fd.append(key, CONFIG.MEDIA_COLLECTION_VALUE);
-      return await getJson(CONFIG.FNS.MEDIA_UPLOAD,{ method:'POST', body: fd });
-    }catch(e){ lastErr=e; }
-  }
-  throw lastErr || new Error('Upload failed');
-}
-async function mediaDelete(id){
-  let lastErr=null;
-  for(const key of SCOPE_KEYS){
-    try{
-      const qs=new URLSearchParams(); qs.set(key, CONFIG.MEDIA_COLLECTION_VALUE); qs.set('id', id);
-      return await getJson(`${CONFIG.FNS.MEDIA_DELETE}?${qs.toString()}`, { method:'DELETE' });
-    }catch(e){ lastErr=e; }
-  }
-  throw lastErr || new Error('Delete failed');
-}
+function inferType(url){const u=(url||'').toLowerCase();if(/\.(mp4|mov|webm|mkv)$/.test(u))return'video';if(/\.(mp3|wav|m4a|flac|ogg)$/.test(u))return'audio';return'image';}
+function cldThumb(url,type){if(!url)return'';const isCld=/res\.cloudinary\.com/.test(url);if(!isCld)return type==='image'?url:'';if(type==='image')return url.replace('/upload/','/upload/c_fill,w_320,h_220,q_auto,f_auto/');if(type==='video')return url.replace('/video/upload/','/video/upload/so_0/').replace(/\.(mp4|mov|webm|mkv)$/i,'.jpg');return'';}
+function svg(kind){return kind==='audio'?`<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M9 9h3l4-4v14l-4-4H9V9z" stroke="#9aa3b2" stroke-width="1.5"/><circle cx="6" cy="12" r="2" stroke="#9aa3b2"/></svg>`:`<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="14" height="14" rx="2" stroke="#9aa3b2" stroke-width="1.5"/><path d="M17 9l4-2v10l-4-2z" stroke="#9aa3b2" stroke-width="1.5"/></svg>`;}
+function makeCard(m){const url=m.url||m.secure_url||m.secureUrl||m.path||'';const type=m.resource_type||m.type||inferType(url);const thumb=m.thumb||m.thumbnail_url||cldThumb(url,type);const title=m.filename||m.public_id||m.name||(url.split('/').pop());const el=document.createElement('div');el.className='thumb';el.tabIndex=0;el.setAttribute('role','option');el.innerHTML=`<div class="imgwrap">${type==='image'&&thumb?`<img src="${thumb}" alt="" loading="lazy">`:svg(type==='audio'?'audio':'video')}</div><div class="t"><span title="${title}">${title}</span><span class="type">${type}</span></div>`;el.addEventListener('click',()=>selectMedia({url,type,raw:m},el));el.addEventListener('dblclick',insertSelected);el.addEventListener('keydown',e=>{if(e.key==='Enter')insertSelected();});return el;}
+function selectMedia(m,el){selectedMedia=m;$$('#mediaGrid .thumb').forEach(x=>x.style.outline='none');el.style.outline=`2px solid ${css('--accent')}`;actions.classList.remove('hidden');}
+$('#insertSelected').addEventListener('click',insertSelected);
+$('#deleteSelected').addEventListener('click',async()=>{if(!selectedMedia?.raw?.id){toast('Missing media id','warn');return;}try{const qs=new URLSearchParams();qs.set('collection',CONFIG.MEDIA_SCOPE_VALUE);qs.set('id',selectedMedia.raw.id);await getJson(`${CONFIG.FNS.MEDIA_DELETE}?${qs.toString()}`,{method:'DELETE'});toast('Deleted');selectedMedia=null;actions.classList.add('hidden');await loadMedia();}catch(e){toast('Delete failed: '+e.message,'err');}});
+function insertSelected(){if(!selectedMedia){toast('Select an item','warn');return;}const {type,url}=selectedMedia;if(mediaTarget==='hero'){if(type!=='image'){toast('Hero must be an image','warn');return;}heroEl.value=url;updatePreview();toast('Hero set');modal.classList.remove('show');return;}if(type==='image'){const img=document.createElement('img');img.src=url;img.alt='';img.style.maxWidth='100%';bodyEl.appendChild(img);}else if(type==='video'){const v=document.createElement('video');v.src=url;v.controls=true;v.preload='none';v.style.maxWidth='100%';bodyEl.appendChild(v);}else{const a=document.createElement('audio');a.src=url;a.controls=true;bodyEl.appendChild(a);}setDirty(true);previewTick();toast('Inserted');modal.classList.remove('show');}
 
 async function handleFiles(fileList){
-  const files=Array.from(fileList||[]); if(!files.length) return;
+  const files=Array.from(fileList||[]);if(!files.length)return;
   for(const f of files){
-    try{ $('#uploadHint').textContent=`Uploading ${f.name}…`; await mediaUpload(f); toast('Uploaded'); }
-    catch(e){ toast('Upload failed: '+e.message,'err'); }
-    finally{ $('#uploadHint').textContent='Ready'; }
+    try{
+      $('#uploadHint').textContent=`Uploading ${f.name}…`;
+      const fd=new FormData();fd.append('file',f);
+      const url=`${CONFIG.FNS.MEDIA_UPLOAD}?collection=${encodeURIComponent(CONFIG.MEDIA_SCOPE_VALUE)}&_=${Date.now()}`;
+      const res=await fetch(url,{method:'POST',body:fd,cache:'no-store'});
+      if(!res.ok)throw new Error(await res.text());
+      await res.json();
+      toast('Uploaded');
+    }catch(e){toast('Upload failed: '+e.message,'err');}
+    finally{$('#uploadHint').textContent='Ready';}
   }
-  setMiniTab('library'); await loadMedia();
+  setMiniTab('library');await loadMedia();
 }
+
 async function loadMedia(){
-  selectedMedia=null; actions.classList.add('hidden');
+  selectedMedia=null;actions.classList.add('hidden');
   try{
-    const s=$('#mediaSearch').value.trim();
-    const data=await mediaList(s);
+    const qs=new URLSearchParams();qs.set('collection',CONFIG.MEDIA_SCOPE_VALUE);qs.set('_',String(Date.now()));
+    const url=`${CONFIG.FNS.MEDIA_LIST}?${qs.toString()}`;
+    const res=await fetch(url,{cache:'no-store'});const data=await res.json();
     const items=Array.isArray(data)?data:(data.items||data.data||[]);
-    $('#mediaCount').textContent=items.length;
-    const gridEl=$('#mediaGrid'); gridEl.innerHTML='';
-    for(const m of items) gridEl.appendChild(makeCard(m));
-  }catch(e){
-    $('#mediaGrid').innerHTML='<div class="muted">Couldn’t fetch media for BLOG collection.</div>';
-  }
+    $('#mediaCount').textContent=items.length;const gridEl=$('#mediaGrid');gridEl.innerHTML='';for(const m of items)gridEl.appendChild(makeCard(m));
+  }catch(e){console.error(e);$('#mediaGrid').innerHTML='<div class="muted">Couldn’t fetch media for BLOG collection.</div>';}
 }
 
 /* ================== Settings ================== */
-$('#cfgDebounce').value = String(CONFIG.PREVIEW_DEBOUNCE_MS);
-$('#cfgCollection').value = CONFIG.M
-EDIA_COLLECTION_VALUE;
-$('#saveCfg').addEventListener('click', ()=>{ const tok=$('#cfgAdmin')?.value.trim(); if(tok){ state.adminToken=tok; setAdminToken(tok); } CONFIG.M
-EDIA_COLLECTION_VALUE = ($('#cfgCollection')?.value.trim()||'blog'); CONFIG.PREVIEW_DEBOUNCE_MS = parseInt($('#cfgDebounce')?.value||'120',10); toast('Settings saved'); });
+$('#cfgDebounce').value=String(CONFIG.PREVIEW_DEBOUNCE_MS);
+$('#cfgCollection').value=CONFIG.MEDIA_SCOPE_VALUE;
+$('#saveCfg').addEventListener('click',()=>{const tok=$('#cfgAdmin')?.value.trim();if(tok){state.adminToken=tok;setAdminToken(tok);}CONFIG.MEDIA_SCOPE_VALUE=($('#cfgCollection')?.value.trim()||'blog');CONFIG.PREVIEW_DEBOUNCE_MS=parseInt($('#cfgDebounce')?.value||'120',10);toast('Settings saved');});
 
 /* ================== Init ================== */
 (async function init(){
-  const remembered = getAdminToken(); if(remembered){ state.adminToken = remembered; const i=$('#cfgAdmin'); if(i) i.value=remembered; }
+  const remembered=getAdminToken();if(remembered){state.adminToken=remembered;const i=$('#cfgAdmin');if(i)i.value=remembered;}
   updatePreview();
-  await Promise.all([loadPosts(), loadComments()]);
+  await Promise.all([loadPosts(),loadComments()]);
 })();
 </script>
 </body>
