@@ -4,13 +4,10 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Blog Manager — Professional</title>
-<!-- Optional: set once at build time instead of typing in Settings -->
+<!-- Optional: set once at build time -->
 <!-- <meta name="admin-token" content="YOUR_ADMIN_TOKEN_HERE"> -->
 <style>
-  :root{
-    --bg:#0f0f12; --panel:#151720; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#7aa2ff;
-    --ok:#2ecc71; --warn:#f39c12; --err:#ff6161; --edge:#222635; --panel2:#0e1118;
-  }
+  :root{ --bg:#0f0f12; --panel:#151720; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#7aa2ff; --ok:#2ecc71; --warn:#f39c12; --err:#ff6161; --edge:#222635; --panel2:#0e1118; }
   *{box-sizing:border-box}
   body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:linear-gradient(180deg,#0b0c10,#101217)}
   .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
@@ -19,8 +16,7 @@
   .pill{padding:3px 8px;border:1px solid var(--edge);border-radius:999px;color:var(--muted)}
   .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 16px}
   .tab{appearance:none;border:1px solid var(--edge);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer;transition:.15s transform}
-  .tab:hover{transform:translateY(-1px)}
-  .tab.active{border-color:var(--accent);outline:1px solid color-mix(in oklab,var(--accent) 40%,transparent)}
+  .tab:hover{transform:translateY(-1px)} .tab.active{border-color:var(--accent);outline:1px solid color-mix(in oklab,var(--accent) 40%,transparent)}
   .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
   .card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}
   .card .hd{padding:10px 12px;border-bottom:1px solid var(--edge);color:var(--muted);display:flex;align-items:center;justify-content:space-between}
@@ -54,6 +50,8 @@
   .tabs-mini{display:flex;gap:6px;margin-bottom:10px}
   .tab-mini{padding:6px 10px;border:1px solid var(--edge);border-radius:8px;background:#0e1016;cursor:pointer}
   .tab-mini.active{border-color:var(--accent)}
+  .pane-title{font-weight:600;color:var(--ink);margin:4px 0 8px}
+  .pane-help{font-size:12px;color:var(--muted);margin:0 0 8px}
   .drop{border:1px dashed var(--edge);border-radius:12px;background:#0e1118;padding:16px;text-align:center}
   .drop.drag{outline:2px dashed var(--accent)}
   .media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px}
@@ -148,6 +146,7 @@
             <option value="draft">Draft</option>
             <option value="scheduled">Scheduled</option>
             <option value="published">Published</option>
+            <option value="archived">Archived</option>
           </select>
           <button class="btn" id="refreshPosts">Refresh</button>
         </div>
@@ -212,14 +211,18 @@
         <button class="tab-mini active" data-v="library">Library</button>
       </div>
       <div id="pane-upload" class="hidden">
+        <div class="pane-title">Upload to Blog Library</div>
+        <p class="pane-help">Drag & drop files, paste from clipboard, or browse. Images, video, and audio supported.</p>
         <div id="drop" class="drop">
-          <p style="margin:0 0 6px 0">Drag & drop files, paste from clipboard, or <label for="fileInput" style="text-decoration:underline;cursor:pointer">browse</label></p>
+          <p style="margin:0 0 6px 0"><label for="fileInput" style="text-decoration:underline;cursor:pointer">browse</label></p>
           <input id="fileInput" type="file" accept="image/*,video/*,audio/*" multiple class="hidden"/>
           <div class="muted" id="uploadHint">Ready</div>
         </div>
       </div>
       <div id="pane-library">
-        <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <div class="pane-title">Blog Library</div>
+        <p class="pane-help">Click to select. Double-click (or press Enter) to insert. If opened from “Pick…”, click sets the Hero image.</p>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
           <span class="muted">Items</span><span id="mediaCount" class="chip">0</span>
           <button class="btn" id="refreshMedia">Refresh</button>
         </div>
@@ -237,18 +240,20 @@
 /* ================== HARD-LOCKED BLOG ENDPOINTS ================== */
 const CONFIG = {
   FNS: {
-    POSTS_LIST:   '/.netlify/functions/blog-posts-list',
-    POSTS_CREATE: '/.netlify/functions/posts-create',
+    POSTS_LIST:    '/.netlify/functions/blog-posts-list',
+    POSTS_CREATE:  '/.netlify/functions/posts-create',
+    POSTS_ARCHIVE: '/.netlify/functions/blog-posts-archive',
+    POSTS_DELETE:  '/.netlify/functions/blog-posts-delete',
     COMMENTS_LIST:     '/.netlify/functions/comments-list',
     COMMENTS_MODERATE: '/.netlify/functions/comments-moderate',
     MEDIA_LIST:   '/.netlify/functions/blog-media-list',
     MEDIA_UPLOAD: '/.netlify/functions/blog-media-upload',
     MEDIA_DELETE: '/.netlify/functions/blog-media-delete'
   },
-  MEDIA_COLLECTION_PARAM: 'collection',
   MEDIA_COLLECTION_VALUE: 'blog',
   PREVIEW_DEBOUNCE_MS: 120
 };
+const SCOPE_KEYS = ['collection','folder','tag','scope']; // try in order
 
 /* ================== helpers ================== */
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -288,34 +293,49 @@ $('#clearFmt').addEventListener('click',()=>{ document.execCommand('removeFormat
 
 /* ================== Posts ================== */
 function collectForm(){ return { title:titleEl.value.trim(), slug: slugEl.value.trim()||slugify(titleEl.value), summary:sumEl.value.trim(), featureImageUrl:heroEl.value.trim(), bodyHtml:bodyEl.innerHTML.trim() }; }
-async function postsCreate(payload){ const data=await getJson(CONFIG.FNS.POSTS_CREATE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }); return data; }
+async function postsCreate(payload){ return await getJson(CONFIG.FNS.POSTS_CREATE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }); }
+async function postsArchive(id){ return await getJson(CONFIG.FNS.POSTS_ARCHIVE, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id })}); }
+async function postsDelete(id){ return await getJson(CONFIG.FNS.POSTS_DELETE,  { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id })}); }
 async function saveDraft(){ const payload={...collectForm(),status:'draft'}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Draft saved'); await loadPosts(); }catch(e){ toast('Save failed: '+e.message,'err'); } }
 async function publishNow(){ const payload={...collectForm(),status:'published'}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Published'); await loadPosts(); }catch(e){ toast('Publish failed: '+e.message,'err'); } }
 async function schedule(){ const when=prompt('Publish at (YYYY-MM-DD HH:MM) local:'); if(!when) return; const iso=new Date(when.replace(' ','T')).toISOString(); const payload={...collectForm(),status:'scheduled',publishDate:iso}; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Scheduled'); await loadPosts(); }catch(e){ toast('Schedule failed: '+e.message,'err'); } }
 $('#saveDraft').addEventListener('click',saveDraft); $('#publishBtn').addEventListener('click',publishNow); $('#scheduleBtn').addEventListener('click',schedule);
 
 const postListEl=$('#postList'); const filterPostsEl=$('#filterPosts');
-function statusDot(s){ if(s==='published') return '<span class="status-dot dot-published"></span>Published'; if(s==='scheduled') return '<span class="status-dot dot-scheduled"></span>Scheduled'; return '<span class="status-dot dot-draft"></span>Draft'; }
+function statusDot(s){ if(s==='published') return '<span class="status-dot dot-published"></span>Published'; if(s==='scheduled') return '<span class="status-dot dot-scheduled"></span>Scheduled'; if(s==='archived') return '<span class="status-dot dot-draft"></span>Archived'; return '<span class="status-dot dot-draft"></span>Draft'; }
 function renderPosts(items){
   postListEl.innerHTML=''; if(!items?.length){ postListEl.innerHTML='<div class="muted">No posts found.</div>'; return; }
   for(const it of items){
+    const id = it.id || it._id || '';
     const el=document.createElement('div'); el.className='item';
-    el.innerHTML=`<div><div style="font-weight:600">${it.title||'(untitled)'} <span class="muted">/${it.slug||''}</span></div><div class="meta muted">${statusDot(it.status||'draft')} · Updated ${new Date(it.updated_at||it.updatedOn||it.created_at||it.createdOn||Date.now()).toLocaleString()}</div></div><div style="display:flex;gap:6px"><button class="btn" data-act="edit" data-id="${it.id||it._id||''}">Edit</button>${(it.status||'')!=='published'?`<button class="btn ok" data-act="pub" data-id="${it.id||it._id||''}">Publish</button>`:''}</div>`;
+    el.innerHTML = `
+      <div>
+        <div style="font-weight:600">${it.title || '(untitled)'} <span class="muted">/${it.slug || ''}</span></div>
+        <div class="meta muted">${statusDot(it.status || 'draft')} · Updated ${new Date(it.updated_at || it.updatedOn || it.created_at || it.createdOn || Date.now()).toLocaleString()}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn" data-act="edit" data-id="${id}">Edit</button>
+        ${ (it.status||'')!=='published' ? `<button class="btn ok" data-act="pub" data-id="${id}">Publish</button>` : '' }
+        <button class="btn warn" data-act="archive" data-id="${id}">Archive</button>
+        <button class="btn" data-act="delete" data-id="${id}">Delete</button>
+      </div>`;
     postListEl.appendChild(el);
   }
   $$('#postList .btn').forEach(b=>b.addEventListener('click',async()=>{
     const id=b.dataset.id, act=b.dataset.act;
-    if(act==='pub'){ await publishNow(); return; }
-    if(act==='edit'){
-      try{
+    try{
+      if(act==='pub'){ await publishNow(); return; }
+      if(act==='archive'){ if(!confirm('Archive this post?')) return; await postsArchive(id); toast('Archived'); await loadPosts(); return; }
+      if(act==='delete'){ if(!confirm('Delete this post? This cannot be undone.')) return; await postsDelete(id); toast('Deleted'); await loadPosts(); return; }
+      if(act==='edit'){
         const list = await loadPosts(true);
         const found = list.find(x=> String(x.id||x._id||'')===String(id));
         if(found){
           titleEl.value=found.title||''; slugEl.value=found.slug||''; sumEl.value=found.summary||found.seoDescription||''; heroEl.value=found.featureImageUrl||found.hero||'';
           bodyEl.innerHTML=found.bodyHtml||found.body_html||found.body||''; setDirty(false); updatePreview(); document.querySelector('.tab[data-panel="write"]').click(); toast('Loaded into editor');
         }
-      }catch(e){ toast('Load failed','err'); }
-    }
+      }
+    }catch(e){ toast('Action failed: '+e.message,'err'); }
   }));
 }
 async function loadPosts(returnData=false){
@@ -373,19 +393,70 @@ function svg(kind){ return kind==='audio' ? `<svg width="40" height="40" viewBox
 function makeCard(m){ const url=m.url||m.secure_url||''; const type=m.resource_type||m.type||inferType(url); const thumb=m.thumb||cldThumb(url,type); const title=m.filename||m.public_id||(url.split('/').pop()); const el=document.createElement('div'); el.className='thumb'; el.tabIndex=0; el.setAttribute('role','option'); el.innerHTML=`<div class="imgwrap">${ type==='image' && thumb ? `<img src="${thumb}" alt="" loading="lazy">` : svg(type==='audio'?'audio':'video') }</div><div class="t"><span title="${title}">${title}</span><span class="type">${type}</span></div>`; el.addEventListener('click',()=> selectMedia({url,type,raw:m}, el)); el.addEventListener('dblclick',insertSelected); el.addEventListener('keydown',e=>{ if(e.key==='Enter') insertSelected(); }); return el; }
 function selectMedia(m, el){ selectedMedia=m; $$('#mediaGrid .thumb').forEach(x=> x.style.outline='none'); el.style.outline=`2px solid ${css('--accent')}`; actions.classList.remove('hidden'); }
 $('#insertSelected').addEventListener('click', insertSelected);
-$('#deleteSelected').addEventListener('click', async ()=>{ if(!selectedMedia?.raw?.id){ toast('Missing media id','warn'); return; } try{ const qs=new URLSearchParams(); qs.set(CONFIG.MEDIA_COLLECTION_PARAM, CONFIG.MEDIA_COLLECTION_VALUE); qs.set('id', selectedMedia.raw.id); await getJson(`${CONFIG.FNS.MEDIA_DELETE}?${qs.toString()}`, { method:'DELETE' }); toast('Deleted'); selectedMedia=null; actions.classList.add('hidden'); await loadMedia(); }catch(e){ toast('Delete failed: '+e.message,'err'); }});
+$('#deleteSelected').addEventListener('click', async ()=>{ if(!selectedMedia?.raw?.id){ toast('Missing media id','warn'); return; } try{ await mediaDelete(selectedMedia.raw.id); toast('Deleted'); selectedMedia=null; actions.classList.add('hidden'); await loadMedia(); }catch(e){ toast('Delete failed: '+e.message,'err'); }});
 function insertSelected(){ if(!selectedMedia){ toast('Select an item','warn'); return; } const {type,url}=selectedMedia; if(mediaTarget==='hero'){ if(type!=='image'){ toast('Hero must be an image','warn'); return; } heroEl.value=url; updatePreview(); toast('Hero set'); modal.classList.remove('show'); return; } if(type==='image'){ const img=document.createElement('img'); img.src=url; img.alt=''; img.style.maxWidth='100%'; bodyEl.appendChild(img); } else if(type==='video'){ const v=document.createElement('video'); v.src=url; v.controls=true; v.preload='none'; v.style.maxWidth='100%'; bodyEl.appendChild(v); } else { const a=document.createElement('audio'); a.src=url; a.controls=true; bodyEl.appendChild(a); } setDirty(true); previewTick(); toast('Inserted'); modal.classList.remove('show'); }
-async function handleFiles(fileList){ const files=Array.from(fileList||[]); if(!files.length) return; for(const f of files){ try{ $('#uploadHint').textContent=`Uploading ${f.name}…`; const fd=new FormData(); fd.append('file',f); fd.append(CONFIG.MEDIA_COLLECTION_PARAM, CONFIG.MEDIA_COLLECTION_VALUE); await getJson(CONFIG.FNS.MEDIA_UPLOAD,{ method:'POST', body:fd }); toast('Uploaded'); }catch(e){ toast('Upload failed: '+e.message,'err'); } finally{ $('#uploadHint').textContent='Ready'; } } setMiniTab('library'); await loadMedia(); }
-async function loadMedia(){ selectedMedia=null; actions.classList.add('hidden'); try{ const qs=new URLSearchParams(); qs.set(CONFIG.MEDIA_COLLECTION_PARAM, CONFIG.MEDIA_COLLECTION_VALUE); const q=$('#mediaSearch').value.trim(); if(q) qs.set('q',q); const data=await getJson(`${CONFIG.FNS.MEDIA_LIST}?${qs.toString()}`); const items=Array.isArray(data)?data:(data.items||data.data||[]); $('#mediaCount').textContent=items.length; const gridEl=$('#mediaGrid'); gridEl.innerHTML=''; for(const m of items) gridEl.appendChild(makeCard(m)); }catch(e){ $('#mediaGrid').innerHTML='<div class="muted">Couldn’t fetch media for BLOG collection.</div>'; }}
+
+async function mediaList(query){
+  let lastErr=null;
+  for(const key of SCOPE_KEYS){
+    const qs=new URLSearchParams(); qs.set(key, CONFIG.MEDIA_COLLECTION_VALUE); if(query) qs.set('q', query);
+    try{ return await getJson(`${CONFIG.FNS.MEDIA_LIST}?${qs.toString()}`); }catch(e){ lastErr=e; }
+  }
+  throw lastErr || new Error('Media list failed');
+}
+async function mediaUpload(file){
+  let lastErr=null;
+  for(const key of SCOPE_KEYS){
+    try{
+      const fd=new FormData(); fd.append('file', file); fd.append(key, CONFIG.MEDIA_COLLECTION_VALUE);
+      return await getJson(CONFIG.FNS.MEDIA_UPLOAD,{ method:'POST', body: fd });
+    }catch(e){ lastErr=e; }
+  }
+  throw lastErr || new Error('Upload failed');
+}
+async function mediaDelete(id){
+  let lastErr=null;
+  for(const key of SCOPE_KEYS){
+    try{
+      const qs=new URLSearchParams(); qs.set(key, CONFIG.MEDIA_COLLECTION_VALUE); qs.set('id', id);
+      return await getJson(`${CONFIG.FNS.MEDIA_DELETE}?${qs.toString()}`, { method:'DELETE' });
+    }catch(e){ lastErr=e; }
+  }
+  throw lastErr || new Error('Delete failed');
+}
+
+async function handleFiles(fileList){
+  const files=Array.from(fileList||[]); if(!files.length) return;
+  for(const f of files){
+    try{ $('#uploadHint').textContent=`Uploading ${f.name}…`; await mediaUpload(f); toast('Uploaded'); }
+    catch(e){ toast('Upload failed: '+e.message,'err'); }
+    finally{ $('#uploadHint').textContent='Ready'; }
+  }
+  setMiniTab('library'); await loadMedia();
+}
+async function loadMedia(){
+  selectedMedia=null; actions.classList.add('hidden');
+  try{
+    const s=$('#mediaSearch').value.trim();
+    const data=await mediaList(s);
+    const items=Array.isArray(data)?data:(data.items||data.data||[]);
+    $('#mediaCount').textContent=items.length;
+    const gridEl=$('#mediaGrid'); gridEl.innerHTML='';
+    for(const m of items) gridEl.appendChild(makeCard(m));
+  }catch(e){
+    $('#mediaGrid').innerHTML='<div class="muted">Couldn’t fetch media for BLOG collection.</div>';
+  }
+}
 
 /* ================== Settings ================== */
 $('#cfgDebounce').value = String(CONFIG.PREVIEW_DEBOUNCE_MS);
-$('#cfgCollection').value = CONFIG.MEDIA_COLLECTION_VALUE;
-$('#saveCfg').addEventListener('click', ()=>{ const tok=$('#cfgAdmin')?.value.trim(); if(tok){ state.adminToken=tok; setAdminToken(tok); } CONFIG.MEDIA_COLLECTION_VALUE = ($('#cfgCollection')?.value.trim()||'blog'); CONFIG.PREVIEW_DEBOUNCE_MS = parseInt($('#cfgDebounce')?.value||'120',10); toast('Settings saved'); });
+$('#cfgCollection').value = CONFIG.M
+EDIA_COLLECTION_VALUE;
+$('#saveCfg').addEventListener('click', ()=>{ const tok=$('#cfgAdmin')?.value.trim(); if(tok){ state.adminToken=tok; setAdminToken(tok); } CONFIG.M
+EDIA_COLLECTION_VALUE = ($('#cfgCollection')?.value.trim()||'blog'); CONFIG.PREVIEW_DEBOUNCE_MS = parseInt($('#cfgDebounce')?.value||'120',10); toast('Settings saved'); });
 
 /* ================== Init ================== */
 (async function init(){
-  // load remembered admin token automatically (no retyping)
   const remembered = getAdminToken(); if(remembered){ state.adminToken = remembered; const i=$('#cfgAdmin'); if(i) i.value=remembered; }
   updatePreview();
   await Promise.all([loadPosts(), loadComments()]);
