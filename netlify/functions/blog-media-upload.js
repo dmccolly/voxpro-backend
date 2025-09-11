@@ -45,7 +45,7 @@ exports.handler = async (event) => {
         try {
           const upload = await new Promise((res, rej) => {
             const stream = cloudinary.uploader.upload_stream(
-              { resource_type: "auto", tags: [scope] },
+              { resource_type: "auto", tags: [scope], folder: scope },
               (err, r) => (err ? rej(err) : res(r))
             );
             stream.end(Buffer.concat(chunks));
