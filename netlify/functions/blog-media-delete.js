@@ -36,7 +36,6 @@ exports.handler = async (event) => {
       (await tryDelete(id, "image")) ||
       (await tryDelete(id, "video")) ||
       (await tryDelete(id, "raw"));
-
     return ok({ ok: true, id, deleted: !!deleted });
   } catch (e) {
     return ok({ error: String(e.message || e), id });
