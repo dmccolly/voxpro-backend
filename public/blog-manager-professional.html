@@ -1,509 +1,332 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <title>Blog Manager — Professional</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <style>
-    :root{
-      --bg:#0f0f12; --panel:#151720; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#7aa2ff; --ok:#2ecc71; --warn:#f39c12; --err:#ff6161; --edge:#222635;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0; font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;
-      color:var(--ink); background:linear-gradient(180deg,#0b0c10, #101217);
-    }
-    .wrap{max-width:1100px; margin:24px auto; padding:0 16px}
-    .topbar{display:flex; align-items:center; gap:12px; margin-bottom:16px}
-    .brand{font-weight:700; letter-spacing:.2px}
-    .pill{padding:3px 8px; border:1px solid var(--edge); border-radius:999px; color:var(--muted)}
-    .tabs{display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 16px}
-    .tab{
-      appearance:none; border:1px solid var(--edge); background:var(--panel); color:var(--ink);
-      padding:8px 12px; border-radius:10px; cursor:pointer; transition:.15s transform;
-    }
-    .tab:hover{transform:translateY(-1px)}
-    .tab.active{border-color:var(--accent); outline:1px solid color-mix(in oklab, var(--accent) 40%, transparent)}
-    .grid{display:grid; grid-template-columns:1.1fr .9fr; gap:16px}
-    .card{
-      background:var(--panel); border:1px solid var(--edge); border-radius:14px; overflow:hidden;
-      box-shadow:0 10px 30px rgba(0,0,0,.25)
-    }
-    .card .hd{padding:10px 12px; border-bottom:1px solid var(--edge); color:var(--muted); display:flex; align-items:center; justify-content:space-between}
-    .card .bd{padding:12px}
-    .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-    .row-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
-    label{display:block; font-size:12px; color:var(--muted); margin-bottom:4px}
-    input[type="text"], input[type="datetime-local"], textarea{
-      width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--edge); background:#0e1016; color:var(--ink);
-    }
-    textarea{min-height:160px; resize:vertical}
-    .toolbar{display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 10px}
-    .btn{
-      border:1px solid var(--edge); background:#0e1016; color:var(--ink); padding:8px 10px; border-radius:10px; cursor:pointer
-    }
-    .btn.primary{border-color:var(--accent)}
-    .btn.ok{border-color:var(--ok)}
-    .btn.warn{border-color:var(--warn)}
-    .btn.ghost{background:transparent}
-    .muted{color:var(--muted)}
-    .preview{
-      background:#0e1118; border:1px dashed var(--edge); border-radius:12px; padding:12px; min-height:180px
-    }
-    .preview img{max-width:100%; border-radius:10px; display:block; margin:8px 0}
-    .list{display:flex; flex-direction:column; gap:10px}
-    .item{
-      border:1px solid var(--edge); border-radius:12px; padding:10px; background:#0d0f15;
-      display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center;
-    }
-    .toast{
-      position:fixed; right:16px; bottom:16px; background:#0b0d13; border:1px solid var(--edge); color:var(--ink);
-      padding:10px 12px; border-radius:12px; opacity:0; transform:translateY(6px); transition:.2s; pointer-events:none;
-    }
-    .toast.show{opacity:1; transform:none}
-    .status-dot{width:8px;height:8px;border-radius:999px;display:inline-block;margin-right:6px}
-    .dot-draft{background:var(--muted)}
-    .dot-scheduled{background:var(--warn)}
-    .dot-published{background:var(--ok)}
-    .hidden{display:none !important}
-    @media (max-width:940px){.grid{grid-template-columns:1fr;}}
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Blog Manager — Professional</title>
+<style>
+  :root{--bg:#0f0f12;--panel:#151720;--ink:#e7e9ee;--muted:#9aa3b2;--accent:#7aa2ff;--ok:#2ecc71;--warn:#f39c12;--err:#ff6161;--edge:#222635;--panel2:#0e1118}
+  *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:linear-gradient(180deg,#0b0c10,#101217)}
+  .wrap{max-width:1200px;margin:24px auto;padding:0 16px}.topbar{display:flex;align-items:center;gap:12px;margin-bottom:8px}.brand{font-weight:700}.pill{padding:3px 8px;border:1px solid var(--edge);border-radius:999px;color:var(--muted)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 16px}.tab{appearance:none;border:1px solid var(--edge);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer;transition:.15s transform}.tab:hover{transform:translateY(-1px)}.tab.active{border-color:var(--accent);outline:1px solid color-mix(in oklab,var(--accent) 40%,transparent)}
+  .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}.card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}.card .hd{padding:10px 12px;border-bottom:1px solid var(--edge);color:var(--muted);display:flex;align-items:center;justify-content:space-between}.card .bd{padding:12px}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}input[type="text"],input[type="datetime-local"],textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--edge);background:#0e1016;color:var(--ink)}textarea{min-height:160px;resize:vertical}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+  .btn{border:1px solid var(--edge);background:#0e1016;color:var(--ink);padding:8px 10px;border-radius:10px;cursor:pointer}.btn.primary{border-color:var(--accent)}.btn.ok{border-color:var(--ok)}.btn.warn{border-color:var(--warn)}.btn.ghost{background:transparent}.muted{color:var(--muted)}
+  .preview{background:var(--panel2);border:1px dashed var(--edge);border-radius:12px;padding:12px;min-height:180px}.preview img{max-width:100%;border-radius:10px;display:block;margin:8px 0}
+  .list{display:flex;flex-direction:column;gap:10px}.item{border:1px solid var(--edge);border-radius:12px;padding:10px;background:#0d0f15;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}.item .meta{font-size:12px}
+  .toast{position:fixed;right:16px;bottom:16px;background:#0b0d13;border:1px solid var(--edge);color:var(--ink);padding:10px 12px;border-radius:12px;opacity:0;transform:translateY(6px);transition:.2s;pointer-events:none}.toast.show{opacity:1;transform:none}
+  .status-dot{width:8px;height:8px;border-radius:999px;display:inline-block;margin-right:6px}.dot-draft{background:var(--muted)}.dot-scheduled{background:var(--warn)}.dot-published{background:var(--ok)}.hidden{display:none !important}.chip{font-size:12px;border:1px solid var(--edge);border-radius:999px;padding:2px 6px;color:var(--muted)}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:24px}.modal.show{display:flex}
+  .dialog{width:min(900px,96vw);max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--edge);border-radius:16px}.dialog .hd{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--edge)}.dialog .bd{padding:12px}
+  .drop{border:1px dashed var(--edge);border-radius:12px;background:var(--panel2);padding:16px;text-align:center}.drop.drag{outline:2px dashed var(--accent)}
+  .media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px}.thumb{border:1px solid var(--edge);border-radius:10px;overflow:hidden;background:#0c0e14;cursor:pointer}.thumb img{display:block;width:100%;height:110px;object-fit:cover}.thumb .t{padding:6px 8px;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  @media (max-width:980px){.grid{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="topbar">
-      <div class="brand">Blog Manager</div>
-      <span class="pill">Pro</span>
-      <span class="muted">Publish · Schedule · Preview</span>
-    </div>
-
-    <div class="tabs">
-      <button class="tab active" data-panel="write">Write</button>
-      <button class="tab" data-panel="posts">Posts</button>
-      <button class="tab" data-panel="settings">Settings</button>
-    </div>
-
-    <!-- WRITE -->
-    <section class="panel" id="panel-write">
-      <div class="grid">
-        <div class="card">
-          <div class="hd"><span>Compose</span><span class="muted" id="dirtyFlag" hidden>unsaved</span></div>
-          <div class="bd">
-            <div class="row">
-              <div>
-                <label>Title</label>
-                <input id="title" type="text" placeholder="Post title"/>
-              </div>
-              <div>
-                <label>Slug</label>
-                <input id="slug" type="text" placeholder="auto-from-title"/>
-              </div>
-            </div>
-
-            <div class="row">
-              <div>
-                <label>Summary</label>
-                <input id="summary" type="text" placeholder="Short teaser for cards & SEO"/>
-              </div>
-              <div>
-                <label>Hero Image URL</label>
-                <input id="hero" type="text" placeholder="https://..."/>
-              </div>
-            </div>
-
-            <div class="toolbar">
-              <button class="btn" data-cmd="bold"><b>B</b></button>
-              <button class="btn" data-cmd="italic"><i>I</i></button>
-              <button class="btn" data-cmd="underline"><u>U</u></button>
-              <button class="btn" data-cmd="insertUnorderedList">• List</button>
-              <button class="btn" data-cmd="createLink">Link</button>
-              <button class="btn" id="fg">Text Color</button>
-              <button class="btn" id="bg">Highlight</button>
-              <button class="btn ghost" id="clearFmt">Clear</button>
-            </div>
-
-            <label>Body</label>
-            <div id="body" contenteditable="true" style="border:1px solid var(--edge); border-radius:12px; padding:12px; min-height:260px; background:#0b0e14"></div>
-
-            <div class="row-3" style="margin-top:12px">
-              <button class="btn" id="saveDraft">Save Draft</button>
-              <button class="btn warn" id="scheduleBtn">Schedule…</button>
-              <button class="btn ok" id="publishBtn">Publish</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="hd"><span>Live Preview</span><span class="muted">updates as you type</span></div>
-          <div class="bd">
-            <div class="preview" id="preview">
-              <h2 id="p-title" style="margin:0 0 6px 0">Title</h2>
-              <div class="muted" id="p-slug">/posts/title</div>
-              <img id="p-img" class="hidden" alt="hero"/>
-              <p id="p-summary" class="muted">Summary appears here…</p>
-              <hr style="border:none;border-top:1px solid var(--edge)"/>
-              <article id="p-body" style="font-size:15px">Start writing…</article>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- POSTS -->
-    <section class="panel hidden" id="panel-posts">
-      <div class="card">
-        <div class="hd">
-          <span>Posts</span>
-          <div>
-            <select id="filter" class="btn">
-              <option value="">All</option>
-              <option value="draft">Draft</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="published">Published</option>
-            </select>
-            <button class="btn" id="refresh">Refresh</button>
-          </div>
-        </div>
-        <div class="bd">
-          <div class="list" id="postList"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- SETTINGS -->
-    <section class="panel hidden" id="panel-settings">
-      <div class="card">
-        <div class="hd"><span>Settings</span></div>
-        <div class="bd">
-          <div class="row">
-            <div>
-              <label>Xano Base URL</label>
-              <input id="cfgBase" type="text" placeholder="https://x8jk-abc-xyz.us-east-1.xano.io/api:YOUR_GROUP"/>
-            </div>
-            <div>
-              <label>Xano API Key (if used)</label>
-              <input id="cfgKey" type="text" placeholder="Bearer …"/>
-            </div>
-          </div>
-          <div class="row">
-            <div>
-              <label>Collection (optional)</label>
-              <input id="cfgCollection" type="text" placeholder="blog"/>
-            </div>
-            <div>
-              <label>Preview Debounce (ms)</label>
-              <input id="cfgDebounce" type="text" value="120"/>
-            </div>
-          </div>
-          <button class="btn primary" id="saveCfg">Save Settings</button>
-        </div>
-      </div>
-    </section>
-
-    <div class="toast" id="toast">Saved</div>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">Blog Manager</div><span class="pill">Pro</span>
+    <span class="muted">Write · Posts · Comments · Settings</span>
   </div>
 
+  <div class="tabs">
+    <button class="tab active" data-panel="write">Write</button>
+    <button class="tab" data-panel="posts">Posts</button>
+    <button class="tab" data-panel="comments">Comments</button>
+    <button class="tab" data-panel="settings">Settings</button>
+  </div>
+
+  <!-- WRITE -->
+  <section class="panel" id="panel-write">
+    <div class="grid">
+      <div class="card">
+        <div class="hd"><span>Compose</span><span class="muted" id="dirtyFlag" hidden>unsaved</span></div>
+        <div class="bd">
+          <div class="row">
+            <div><label>Title</label><input id="title" type="text" placeholder="Post title"/></div>
+            <div><label>Slug</label><input id="slug" type="text" placeholder="auto-from-title"/></div>
+          </div>
+          <div class="row">
+            <div><label>Summary</label><input id="summary" type="text" placeholder="Short teaser for cards & SEO"/></div>
+            <div><label>Hero Image URL</label><div style="display:flex;gap:6px"><input id="hero" type="text" placeholder="https://…"/><button class="btn" id="pickHero">Pick…</button></div></div>
+          </div>
+          <div class="toolbar">
+            <button class="btn" data-cmd="bold"><b>B</b></button><button class="btn" data-cmd="italic"><i>I</i></button><button class="btn" data-cmd="underline"><u>U</u></button>
+            <button class="btn" data-cmd="insertUnorderedList">• List</button><button class="btn" data-cmd="createLink">Link</button>
+            <button class="btn" id="fg">Text Color</button><button class="btn" id="bg">Highlight</button>
+            <button class="btn" id="insertImg">Insert Image…</button><button class="btn ghost" id="clearFmt">Clear</button>
+          </div>
+          <label>Body</label>
+          <div id="body" contenteditable="true" style="border:1px solid var(--edge);border-radius:12px;padding:12px;min-height:260px;background:#0b0e14"></div>
+          <div class="row-3" style="margin-top:12px">
+            <button class="btn" id="saveDraft">Save Draft</button>
+            <button class="btn warn" id="scheduleBtn">Schedule…</button>
+            <button class="btn ok" id="publishBtn">Publish</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><span>Live Preview</span><span class="muted">updates as you type</span></div>
+        <div class="bd">
+          <div class="preview" id="preview">
+            <h2 id="p-title" style="margin:0 0 6px 0">Title</h2>
+            <div class="muted" id="p-slug">/posts/title</div>
+            <img id="p-img" class="hidden" alt="hero"/>
+            <p id="p-summary" class="muted">Summary appears here…</p>
+            <hr style="border:none;border-top:1px solid var(--edge)"/>
+            <article id="p-body" style="font-size:15px">Start writing…</article>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- POSTS -->
+  <section class="panel hidden" id="panel-posts">
+    <div class="card">
+      <div class="hd">
+        <span>Posts</span>
+        <div><button class="btn" id="refreshPosts">Refresh</button></div>
+      </div>
+      <div class="bd"><div class="list" id="postList"></div></div>
+    </div>
+  </section>
+
+  <!-- COMMENTS -->
+  <section class="panel hidden" id="panel-comments">
+    <div class="card">
+      <div class="hd">
+        <span>Comments</span>
+        <div>
+          <select id="filterComments" class="btn">
+            <option value="pending">Pending</option><option value="approved">Approved</option>
+            <option value="rejected">Rejected</option><option value="">All</option>
+          </select>
+          <input id="commentsPostId" class="btn" placeholder="Post ID (optional)"/>
+          <button class="btn" id="refreshComments">Refresh</button>
+        </div>
+      </div>
+      <div class="bd"><div class="list" id="commentList"></div></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="panel hidden" id="panel-settings">
+    <div class="card"><div class="hd"><span>Settings</span></div>
+      <div class="bd">
+        <div class="row">
+          <div><label>Admin Token (for moderation)</label><input id="cfgAdmin" type="text" placeholder="Set a short shared token"/></div>
+          <div><label>Preview Debounce (ms)</label><input id="cfgDebounce" type="text" value="120"/></div>
+        </div>
+        <div class="row">
+          <div><label>Xano Base (read-only)</label><input type="text" value="https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX" disabled/></div>
+          <div><label>Media via Netlify Functions</label><input type="text" value="/.netlify/functions/*" disabled/></div>
+        </div>
+        <button class="btn primary" id="saveCfg">Save Settings</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="toast" id="toast">Saved</div>
+</div>
+
+<!-- MEDIA PICKER -->
+<div class="modal" id="mediaModal" aria-hidden="true">
+  <div class="dialog">
+    <div class="hd"><strong>Media</strong>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="mediaSearch" type="text" placeholder="Search…" class="btn" style="min-width:220px"/>
+        <button class="btn ghost" id="closeMedia">Close</button>
+      </div>
+    </div>
+    <div class="bd">
+      <div id="drop" class="drop">
+        <p style="margin:0 0 6px 0">Drag & drop files, paste from clipboard, or <label for="fileInput" style="text-decoration:underline;cursor:pointer">browse</label></p>
+        <input id="fileInput" type="file" accept="image/*,video/*,audio/*" multiple class="hidden"/>
+        <div class="muted" id="uploadHint">Ready</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+        <span class="muted">Recent uploads</span><span id="mediaCount" class="chip">0</span>
+        <button class="btn" id="refreshMedia">Refresh</button>
+      </div>
+      <div id="mediaGrid" class="media-grid"></div>
+    </div>
+  </div>
+</div>
+
 <script>
-/* ======= CONFIG (single place) ======= */
+/* ===== Concrete config pulled from your builds ===== */
 const CONFIG = {
-  XANO_API_BASE: "",    // e.g. "https://x8jk-abc-xyz.us-east-1.xano.io/api:BlogModeration"
-  XANO_API_KEY: "",     // e.g. "Bearer xyz" or "" if not required
-  COLLECTION: "blog",   // optional, if your routes are namespaced
-  PREVIEW_DEBOUNCE_MS: 120
+  // Posts & comments go through Netlify functions (Webflow tokens stay server-side)
+  FNS: {
+    POSTS_CREATE: '/.netlify/functions/posts-create',        // create draft/publish/schedule
+    COMMENTS_LIST: '/.netlify/functions/comments-list',
+    COMMENTS_MODERATE: '/.netlify/functions/comments-moderate',
+    MEDIA_LIST: '/.netlify/functions/list-media',
+    MEDIA_UPLOAD: '/.netlify/functions/file-manager-upload',
+    MEDIA_DELETE: '/.netlify/functions/delete-media'
+  },
+  // Admin token for moderation function (server validates against ADMIN_TOKEN env)
+  ADMIN_TOKEN: '',
+  PREVIEW_DEBOUNCE_MS: 120,
+  // For reference, your Xano base (used behind the media functions)
+  XANO_API_BASE: 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX'
 };
 
-// Allow runtime override via window.__CONFIG (optional)
-Object.assign(CONFIG, window.__CONFIG || {});
+const $ = (s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const getCss = v => getComputedStyle(document.documentElement).getPropertyValue(v);
+const toast = (msg,type='ok')=>{ const el=$('#toast'); el.textContent=msg; el.style.borderColor = type==='err'?getCss('--err'):type==='warn'?getCss('--warn'):getCss('--edge'); el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2200); };
+const debounce=(fn,ms=150)=>{let t; return(...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);}};
 
-// Centralized endpoints (adjust here if your slugs differ)
-const ENDPOINTS = {
-  listPosts:    () => `${CONFIG.XANO_API_BASE}/posts`,
-  createPost:   () => `${CONFIG.XANO_API_BASE}/posts`,
-  updatePost:   (id) => `${CONFIG.XANO_API_BASE}/posts/${id}`,
-  publishPost:  (id) => `${CONFIG.XANO_API_BASE}/posts/${id}/publish`,
-  schedulePost: (id) => `${CONFIG.XANO_API_BASE}/posts/${id}/schedule`,
-};
+/* = Tabs = */
+$$('.tab').forEach(b=>b.addEventListener('click',()=>{
+  $$('.tab').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+  $$('.panel').forEach(p=>p.classList.add('hidden')); const panel = document.querySelector('#panel-'+b.dataset.panel);
+  if(panel) panel.classList.remove('hidden');
+}));
 
-/* ======= tiny helpers ======= */
-const $  = (sel, root=document)=>root.querySelector(sel);
-const $$ = (sel, root=document)=>Array.from(root.querySelectorAll(sel));
-const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
-const headers = ()=> {
-  const h = {"Content-Type":"application/json"};
-  if (CONFIG.XANO_API_KEY) h["Authorization"] = CONFIG.XANO_API_KEY;
-  return h;
-}
-const slugify = (s)=> (s||"")
-  .toString().toLowerCase()
-  .normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
-  .replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")
-  .slice(0,96);
+/* = Editor + Preview = */
+const state = { id:null, dirty:false };
+const titleEl=$('#title'), slugEl=$('#slug'), sumEl=$('#summary'), heroEl=$('#hero'), bodyEl=$('#body');
+const pTitle=$('#p-title'), pSlug=$('#p-slug'), pImg=$('#p-img'), pSum=$('#p-summary'), pBody=$('#p-body');
+const setDirty=v=>{ state.dirty=v; $('#dirtyFlag').hidden=!v; };
+const slugify=s=>(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,96);
+const updatePreview=()=>{ pTitle.textContent=titleEl.value||'Title'; pSlug.textContent='/posts/'+(slugEl.value||'title'); const h=(heroEl.value||'').trim(); if(h){pImg.src=h;pImg.classList.remove('hidden');} else pImg.classList.add('hidden'); pSum.textContent=sumEl.value||'Summary appears here…'; pBody.innerHTML=bodyEl.innerHTML||'Start writing…'; };
+const previewTick=debounce(updatePreview, CONFIG.PREVIEW_DEBOUNCE_MS);
+const syncSlugFromTitle=()=>{ if(!slugEl.dataset.manual) slugEl.value=slugify(titleEl.value); };
+titleEl.addEventListener('input',()=>{ syncSlugFromTitle(); setDirty(true); previewTick(); });
+slugEl.addEventListener('input',()=>{ slugEl.dataset.manual='1'; setDirty(true); previewTick(); });
+sumEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
+heroEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
+bodyEl.addEventListener('input',()=>{ setDirty(true); previewTick(); });
 
-const debounce = (fn, ms=150)=>{
-  let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
-};
+$$('.toolbar .btn[data-cmd]').forEach(b=>b.addEventListener('click',()=>{
+  const cmd=b.dataset.cmd; if(cmd==='createLink'){ const url=prompt('URL:'); if(url) document.execCommand('createLink',false,url); } else { document.execCommand(cmd,false,null); }
+  setDirty(true); previewTick();
+}));
+$('#fg').addEventListener('click',()=>{ const c=prompt('Text color','#e7e9ee'); if(c) document.execCommand('foreColor',false,c); setDirty(true); previewTick(); });
+$('#bg').addEventListener('click',()=>{ const c=prompt('Highlight','#2b344a'); if(c) document.execCommand('hiliteColor',false,c); setDirty(true); previewTick(); });
+$('#clearFmt').addEventListener('click',()=>{ document.execCommand('removeFormat',false,null); setDirty(true); previewTick(); });
 
-const toast = (msg, type="ok")=>{
-  const el = $('#toast');
-  el.textContent = msg;
-  el.style.borderColor = (type==="err")? getComputedStyle(document.documentElement).getPropertyValue('--err') :
-                          (type==="warn")? getComputedStyle(document.documentElement).getPropertyValue('--warn') :
-                          getComputedStyle(document.documentElement).getPropertyValue('--edge');
-  el.classList.add('show'); setTimeout(()=> el.classList.remove('show'), 2200);
-};
-
-/* ======= Tabs (your broken area) ======= */
-$$('.tab').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    $$('.tab').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    const target = btn.dataset.panel;
-    // hide all panels
-    $$('.panel').forEach(p=>p.classList.add('hidden'));
-    // show the one matching the tab
-    const panel = document.querySelector(`#panel-${target}`);
-    if (panel) panel.classList.remove('hidden');
-  });
-});
-
-/* ======= Editor & Preview ======= */
-const state = {
-  id: null, // null means new draft
-  title: "", slug: "", summary: "", hero: "", body: "",
-  dirty:false
-};
-
-// inputs
-const titleEl = $('#title');
-const slugEl  = $('#slug');
-const sumEl   = $('#summary');
-const heroEl  = $('#hero');
-const bodyEl  = $('#body');
-
-const pTitle = $('#p-title');
-const pSlug  = $('#p-slug');
-const pImg   = $('#p-img');
-const pSum   = $('#p-summary');
-const pBody  = $('#p-body');
-
-const setDirty = (v=true)=>{
-  state.dirty = v;
-  $('#dirtyFlag').hidden = !v;
-};
-
-const updatePreview = ()=>{
-  pTitle.textContent = titleEl.value || 'Title';
-  pSlug.textContent  = `/posts/${slugEl.value || 'title'}`;
-  const h = heroEl.value.trim();
-  if (h){ pImg.src = h; pImg.classList.remove('hidden'); }
-  else { pImg.classList.add('hidden'); }
-  pSum.textContent   = sumEl.value || 'Summary appears here…';
-  pBody.innerHTML    = bodyEl.innerHTML || 'Start writing…';
-};
-
-const syncSlugFromTitle = ()=>{
-  if (!slugEl.dataset.manual){
-    slugEl.value = slugify(titleEl.value);
-  }
-};
-
-// events
-titleEl.addEventListener('input', ()=>{
-  syncSlugFromTitle(); setDirty(); previewTick();
-});
-slugEl.addEventListener('input', ()=>{ slugEl.dataset.manual = "1"; setDirty(); previewTick(); });
-sumEl.addEventListener('input', ()=>{ setDirty(); previewTick(); });
-heroEl.addEventListener('input', ()=>{ setDirty(); previewTick(); });
-bodyEl.addEventListener('input', ()=>{ setDirty(); previewTick(); });
-
-const previewTick = debounce(updatePreview, CONFIG.PREVIEW_DEBOUNCE_MS);
-
-/* ======= Rich Text mini-toolbar (no external libs) ======= */
-$$('.toolbar .btn[data-cmd]').forEach(b=>{
-  b.addEventListener('click', ()=>{
-    const cmd = b.dataset.cmd;
-    if (cmd === 'createLink'){
-      const url = prompt('URL to link to:');
-      if (url) document.execCommand('createLink', false, url);
-    } else {
-      document.execCommand(cmd, false, null);
-    }
-    setDirty(); previewTick();
-  });
-});
-
-// Foreground/background color pickers
-$('#fg').addEventListener('click', ()=>{
-  const c = prompt('Text color (#hex or name):','#e7e9ee');
-  if (c) document.execCommand('foreColor', false, c);
-  setDirty(); previewTick();
-});
-$('#bg').addEventListener('click', ()=>{
-  const c = prompt('Highlight color:', '#2b344a');
-  if (c) document.execCommand('hiliteColor', false, c);
-  setDirty(); previewTick();
-});
-$('#clearFmt').addEventListener('click', ()=>{
-  document.execCommand('removeFormat', false, null);
-  setDirty(); previewTick();
-});
-
-/* ======= CRUD ======= */
-async function api(url, options={}){
-  const res = await fetch(url, {headers: headers(), ...options});
-  if (!res.ok){
-    const txt = await res.text().catch(()=> '');
-    throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
-  }
-  return res.headers.get('content-type')?.includes('application/json') ? res.json() : res.text();
-}
-
+/* = Posts (via Netlify posts-create) = */
 function collectForm(){
   return {
     title: titleEl.value.trim(),
     slug: slugEl.value.trim() || slugify(titleEl.value),
     summary: sumEl.value.trim(),
-    hero: heroEl.value.trim(),
-    body_html: bodyEl.innerHTML.trim(),
-    body_text: bodyEl.textContent.trim()
+    featureImageUrl: heroEl.value.trim(),
+    bodyHtml: bodyEl.innerHTML.trim(),
+    status: 'draft' // overridden by publish/schedule actions
   };
 }
-
-async function saveDraft(){
-  const payload = collectForm();
-  let data;
-  if (!payload.title) { toast('Title required', 'warn'); return; }
-  try{
-    if (state.id){
-      data = await api(ENDPOINTS.updatePost(state.id), {method:'PUT', body: JSON.stringify(payload)});
-    } else {
-      data = await api(ENDPOINTS.createPost(), {method:'POST', body: JSON.stringify(payload)});
-      state.id = data.id;
-    }
-    setDirty(false); toast('Draft saved');
-    await loadPosts(); // keep list fresh
-  }catch(e){ console.error(e); toast('Save failed', 'err'); }
+async function postsCreate(payload){
+  const res = await fetch(CONFIG.FNS.POSTS_CREATE, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) });
+  const txt = await res.text(); let data; try{ data=JSON.parse(txt); }catch{ data={_raw:txt}; }
+  if(!res.ok) throw new Error(`posts-create ${res.status}: ${txt}`);
+  return data;
 }
+async function saveDraft(){ const payload = { ...collectForm(), status:'draft' }; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Draft saved'); await loadPosts(); }catch(e){ console.error(e); toast('Save failed','err'); } }
+async function publishNow(){ const payload = { ...collectForm(), status:'published' }; if(!payload.title){ toast('Title required','warn'); return; } try{ await postsCreate(payload); setDirty(false); toast('Published'); await loadPosts(); }catch(e){ console.error(e); toast('Publish failed','err'); } }
+async function schedule(){ const when=prompt('Publish at (YYYY-MM-DD HH:MM) local:'); if(!when) return; const payload = { ...collectForm(), status:'scheduled', publishDate: new Date(when.replace(' ','T')).toISOString() }; try{ await postsCreate(payload); setDirty(false); toast('Scheduled'); await loadPosts(); }catch(e){ console.error(e); toast('Schedule failed','err'); } }
+$('#saveDraft').addEventListener('click',saveDraft); $('#publishBtn').addEventListener('click',publishNow); $('#scheduleBtn').addEventListener('click',schedule);
 
-async function publishNow(){
-  try{
-    if (!state.id) await saveDraft();
-    await api(ENDPOINTS.publishPost(state.id), {method:'POST', body: JSON.stringify({published_at: new Date().toISOString()})});
-    toast('Published');
-    await loadPosts();
-  }catch(e){ console.error(e); toast('Publish failed', 'err'); }
-}
-
-async function schedule(){
-  if (!state.id) await saveDraft();
-  const when = prompt('Publish at (local time, e.g. 2025-09-11 17:30):');
-  if (!when) return;
-  const iso = new Date(when.replace(' ','T')).toISOString();
-  try{
-    await api(ENDPOINTS.schedulePost(state.id), {method:'POST', body: JSON.stringify({publish_at: iso})});
-    toast('Scheduled');
-    await loadPosts();
-  }catch(e){ console.error(e); toast('Schedule failed', 'err'); }
-}
-
-/* ======= Posts list ======= */
-const listEl = $('#postList');
-const filterEl = $('#filter');
-$('#refresh').addEventListener('click', ()=> loadPosts());
-filterEl.addEventListener('change', ()=> loadPosts());
-
-function statusDot(s){
-  if (s==='published') return '<span class="status-dot dot-published"></span>Published';
-  if (s==='scheduled') return '<span class="status-dot dot-scheduled"></span>Scheduled';
-  return '<span class="status-dot dot-draft"></span>Draft';
-}
-
-function renderPosts(items){
-  listEl.innerHTML = '';
-  if (!items?.length){
-    listEl.innerHTML = '<div class="muted">No posts found.</div>'; return;
+const postListEl=$('#postList');
+// Minimal session list so Posts tab is usable today (Webflow list function is not in repo)
+function renderPostsSession(){
+  const sess = JSON.parse(localStorage.getItem('blogSessionPosts')||'[]');
+  postListEl.innerHTML = '';
+  if(!sess.length){ postListEl.innerHTML = '<div class="muted">No recent posts in this session.</div>'; return; }
+  for(const it of sess){
+    const el=document.createElement('div'); el.className='item';
+    el.innerHTML = `<div><div style="font-weight:600">${it.title} <span class="muted">/${it.slug}</span></div><div class="meta muted"><span class="status-dot ${it.status==='published'?'dot-published':it.status==='scheduled'?'dot-scheduled':'dot-draft'}"></span>${it.status} · ${new Date(it.when).toLocaleString()}</div></div>`;
+    postListEl.appendChild(el);
   }
-  for (const it of items){
-    const div = document.createElement('div');
-    div.className = 'item';
-    div.innerHTML = `
-      <div>
-        <div style="font-weight:600">${it.title || '(untitled)'} <span class="muted">/${it.slug}</span></div>
-        <div class="muted" style="font-size:12px">${statusDot(it.status || 'draft')} · Updated ${new Date(it.updated_at || it.created_at).toLocaleString()}</div>
-      </div>
-      <div style="display:flex; gap:6px">
-        <button class="btn" data-act="edit" data-id="${it.id}">Edit</button>
-        ${it.status!=='published' ? `<button class="btn ok" data-act="pub" data-id="${it.id}">Publish</button>` : ''}
-      </div>
-    `;
-    listEl.appendChild(div);
-  }
-
-  // actions
-  $$('#postList .btn').forEach(b=>{
-    b.addEventListener('click', async ()=>{
-      const id = b.dataset.id;
-      const act = b.dataset.act;
-      if (act==='edit'){
-        try{
-          const data = await api(`${ENDPOINTS.updatePost(id)}`, {method:'GET'});
-          // Load into editor
-          state.id = data.id;
-          titleEl.value = data.title || '';
-          slugEl.value  = data.slug || '';
-          sumEl.value   = data.summary || '';
-          heroEl.value  = data.hero || '';
-          bodyEl.innerHTML = data.body_html || (data.body_text||'');
-          setDirty(false);
-          // switch to Write tab
-          document.querySelector('.tab[data-panel="write"]').click();
-          updatePreview();
-          toast('Loaded');
-        }catch(e){ console.error(e); toast('Load failed','err'); }
-      } else if (act==='pub'){
-        state.id = id;
-        await publishNow();
-      }
-    });
-  });
 }
+async function loadPosts(){ renderPostsSession(); }
+$('#refreshPosts').addEventListener('click',loadPosts);
 
-async function loadPosts(){
-  try{
-    const q = new URLSearchParams();
-    const f = filterEl.value;
-    if (f) q.set('status', f);
-    const data = await api(`${ENDPOINTS.listPosts()}?${q.toString()}`);
-    renderPosts(Array.isArray(data) ? data : data.items || []);
-  }catch(e){ console.error(e); toast('Fetch failed','err'); }
-}
-
-/* ======= Settings ======= */
-$('#cfgBase').value = CONFIG.XANO_API_BASE || '';
-$('#cfgKey').value  = CONFIG.XANO_API_KEY || '';
-$('#cfgCollection').value = CONFIG.COLLECTION || '';
-$('#cfgDebounce').value = String(CONFIG.PREVIEW_DEBOUNCE_MS);
-
-$('#saveCfg').addEventListener('click', ()=>{
-  CONFIG.XANO_API_BASE = $('#cfgBase').value.trim();
-  CONFIG.XANO_API_KEY  = $('#cfgKey').value.trim();
-  CONFIG.COLLECTION    = $('#cfgCollection').value.trim() || CONFIG.COLLECTION;
-  CONFIG.PREVIEW_DEBOUNCE_MS = parseInt($('#cfgDebounce').value||'120',10);
-  toast('Settings saved');
+// Store the last action locally so Posts tab isn’t empty
+function cachePostLocal(actionPayload){ const arr = JSON.parse(localStorage.getItem('blogSessionPosts')||'[]'); arr.unshift({ title: actionPayload.title, slug: actionPayload.slug, status: actionPayload.status, when: Date.now() }); localStorage.setItem('blogSessionPosts', JSON.stringify(arr.slice(0,25))); }
+['saveDraft','publishNow','schedule'].forEach(fn=>{
+  const orig = {saveDraft,publishNow,schedule}[fn];
+  window[fn] = async function(){ const payload = { ...collectForm(), status: fn==='publishNow'?'published':fn==='schedule'?'scheduled':'draft' }; try{ await orig.apply(this,arguments); cachePostLocal(payload);}catch(e){/* already toasted */} }
 });
 
-/* ======= Buttons ======= */
-$('#saveDraft').addEventListener('click', saveDraft);
-$('#publishBtn').addEventListener('click', publishNow);
-$('#scheduleBtn').addEventListener('click', schedule);
+/* = Comments = */
+const commentListEl=$('#commentList');
+function renderComments(items){
+  commentListEl.innerHTML=''; if(!items?.length){ commentListEl.innerHTML='<div class="muted">No comments.</div>'; return; }
+  for(const c of items){
+    const el=document.createElement('div'); el.className='item';
+    el.innerHTML = `<div><div style="display:flex;gap:8px;align-items:center"><strong>${c.authorName||'Anon'}</strong>${c.postId?`<span class="chip">/${c.postId}</span>`:''}<span class="muted">${new Date(c.createdOn||c.created_at||Date.now()).toLocaleString()}</span></div><div style="margin-top:6px">${(c.message||c.body||'').toString()}</div></div><div style="display:flex;gap:6px"><button class="btn ok" data-act="approve" data-id="${c.id}">Approve</button><button class="btn warn" data-act="delete" data-id="${c.id}">Delete</button></div>`;
+    commentListEl.appendChild(el);
+  }
+  $$('#commentList .btn').forEach(b=>b.addEventListener('click',async()=>{
+    const id=b.dataset.id, act=b.dataset.act;
+    try{
+      const res = await fetch(CONFIG.FNS.COMMENTS_MODERATE, { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization': 'Bearer '+(CONFIG.ADMIN_TOKEN||'') }, body: JSON.stringify({ id, action: act==='approve'?'approve':'delete' }) });
+      if(!res.ok) throw new Error(await res.text()); toast('Updated'); await loadComments();
+    }catch(e){ console.error(e); toast('Action failed','err'); }
+  }));
+}
+async function loadComments(){
+  try{
+    const qs = new URLSearchParams(); const postId=$('#commentsPostId').value.trim(); if(postId) qs.set('postId', postId);
+    const res = await fetch(`${CONFIG.FNS.COMMENTS_LIST}?${qs.toString()}`, { headers: { 'Accept':'application/json' }});
+    const data = await res.json().catch(()=>[]);
+    renderComments(Array.isArray(data)?data:(data.items||[]));
+  }catch(e){ console.error(e); toast('Fetch failed','err'); }
+}
+$('#refreshComments').addEventListener('click',loadComments); $('#filterComments').addEventListener('change',loadComments);
 
-/* ======= Init ======= */
-(async function init(){
-  // Initial preview content
-  updatePreview();
-  // initial load
-  await loadPosts();
-})();
+/* = Media Picker (Netlify functions wrap Xano) = */
+let mediaTarget=null; const modal=$('#mediaModal'), drop=$('#drop'), fileInput=$('#fileInput'), grid=$('#mediaGrid');
+$('#pickHero').addEventListener('click',()=>{ mediaTarget='hero'; openMedia(); });
+$('#insertImg').addEventListener('click',()=>{ mediaTarget='body'; openMedia(); });
+function openMedia(){ modal.classList.add('show'); loadMedia(); } $('#closeMedia').addEventListener('click',()=> modal.classList.remove('show'));
+$('#refreshMedia').addEventListener('click',loadMedia); $('#mediaSearch').addEventListener('input',debounce(loadMedia,300));
+;['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.add('drag'); }));
+;['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop',e=> handleFiles(e.dataTransfer.files)); drop.addEventListener('click',()=> fileInput.click()); fileInput.addEventListener('change',()=> handleFiles(fileInput.files));
+document.addEventListener('paste',e=>{ if(!modal.classList.contains('show')) return; const files=Array.from(e.clipboardData.files||[]); if(files.length) handleFiles(files); });
+async function handleFiles(fileList){
+  const files=Array.from(fileList||[]); if(!files.length) return;
+  for(const f of files){
+    try{
+      $('#uploadHint').textContent=`Uploading ${f.name}…`;
+      const fd=new FormData(); fd.append('file',f);
+      const res=await fetch(CONFIG.FNS.MEDIA_UPLOAD,{ method:'POST', body:fd });
+      if(!res.ok) throw new Error(await res.text()); const data=await res.json();
+      await loadMedia();
+      if(mediaTarget==='hero' && data.url){ heroEl.value=data.url; updatePreview(); toast('Hero set'); }
+      if(mediaTarget==='body' && data.url){ const img=document.createElement('img'); img.src=data.url; img.style.maxWidth='100%'; bodyEl.appendChild(img); setDirty(true); previewTick(); toast('Inserted'); }
+    }catch(e){ console.error(e); toast('Upload failed','err'); } finally{ $('#uploadHint').textContent='Ready'; }
+  }
+}
+async function loadMedia(){
+  try{
+    const s=$('#mediaSearch').value.trim(); const url = s? `${CONFIG.FNS.MEDIA_LIST}?q=${encodeURIComponent(s)}` : CONFIG.FNS.MEDIA_LIST;
+    const res=await fetch(url); const data=await res.json().catch(()=>[]);
+    const items=Array.isArray(data)?data:(data.items||[]);
+    $('#mediaCount').textContent=items.length; grid.innerHTML='';
+    for(const m of items){
+      const url=m.thumb||m.thumbnail_url||m.url||m.secure_url||''; const card=document.createElement('div'); card.className='thumb'; card.title=url;
+      card.innerHTML=`<img src="${url}" alt=""/><div class="t">${(m.filename||m.public_id||'media')}</div>`;
+      card.addEventListener('click',()=>{ if(mediaTarget==='hero'){ heroEl.value=(m.url||m.secure_url||''); updatePreview(); toast('Hero set'); } else { const img=document.createElement('img'); img.src=(m.url||m.secure_url||''); img.style.maxWidth='100%'; bodyEl.appendChild(img); setDirty(true); previewTick(); toast('Inserted'); } modal.classList.remove('show'); });
+      grid.appendChild(card);
+    }
+  }catch(e){ console.error(e); toast('Media fetch failed','err'); }
+}
+
+/* = Settings = */
+$('#cfgDebounce').value = String(CONFIG.PREVIEW_DEBOUNCE_MS);
+$('#saveCfg').addEventListener('click',()=>{ CONFIG.PREVIEW_DEBOUNCE_MS = parseInt($('#cfgDebounce').value||'120',10); CONFIG.ADMIN_TOKEN = $('#cfgAdmin').value.trim(); toast('Settings saved'); });
+
+/* = Init = */
+(async function init(){ updatePreview(); await Promise.all([loadPosts(), loadComments()]); })();
 </script>
 </body>
 </html>
