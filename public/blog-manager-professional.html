@@ -1,439 +1,509 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Professional Blog Manager</title>
-
-  <!-- Minimal, “don't-break-existing” styles that mirror the current layout -->
+  <meta charset="utf-8"/>
+  <title>Blog Manager — Professional</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <style>
     :root{
-      --bg:#0f0f10;
-      --panel:#191a1c;
-      --panel-2:#202225;
-      --text:#e9eaee;
-      --muted:#aeb2bb;
-      --border:#2c2f35;
-      --accent:#7ab6ff;
-      --accent-2:#5de6b3;
-      --danger:#ff6b6b;
-      --warn:#ffbe5c;
-      --radius:14px;
+      --bg:#0f0f12; --panel:#151720; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#7aa2ff; --ok:#2ecc71; --warn:#f39c12; --err:#ff6161; --edge:#222635;
     }
-    [data-theme="light"]{
-      --bg:#f7f8fa; --panel:#ffffff; --panel-2:#f2f4f7;
-      --text:#111318; --muted:#4a5563; --border:#e5e7eb;
-      --accent:#2563eb; --accent-2:#059669; --danger:#dc2626; --warn:#d97706;
-    }
-    html,body{height:100%}
+    *{box-sizing:border-box}
     body{
-      margin:0; font: 14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
-      background:var(--bg); color:var(--text);
+      margin:0; font:14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Inter, sans-serif;
+      color:var(--ink); background:linear-gradient(180deg,#0b0c10, #101217);
     }
-    .wrap{max-width:1100px; margin:28px auto; padding:0 16px;}
-    header{
-      display:flex; align-items:center; justify-content:space-between;
-      margin-bottom:18px;
+    .wrap{max-width:1100px; margin:24px auto; padding:0 16px}
+    .topbar{display:flex; align-items:center; gap:12px; margin-bottom:16px}
+    .brand{font-weight:700; letter-spacing:.2px}
+    .pill{padding:3px 8px; border:1px solid var(--edge); border-radius:999px; color:var(--muted)}
+    .tabs{display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 16px}
+    .tab{
+      appearance:none; border:1px solid var(--edge); background:var(--panel); color:var(--ink);
+      padding:8px 12px; border-radius:10px; cursor:pointer; transition:.15s transform;
     }
-    h1{font-size:28px; margin:0 0 6px 0; letter-spacing:.2px}
-    .muted{color:var(--muted)}
-    .btn{
-      display:inline-flex; align-items:center; gap:8px;
-      background:var(--panel-2); color:var(--text);
-      border:1px solid var(--border);
-      padding:10px 14px; border-radius:12px; cursor:pointer;
-      transition:.18s transform ease, .18s background ease;
-      user-select:none; text-decoration:none;
-    }
-    .btn:hover{transform:translateY(-1px); background:rgba(122,182,255,.08)}
-    .btn.accent{background:linear-gradient(180deg, rgba(122,182,255,.22), rgba(122,182,255,.08)); border-color:rgba(122,182,255,.45)}
-    .btn.warn{background:linear-gradient(180deg, rgba(255,190,92,.18), rgba(255,190,92,.08)); border-color:rgba(255,190,92,.35)}
-    .btn.danger{background:linear-gradient(180deg, rgba(255,107,107,.18), rgba(255,107,107,.08)); border-color:rgba(255,107,107,.35)}
-    .grid{
-      display:grid; grid-template-columns: 1.2fr .9fr; gap:18px;
-    }
-    @media (max-width: 980px){ .grid{grid-template-columns: 1fr;}}
+    .tab:hover{transform:translateY(-1px)}
+    .tab.active{border-color:var(--accent); outline:1px solid color-mix(in oklab, var(--accent) 40%, transparent)}
+    .grid{display:grid; grid-template-columns:1.1fr .9fr; gap:16px}
     .card{
-      background:var(--panel); border:1px solid var(--border);
-      border-radius:var(--radius); padding:16px;
-      box-shadow: 0 8px 20px rgba(0,0,0,.12);
+      background:var(--panel); border:1px solid var(--edge); border-radius:14px; overflow:hidden;
+      box-shadow:0 10px 30px rgba(0,0,0,.25)
     }
-    .card h2{margin:0 0 12px 0; font-size:18px}
-    .row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
-    .row-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px}
-    .field{display:flex; flex-direction:column; gap:6px; margin:8px 0}
-    label{font-weight:600; font-size:12px; letter-spacing:.2px}
-    input[type="text"], input[type="url"], input[type="datetime-local"], textarea, select{
-      background:var(--panel-2); color:var(--text);
-      border:1px solid var(--border); border-radius:10px;
-      padding:10px 12px; outline:none;
+    .card .hd{padding:10px 12px; border-bottom:1px solid var(--edge); color:var(--muted); display:flex; align-items:center; justify-content:space-between}
+    .card .bd{padding:12px}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+    .row-3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px}
+    label{display:block; font-size:12px; color:var(--muted); margin-bottom:4px}
+    input[type="text"], input[type="datetime-local"], textarea{
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--edge); background:#0e1016; color:var(--ink);
     }
-    textarea{min-height:120px; resize:vertical}
-    .hint{font-size:12px; color:var(--muted)}
-    .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 2px}
-    .hero-preview img{max-width:100%; height:auto; border-radius:12px; display:block}
-    .drop{
-      border:1px dashed var(--border); border-radius:12px; padding:14px;
-      text-align:center; background:var(--panel-2); color:var(--muted)
+    textarea{min-height:160px; resize:vertical}
+    .toolbar{display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 10px}
+    .btn{
+      border:1px solid var(--edge); background:#0e1016; color:var(--ink); padding:8px 10px; border-radius:10px; cursor:pointer
     }
-    .status-pill{display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap}
-    .status-pill .opt{display:inline-flex; align-items:center; gap:6px; background:var(--panel-2); border:1px solid var(--border); border-radius:999px; padding:6px 10px}
-    .preview h2{margin:.2rem 0}
-    .preview .meta{color:var(--muted); font-size:.92em; margin:.1rem 0 .5rem}
-    .preview .summary{font-weight:600; margin:.4rem 0 .6rem}
-    .hr{height:1px; background:var(--border); margin:8px 0}
-    .actions{display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 4px}
-    .badge{font-size:11px; color:var(--muted)}
-    /* Comments list placeholder */
-    .comment{border:1px solid var(--border); border-radius:10px; padding:12px; background:var(--panel-2)}
+    .btn.primary{border-color:var(--accent)}
+    .btn.ok{border-color:var(--ok)}
+    .btn.warn{border-color:var(--warn)}
+    .btn.ghost{background:transparent}
+    .muted{color:var(--muted)}
+    .preview{
+      background:#0e1118; border:1px dashed var(--edge); border-radius:12px; padding:12px; min-height:180px
+    }
+    .preview img{max-width:100%; border-radius:10px; display:block; margin:8px 0}
+    .list{display:flex; flex-direction:column; gap:10px}
+    .item{
+      border:1px solid var(--edge); border-radius:12px; padding:10px; background:#0d0f15;
+      display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center;
+    }
+    .toast{
+      position:fixed; right:16px; bottom:16px; background:#0b0d13; border:1px solid var(--edge); color:var(--ink);
+      padding:10px 12px; border-radius:12px; opacity:0; transform:translateY(6px); transition:.2s; pointer-events:none;
+    }
+    .toast.show{opacity:1; transform:none}
+    .status-dot{width:8px;height:8px;border-radius:999px;display:inline-block;margin-right:6px}
+    .dot-draft{background:var(--muted)}
+    .dot-scheduled{background:var(--warn)}
+    .dot-published{background:var(--ok)}
+    .hidden{display:none !important}
+    @media (max-width:940px){.grid{grid-template-columns:1fr;}}
   </style>
 </head>
-<body data-theme="dark">
+<body>
   <div class="wrap">
-    <header>
-      <div>
-        <h1>Blog Manager</h1>
-        <div class="muted">Professional</div>
-      </div>
-      <button id="toggleTheme" class="btn" type="button">Toggle Theme</button>
-    </header>
-
-    <div class="grid">
-      <!-- LEFT: Post Editor -->
-      <section class="card" aria-labelledby="post-details">
-        <h2 id="post-details">Post Details</h2>
-
-        <div class="field">
-          <label for="title">Title <span class="badge">*</span></label>
-          <input id="title" name="title" type="text" placeholder="Post title" autocomplete="off" />
-          <div class="hint">Used for the page headline and preview.</div>
-        </div>
-
-        <div class="row">
-          <div class="field">
-            <label for="slug">Slug (URL)</label>
-            <input id="slug" name="slug" type="text" placeholder="my-post-title" autocomplete="off" />
-          </div>
-          <div class="field">
-            <label for="author">Author</label>
-            <input id="author" name="author" type="text" placeholder="Jane Doe" autocomplete="off" />
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Status</label>
-          <div class="status-pill" role="group" aria-label="Status">
-            <label class="opt"><input type="radio" name="status" value="draft" checked /> Draft</label>
-            <label class="opt"><input type="radio" name="status" value="published" /> Published</label>
-            <label class="opt"><input type="radio" name="status" value="scheduled" /> Scheduled</label>
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="field">
-            <label for="publishAt">Publish Date/Time (for scheduled posts)</label>
-            <input id="publishAt" name="publishAt" type="datetime-local" />
-          </div>
-          <div class="field">
-            <label for="tags">Tags</label>
-            <input id="tags" name="tags" type="text" placeholder="news, updates" />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="summary">Summary</label>
-          <textarea id="summary" name="summary" placeholder="One or two compelling sentences..."></textarea>
-        </div>
-
-        <div class="field">
-          <label for="mediaUrl">Media URL <span class="badge">*</span></label>
-          <input id="mediaUrl" name="mediaUrl" type="url" placeholder="Canonical media link for this post" />
-        </div>
-      </section>
-
-      <!-- RIGHT: Hero Image + Live Preview -->
-      <aside class="card">
-        <h2>Hero Image</h2>
-
-        <div class="row">
-          <div class="field">
-            <label for="heroUrl">Image URL</label>
-            <input id="heroUrl" name="heroImageUrl" type="url" placeholder="https://..." />
-          </div>
-          <div class="field">
-            <label for="heroAlt">Alt Text</label>
-            <input id="heroAlt" name="heroAlt" type="text" placeholder="Describe the image" />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="heroFile">Upload Image</label>
-          <input id="heroFile" name="heroImage" type="file" accept=".jpg,.jpeg,.png,.webp" />
-          <div class="drop">Click to upload or drag &amp; drop<br/><span class="hint">Supports: JPG, PNG, WebP (Max: 50MB)</span></div>
-        </div>
-
-        <div class="hero-preview" id="previewHero"></div>
-      </aside>
+    <div class="topbar">
+      <div class="brand">Blog Manager</div>
+      <span class="pill">Pro</span>
+      <span class="muted">Publish · Schedule · Preview</span>
     </div>
 
-    <!-- CONTENT + ACTIONS -->
-    <section class="card" style="margin-top:18px" aria-labelledby="content-label">
-      <h2 id="content-label">Content</h2>
-      <div class="field">
-        <textarea id="content" name="content" placeholder="Write your post content here..."></textarea>
-      </div>
+    <div class="tabs">
+      <button class="tab active" data-panel="write">Write</button>
+      <button class="tab" data-panel="posts">Posts</button>
+      <button class="tab" data-panel="settings">Settings</button>
+    </div>
 
-      <div class="actions">
-        <button id="saveDraft" class="btn" type="button">Save Draft</button>
-        <button id="previewBtn" class="btn" type="button">Preview</button>
-        <button id="publishNow" class="btn accent" type="button">Publish Now</button>
-        <button id="schedulePost" class="btn warn" type="button">Schedule Post</button>
-      </div>
-    </section>
+    <!-- WRITE -->
+    <section class="panel" id="panel-write">
+      <div class="grid">
+        <div class="card">
+          <div class="hd"><span>Compose</span><span class="muted" id="dirtyFlag" hidden>unsaved</span></div>
+          <div class="bd">
+            <div class="row">
+              <div>
+                <label>Title</label>
+                <input id="title" type="text" placeholder="Post title"/>
+              </div>
+              <div>
+                <label>Slug</label>
+                <input id="slug" type="text" placeholder="auto-from-title"/>
+              </div>
+            </div>
 
-    <!-- LIVE PREVIEW -->
-    <section class="card" style="margin-top:18px" aria-labelledby="live-preview">
-      <h2 id="live-preview">Live Preview</h2>
-      <div id="livePreview" class="preview">
-        <div id="previewHero"></div>
-        <h2 id="previewTitle">(Untitled)</h2>
-        <div id="previewMeta" class="meta"></div>
-        <p id="previewSummary" class="summary"></p>
-        <div id="previewBody" style="white-space:pre-wrap"></div>
-        <div class="hr"></div>
-        <div class="hint">Start writing to see a preview...</div>
-      </div>
-    </section>
+            <div class="row">
+              <div>
+                <label>Summary</label>
+                <input id="summary" type="text" placeholder="Short teaser for cards & SEO"/>
+              </div>
+              <div>
+                <label>Hero Image URL</label>
+                <input id="hero" type="text" placeholder="https://..."/>
+              </div>
+            </div>
 
-    <!-- COMMENTS -->
-    <section class="card" style="margin-top:18px" aria-labelledby="comments">
-      <h2 id="comments">Comments</h2>
+            <div class="toolbar">
+              <button class="btn" data-cmd="bold"><b>B</b></button>
+              <button class="btn" data-cmd="italic"><i>I</i></button>
+              <button class="btn" data-cmd="underline"><u>U</u></button>
+              <button class="btn" data-cmd="insertUnorderedList">• List</button>
+              <button class="btn" data-cmd="createLink">Link</button>
+              <button class="btn" id="fg">Text Color</button>
+              <button class="btn" id="bg">Highlight</button>
+              <button class="btn ghost" id="clearFmt">Clear</button>
+            </div>
 
-      <div class="row">
-        <label class="opt"><input id="requireApproval" type="checkbox" /> Require approval for new comments</label>
-        <div></div>
-      </div>
+            <label>Body</label>
+            <div id="body" contenteditable="true" style="border:1px solid var(--edge); border-radius:12px; padding:12px; min-height:260px; background:#0b0e14"></div>
 
-      <div class="row">
-        <div class="field">
-          <label for="commentState">Filter by state:</label>
-          <select id="commentState">
-            <option>All Comments</option>
-            <option>Pending</option>
-            <option>Approved</option>
-            <option>Rejected</option>
-          </select>
+            <div class="row-3" style="margin-top:12px">
+              <button class="btn" id="saveDraft">Save Draft</button>
+              <button class="btn warn" id="scheduleBtn">Schedule…</button>
+              <button class="btn ok" id="publishBtn">Publish</button>
+            </div>
+          </div>
         </div>
-        <div class="field">
-          <label for="postId">Post ID:</label>
-          <input id="postId" type="text" placeholder="uuid..." />
+
+        <div class="card">
+          <div class="hd"><span>Live Preview</span><span class="muted">updates as you type</span></div>
+          <div class="bd">
+            <div class="preview" id="preview">
+              <h2 id="p-title" style="margin:0 0 6px 0">Title</h2>
+              <div class="muted" id="p-slug">/posts/title</div>
+              <img id="p-img" class="hidden" alt="hero"/>
+              <p id="p-summary" class="muted">Summary appears here…</p>
+              <hr style="border:none;border-top:1px solid var(--edge)"/>
+              <article id="p-body" style="font-size:15px">Start writing…</article>
+            </div>
+          </div>
         </div>
       </div>
-
-      <div class="actions">
-        <button id="refreshComments" class="btn" type="button">Refresh Comments</button>
-      </div>
-
-      <div id="commentsList" class="muted">No comments to display</div>
     </section>
+
+    <!-- POSTS -->
+    <section class="panel hidden" id="panel-posts">
+      <div class="card">
+        <div class="hd">
+          <span>Posts</span>
+          <div>
+            <select id="filter" class="btn">
+              <option value="">All</option>
+              <option value="draft">Draft</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="published">Published</option>
+            </select>
+            <button class="btn" id="refresh">Refresh</button>
+          </div>
+        </div>
+        <div class="bd">
+          <div class="list" id="postList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="panel hidden" id="panel-settings">
+      <div class="card">
+        <div class="hd"><span>Settings</span></div>
+        <div class="bd">
+          <div class="row">
+            <div>
+              <label>Xano Base URL</label>
+              <input id="cfgBase" type="text" placeholder="https://x8jk-abc-xyz.us-east-1.xano.io/api:YOUR_GROUP"/>
+            </div>
+            <div>
+              <label>Xano API Key (if used)</label>
+              <input id="cfgKey" type="text" placeholder="Bearer …"/>
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label>Collection (optional)</label>
+              <input id="cfgCollection" type="text" placeholder="blog"/>
+            </div>
+            <div>
+              <label>Preview Debounce (ms)</label>
+              <input id="cfgDebounce" type="text" value="120"/>
+            </div>
+          </div>
+          <button class="btn primary" id="saveCfg">Save Settings</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="toast" id="toast">Saved</div>
   </div>
 
-  <!-- Behavior: live preview + image preview + upload hook + tiny QoL bits -->
-  <script>
-  (() => {
-    // THEME
-    const themeBtn = document.getElementById('toggleTheme');
-    const setTheme = t => document.body.setAttribute('data-theme', t);
-    themeBtn?.addEventListener('click', () => {
-      const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      setTheme(next);
-      localStorage.setItem('bm_theme', next);
-    });
-    setTheme(localStorage.getItem('bm_theme') || 'dark');
+<script>
+/* ======= CONFIG (single place) ======= */
+const CONFIG = {
+  XANO_API_BASE: "",    // e.g. "https://x8jk-abc-xyz.us-east-1.xano.io/api:BlogModeration"
+  XANO_API_KEY: "",     // e.g. "Bearer xyz" or "" if not required
+  COLLECTION: "blog",   // optional, if your routes are namespaced
+  PREVIEW_DEBOUNCE_MS: 120
+};
 
-    const $ = s => document.querySelector(s);
-    const $val = el => (el?.value ?? '').toString();
+// Allow runtime override via window.__CONFIG (optional)
+Object.assign(CONFIG, window.__CONFIG || {});
 
-    const el = {
-      title: $('#title'),
-      slug: $('#slug'),
-      author: $('#author'),
-      summary: $('#summary'),
-      content: $('#content'),
-      tags: $('#tags'),
-      heroUrl: $('#heroUrl'),
-      heroAlt: $('#heroAlt'),
-      mediaUrl: $('#mediaUrl'),
-      file: $('#heroFile'),
+// Centralized endpoints (adjust here if your slugs differ)
+const ENDPOINTS = {
+  listPosts:    () => `${CONFIG.XANO_API_BASE}/posts`,
+  createPost:   () => `${CONFIG.XANO_API_BASE}/posts`,
+  updatePost:   (id) => `${CONFIG.XANO_API_BASE}/posts/${id}`,
+  publishPost:  (id) => `${CONFIG.XANO_API_BASE}/posts/${id}/publish`,
+  schedulePost: (id) => `${CONFIG.XANO_API_BASE}/posts/${id}/schedule`,
+};
 
-      previewWrap: $('#livePreview'),
-      previewTitle: $('#previewTitle'),
-      previewMeta: $('#previewMeta'),
-      previewSummary: $('#previewSummary'),
-      previewBody: $('#previewBody'),
-      previewHero: $('#previewHero'),
+/* ======= tiny helpers ======= */
+const $  = (sel, root=document)=>root.querySelector(sel);
+const $$ = (sel, root=document)=>Array.from(root.querySelectorAll(sel));
+const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
+const headers = ()=> {
+  const h = {"Content-Type":"application/json"};
+  if (CONFIG.XANO_API_KEY) h["Authorization"] = CONFIG.XANO_API_KEY;
+  return h;
+}
+const slugify = (s)=> (s||"")
+  .toString().toLowerCase()
+  .normalize("NFKD").replace(/[\u0300-\u036f]/g,"")
+  .replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")
+  .slice(0,96);
 
-      saveDraft: $('#saveDraft'),
-      previewBtn: $('#previewBtn'),
-      publishNow: $('#publishNow'),
-      schedulePost: $('#schedulePost'),
+const debounce = (fn, ms=150)=>{
+  let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); };
+};
 
-      publishAt: $('#publishAt')
-    };
+const toast = (msg, type="ok")=>{
+  const el = $('#toast');
+  el.textContent = msg;
+  el.style.borderColor = (type==="err")? getComputedStyle(document.documentElement).getPropertyValue('--err') :
+                          (type==="warn")? getComputedStyle(document.documentElement).getPropertyValue('--warn') :
+                          getComputedStyle(document.documentElement).getPropertyValue('--edge');
+  el.classList.add('show'); setTimeout(()=> el.classList.remove('show'), 2200);
+};
 
-    // --- Slug helper (gentle; won't overwrite manual edits after first keystrokes) ---
-    let slugTouched = false;
-    el.slug?.addEventListener('input', () => slugTouched = true);
-    el.title?.addEventListener('input', () => {
-      if (slugTouched) return;
-      const s = $val(el.title)
-        .trim()
-        .toLowerCase()
-        .replace(/[^\w\s-]/g,'')
-        .replace(/\s+/g,'-')
-        .replace(/-+/g,'-');
-      if (el.slug) el.slug.value = s;
-    });
+/* ======= Tabs (your broken area) ======= */
+$$('.tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    $$('.tab').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const target = btn.dataset.panel;
+    // hide all panels
+    $$('.panel').forEach(p=>p.classList.add('hidden'));
+    // show the one matching the tab
+    const panel = document.querySelector(`#panel-${target}`);
+    if (panel) panel.classList.remove('hidden');
+  });
+});
 
-    // --- Live Preview binding ---
-    const setHero = (src) => {
-      if (!el.previewHero) return;
-      el.previewHero.innerHTML = src
-        ? \`<img src="\${src}" alt="\${$val(el.heroAlt)}">\`
-        : '';
-    };
+/* ======= Editor & Preview ======= */
+const state = {
+  id: null, // null means new draft
+  title: "", slug: "", summary: "", hero: "", body: "",
+  dirty:false
+};
 
-    const updatePreview = () => {
-      if (el.previewTitle) el.previewTitle.textContent = $val(el.title) || '(Untitled)';
-      if (el.previewMeta) {
-        const pieces = [];
-        if ($val(el.author)) pieces.push($val(el.author));
-        if ($val(el.tags)) pieces.push($val(el.tags));
-        el.previewMeta.textContent = pieces.join(' • ');
-      }
-      if (el.previewSummary) el.previewSummary.textContent = $val(el.summary);
-      if (el.previewBody) el.previewBody.textContent = $val(el.content);
+// inputs
+const titleEl = $('#title');
+const slugEl  = $('#slug');
+const sumEl   = $('#summary');
+const heroEl  = $('#hero');
+const bodyEl  = $('#body');
 
-      // Keep hero in sync from URL field unless a file is currently selected
-      if (el.heroUrl && el.heroUrl.value && !(el.file?.files?.length)) {
-        setHero(el.heroUrl.value.trim());
-      } else if (!(el.file?.files?.length) && !el.heroUrl?.value) {
-        setHero('');
-      }
-    };
+const pTitle = $('#p-title');
+const pSlug  = $('#p-slug');
+const pImg   = $('#p-img');
+const pSum   = $('#p-summary');
+const pBody  = $('#p-body');
 
-    ['input','change','keyup','paste'].forEach(evt => {
-      [el.title, el.author, el.summary, el.content, el.tags, el.heroUrl, el.heroAlt].forEach(node => {
-        node?.addEventListener(evt, updatePreview);
-      });
-    });
+const setDirty = (v=true)=>{
+  state.dirty = v;
+  $('#dirtyFlag').hidden = !v;
+};
 
-    if (document.readyState === 'loading'){
-      document.addEventListener('DOMContentLoaded', updatePreview);
+const updatePreview = ()=>{
+  pTitle.textContent = titleEl.value || 'Title';
+  pSlug.textContent  = `/posts/${slugEl.value || 'title'}`;
+  const h = heroEl.value.trim();
+  if (h){ pImg.src = h; pImg.classList.remove('hidden'); }
+  else { pImg.classList.add('hidden'); }
+  pSum.textContent   = sumEl.value || 'Summary appears here…';
+  pBody.innerHTML    = bodyEl.innerHTML || 'Start writing…';
+};
+
+const syncSlugFromTitle = ()=>{
+  if (!slugEl.dataset.manual){
+    slugEl.value = slugify(titleEl.value);
+  }
+};
+
+// events
+titleEl.addEventListener('input', ()=>{
+  syncSlugFromTitle(); setDirty(); previewTick();
+});
+slugEl.addEventListener('input', ()=>{ slugEl.dataset.manual = "1"; setDirty(); previewTick(); });
+sumEl.addEventListener('input', ()=>{ setDirty(); previewTick(); });
+heroEl.addEventListener('input', ()=>{ setDirty(); previewTick(); });
+bodyEl.addEventListener('input', ()=>{ setDirty(); previewTick(); });
+
+const previewTick = debounce(updatePreview, CONFIG.PREVIEW_DEBOUNCE_MS);
+
+/* ======= Rich Text mini-toolbar (no external libs) ======= */
+$$('.toolbar .btn[data-cmd]').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const cmd = b.dataset.cmd;
+    if (cmd === 'createLink'){
+      const url = prompt('URL to link to:');
+      if (url) document.execCommand('createLink', false, url);
     } else {
-      updatePreview();
+      document.execCommand(cmd, false, null);
     }
+    setDirty(); previewTick();
+  });
+});
 
-    // --- Image file preview + Upload hook ---
-    const setLocalPreview = (file) => {
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-      setHero(url);
-    };
+// Foreground/background color pickers
+$('#fg').addEventListener('click', ()=>{
+  const c = prompt('Text color (#hex or name):','#e7e9ee');
+  if (c) document.execCommand('foreColor', false, c);
+  setDirty(); previewTick();
+});
+$('#bg').addEventListener('click', ()=>{
+  const c = prompt('Highlight color:', '#2b344a');
+  if (c) document.execCommand('hiliteColor', false, c);
+  setDirty(); previewTick();
+});
+$('#clearFmt').addEventListener('click', ()=>{
+  document.execCommand('removeFormat', false, null);
+  setDirty(); previewTick();
+});
 
-    async function uploadFile(file){
-      // If your app already exposes a global uploader, use it.
-      // Expected return shape: { url: "https://..." }
-      if (window.BlogUploader && typeof window.BlogUploader.upload === 'function') {
-        try { return await window.BlogUploader.upload(file); }
-        catch(e){ console.warn('BlogUploader error:', e); }
-      }
+/* ======= CRUD ======= */
+async function api(url, options={}){
+  const res = await fetch(url, {headers: headers(), ...options});
+  if (!res.ok){
+    const txt = await res.text().catch(()=> '');
+    throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
+  }
+  return res.headers.get('content-type')?.includes('application/json') ? res.json() : res.text();
+}
 
-      // Fallback to a conventional endpoint if present.
-      try{
-        const form = new FormData();
-        form.append('file', file);
-        const res = await fetch('/api/upload', { method:'POST', body:form, credentials:'include' });
-        if(!res.ok) throw new Error('Upload failed: '+res.status);
-        const data = await res.json();
-        if (data?.url) return data;
-      }catch(e){
-        console.warn('Upload fallback failed:', e);
-      }
-      return null;
+function collectForm(){
+  return {
+    title: titleEl.value.trim(),
+    slug: slugEl.value.trim() || slugify(titleEl.value),
+    summary: sumEl.value.trim(),
+    hero: heroEl.value.trim(),
+    body_html: bodyEl.innerHTML.trim(),
+    body_text: bodyEl.textContent.trim()
+  };
+}
+
+async function saveDraft(){
+  const payload = collectForm();
+  let data;
+  if (!payload.title) { toast('Title required', 'warn'); return; }
+  try{
+    if (state.id){
+      data = await api(ENDPOINTS.updatePost(state.id), {method:'PUT', body: JSON.stringify(payload)});
+    } else {
+      data = await api(ENDPOINTS.createPost(), {method:'POST', body: JSON.stringify(payload)});
+      state.id = data.id;
     }
+    setDirty(false); toast('Draft saved');
+    await loadPosts(); // keep list fresh
+  }catch(e){ console.error(e); toast('Save failed', 'err'); }
+}
 
-    el.file?.addEventListener('change', async () => {
-      const file = el.file.files?.[0];
-      if(!file) return;
-      setLocalPreview(file); // instant local preview
-      const result = await uploadFile(file);
-      if (result?.url) {
-        if (el.heroUrl) el.heroUrl.value = result.url; // persist
-        setHero(result.url);
+async function publishNow(){
+  try{
+    if (!state.id) await saveDraft();
+    await api(ENDPOINTS.publishPost(state.id), {method:'POST', body: JSON.stringify({published_at: new Date().toISOString()})});
+    toast('Published');
+    await loadPosts();
+  }catch(e){ console.error(e); toast('Publish failed', 'err'); }
+}
+
+async function schedule(){
+  if (!state.id) await saveDraft();
+  const when = prompt('Publish at (local time, e.g. 2025-09-11 17:30):');
+  if (!when) return;
+  const iso = new Date(when.replace(' ','T')).toISOString();
+  try{
+    await api(ENDPOINTS.schedulePost(state.id), {method:'POST', body: JSON.stringify({publish_at: iso})});
+    toast('Scheduled');
+    await loadPosts();
+  }catch(e){ console.error(e); toast('Schedule failed', 'err'); }
+}
+
+/* ======= Posts list ======= */
+const listEl = $('#postList');
+const filterEl = $('#filter');
+$('#refresh').addEventListener('click', ()=> loadPosts());
+filterEl.addEventListener('change', ()=> loadPosts());
+
+function statusDot(s){
+  if (s==='published') return '<span class="status-dot dot-published"></span>Published';
+  if (s==='scheduled') return '<span class="status-dot dot-scheduled"></span>Scheduled';
+  return '<span class="status-dot dot-draft"></span>Draft';
+}
+
+function renderPosts(items){
+  listEl.innerHTML = '';
+  if (!items?.length){
+    listEl.innerHTML = '<div class="muted">No posts found.</div>'; return;
+  }
+  for (const it of items){
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.innerHTML = `
+      <div>
+        <div style="font-weight:600">${it.title || '(untitled)'} <span class="muted">/${it.slug}</span></div>
+        <div class="muted" style="font-size:12px">${statusDot(it.status || 'draft')} · Updated ${new Date(it.updated_at || it.created_at).toLocaleString()}</div>
+      </div>
+      <div style="display:flex; gap:6px">
+        <button class="btn" data-act="edit" data-id="${it.id}">Edit</button>
+        ${it.status!=='published' ? `<button class="btn ok" data-act="pub" data-id="${it.id}">Publish</button>` : ''}
+      </div>
+    `;
+    listEl.appendChild(div);
+  }
+
+  // actions
+  $$('#postList .btn').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      const id = b.dataset.id;
+      const act = b.dataset.act;
+      if (act==='edit'){
+        try{
+          const data = await api(`${ENDPOINTS.updatePost(id)}`, {method:'GET'});
+          // Load into editor
+          state.id = data.id;
+          titleEl.value = data.title || '';
+          slugEl.value  = data.slug || '';
+          sumEl.value   = data.summary || '';
+          heroEl.value  = data.hero || '';
+          bodyEl.innerHTML = data.body_html || (data.body_text||'');
+          setDirty(false);
+          // switch to Write tab
+          document.querySelector('.tab[data-panel="write"]').click();
+          updatePreview();
+          toast('Loaded');
+        }catch(e){ console.error(e); toast('Load failed','err'); }
+      } else if (act==='pub'){
+        state.id = id;
+        await publishNow();
       }
-      updatePreview();
     });
+  });
+}
 
-    el.heroUrl?.addEventListener('input', () => setHero(el.heroUrl.value.trim()));
+async function loadPosts(){
+  try{
+    const q = new URLSearchParams();
+    const f = filterEl.value;
+    if (f) q.set('status', f);
+    const data = await api(`${ENDPOINTS.listPosts()}?${q.toString()}`);
+    renderPosts(Array.isArray(data) ? data : data.items || []);
+  }catch(e){ console.error(e); toast('Fetch failed','err'); }
+}
 
-    // --- Actions (stubs that won't break UI) ---
-    const toast = (msg) => {
-      console.log('[Blog Manager]', msg);
-      // (Optionally wire to your existing toast/toaster)
-    };
+/* ======= Settings ======= */
+$('#cfgBase').value = CONFIG.XANO_API_BASE || '';
+$('#cfgKey').value  = CONFIG.XANO_API_KEY || '';
+$('#cfgCollection').value = CONFIG.COLLECTION || '';
+$('#cfgDebounce').value = String(CONFIG.PREVIEW_DEBOUNCE_MS);
 
-    el.saveDraft?.addEventListener('click', async () => {
-      // If you have a real endpoint, wire it here.
-      // This localStorage draft keeps UI useful even if backend is down.
-      const draft = {
-        title:$val(el.title), slug:$val(el.slug), author:$val(el.author),
-        summary:$val(el.summary), content:$val(el.content), tags:$val(el.tags),
-        heroUrl:$val(el.heroUrl), heroAlt:$val(el.heroAlt), mediaUrl:$val(el.mediaUrl),
-        status:(document.querySelector('input[name="status"]:checked')?.value)||'draft',
-        publishAt:$val(el.publishAt), t:Date.now()
-      };
-      localStorage.setItem('bm_draft', JSON.stringify(draft));
-      toast('Draft saved locally');
-    });
+$('#saveCfg').addEventListener('click', ()=>{
+  CONFIG.XANO_API_BASE = $('#cfgBase').value.trim();
+  CONFIG.XANO_API_KEY  = $('#cfgKey').value.trim();
+  CONFIG.COLLECTION    = $('#cfgCollection').value.trim() || CONFIG.COLLECTION;
+  CONFIG.PREVIEW_DEBOUNCE_MS = parseInt($('#cfgDebounce').value||'120',10);
+  toast('Settings saved');
+});
 
-    el.previewBtn?.addEventListener('click', () => {
-      // We already render inline; this could open a modal/route if you have one.
-      toast('Inline preview updated.');
-      updatePreview();
-    });
+/* ======= Buttons ======= */
+$('#saveDraft').addEventListener('click', saveDraft);
+$('#publishBtn').addEventListener('click', publishNow);
+$('#scheduleBtn').addEventListener('click', schedule);
 
-    el.publishNow?.addEventListener('click', async () => {
-      // Wire to your publish endpoint if available.
-      toast('Publish requested (wire endpoint here).');
-    });
-
-    el.schedulePost?.addEventListener('click', async () => {
-      // Wire to your schedule endpoint if available.
-      toast('Schedule requested (wire endpoint here).');
-    });
-
-    // Restore local draft if present (quality-of-life)
-    try{
-      const saved = localStorage.getItem('bm_draft');
-      if (saved){
-        const d = JSON.parse(saved);
-        if (el.title) el.title.value = d.title||'';
-        if (el.slug) el.slug.value = d.slug||'';
-        if (el.author) el.author.value = d.author||'';
-        if (el.summary) el.summary.value = d.summary||'';
-        if (el.content) el.content.value = d.content||'';
-        if (el.tags) el.tags.value = d.tags||'';
-        if (el.heroUrl) el.heroUrl.value = d.heroUrl||'';
-        if (el.heroAlt) el.heroAlt.value = d.heroAlt||'';
-        if (el.mediaUrl) el.mediaUrl.value = d.mediaUrl||'';
-        if (el.publishAt && d.publishAt) el.publishAt.value = d.publishAt;
-        const radio = document.querySelector('input[name="status"][value="'+(d.status||'draft')+'"]');
-        radio && (radio.checked = true);
-        updatePreview();
-      }
-    }catch(_) {}
-  })();
-  </script>
+/* ======= Init ======= */
+(async function init(){
+  // Initial preview content
+  updatePreview();
+  // initial load
+  await loadPosts();
+})();
+</script>
 </body>
 </html>
