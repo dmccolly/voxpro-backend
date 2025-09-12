@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Professional Blog Manager</title>
 
+  <!-- TinyMCE (rich text editor) -->
+  <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js"
+          referrerpolicy="origin"></script>
+
   <style>
     :root{
       --bg:#0f0f10; --panel:#191a1c; --panel-2:#202225;
@@ -57,6 +61,8 @@
     }
     .toast.show{display:block}
     .ok{color:var(--accent-2)} .err{color:var(--danger)}
+    table{border-collapse:collapse; width:100%}
+    th,td{padding:8px 6px; border-bottom:1px solid var(--border); text-align:left}
   </style>
 </head>
 <body data-theme="dark">
@@ -181,7 +187,51 @@
       </div>
     </section>
 
-    <!-- COMMENTS (optional admin tools) -->
+    <!-- POSTS (list/archive/delete using existing functions) -->
+    <section class="card" style="margin-top:18px" aria-labelledby="posts-label" id="postsCard">
+      <h2 id="posts-label">Posts</h2>
+
+      <div class="row">
+        <div class="field">
+          <label for="postSearch">Search</label>
+          <input id="postSearch" type="text" placeholder="title, slug, tag…" />
+        </div>
+        <div class="field">
+          <label for="postState">State</label>
+          <select id="postState">
+            <option value="">All</option>
+            <option value="published">Published</option>
+            <option value="draft">Draft</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="refreshPosts" class="btn" type="button">Refresh</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <div id="postsTableWrap" style="overflow:auto">
+        <table id="postsTable">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="postsTBody">
+            <tr><td colspan="4" class="muted" style="padding:10px">No posts yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- COMMENTS -->
     <section class="card" style="margin-top:18px" aria-labelledby="comments">
       <h2 id="comments">Comments</h2>
 
@@ -218,8 +268,9 @@
 
   <!-- SCRIPT STARTS HERE -->
   <script>
-  // ===== Hard-wired endpoints (Netlify functions) =====
+  // ===== Hard-wired endpoints =====
   const API = {
+    // blog create/update/schedule & comments (same as before)
     create: '/.netlify/functions/posts-create',
     update: '/.netlify/functions/posts-create',
     schedule: '/.netlify/functions/posts-create',
@@ -227,7 +278,12 @@
     moderateComment: '/.netlify/functions/comments-moderate',
     getSettings: '/.netlify/functions/comments-settings-get',
     setSettings: '/.netlify/functions/comments-settings-set',
-    upload: '/.netlify/functions/file-manager-upload'
+    upload: '/.netlify/functions/file-manager-upload',
+
+    // existing posts list/archive/delete (as defined in netlify.toml redirects)
+    postsList: '/api/blog-posts-list',
+    postsArchive: '/api/blog-posts-archive',
+    postsDelete: '/api/blog-posts-delete'
   };
   // ===== Utilities & wiring =====
   const $ = s => document.querySelector(s);
@@ -238,6 +294,8 @@
   $('#toggleTheme')?.addEventListener('click', () => {
     const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     setTheme(next); localStorage.setItem('bm_theme', next);
+    // re-skin TinyMCE
+    reinitEditorForTheme();
   });
   setTheme(localStorage.getItem('bm_theme') || 'dark');
 
@@ -258,7 +316,7 @@
 
   const el = {
     title: $('#title'), slug: $('#slug'), author: $('#author'),
-    summary: $('#summary'), content: $('#content'), tags: $('#tags'),
+    summary: $('#summary'), tags: $('#tags'),
     heroUrl: $('#heroUrl'), heroAlt: $('#heroAlt'), mediaUrl: $('#mediaUrl'),
     file: $('#heroFile'),
     heroAside: $('#heroPreviewAside'), heroMain: $('#heroPreviewMain'),
@@ -277,6 +335,13 @@
 
     clearDraftLocal: $('#clearDraftLocal'),
 
+    // Posts panel
+    postSearch: $('#postSearch'),
+    postState: $('#postState'),
+    refreshPosts: $('#refreshPosts'),
+    postsTBody: $('#postsTBody'),
+
+    // Comments panel
     requireApproval: $('#requireApproval'),
     commentState: $('#commentState'),
     postId: $('#postId'),
@@ -284,17 +349,64 @@
     commentsList: $('#commentsList')
   };
 
-  // Slug helper (gentle)
+  // ========== TinyMCE ==========
+  function getEditor(){ return (window.tinymce && tinymce.get('content')) || null; }
+  function getBodyHtml(){
+    const ed = getEditor();
+    if (ed) return ed.getContent();
+    const ta = document.getElementById('content'); return (ta?.value || '');
+  }
+  function setBodyHtml(html){
+    const ed = getEditor();
+    if (ed) ed.setContent(html || '');
+    else { const ta = document.getElementById('content'); if (ta) ta.value = html || ''; }
+  }
+  function initEditor(){
+    if (!window.tinymce) return;
+    const dark = document.body.getAttribute('data-theme') === 'dark';
+    tinymce.init({
+      selector: '#content',
+      height: 420,
+      menubar: false,
+      plugins: 'link lists code advlist',
+      toolbar: 'undo redo | styles | bold italic underline | forecolor backcolor | ' +
+               'alignleft aligncenter alignright | bullist numlist | link | removeformat | code | ' +
+               'fontfamily fontsize',
+      font_family_formats: 'Arial=arial,helvetica,sans-serif; Courier New=courier new,courier,monospace; ' +
+                           'Georgia=georgia,palatino; Helvetica=helvetica; Times New Roman=times new roman,times; ' +
+                           'Trebuchet MS=trebuchet ms,geneva; Verdana=verdana,geneva',
+      font_size_formats: '8pt 10pt 12pt 14pt 16pt 18pt 24pt 36pt 48pt',
+      skin: dark ? 'oxide-dark' : 'oxide',
+      content_css: dark ? 'dark' : 'default',
+      valid_elements: '*[*]',
+      setup: (ed) => {
+        ed.on('keyup change paste input', () => { try { updatePreview(); } catch(_){} });
+      }
+    });
+  }
+  function reinitEditorForTheme(){
+    const ed = getEditor();
+    const html = ed ? ed.getContent() : (document.getElementById('content')?.value || '');
+    if (ed) ed.remove();
+    initEditor();
+    // restore after editor init completes
+    const intv = setInterval(()=>{
+      const e2 = getEditor();
+      if (e2){ e2.setContent(html || ''); clearInterval(intv); }
+    }, 50);
+  }
+
+  // ========== Slug helper ==========
   let slugTouched = false;
   el.slug?.addEventListener('input', () => slugTouched = true);
-  el.title?.addEventListener('input', () => {
+  $('#title')?.addEventListener('input', () => {
     if (slugTouched) return;
     const s = $val(el.title).trim().toLowerCase()
       .replace(/[^\w\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-');
     if (el.slug) el.slug.value = s;
   });
 
-  // Live Preview
+  // ========== Live Preview ==========
   const setHero = (src) => {
     const img = src ? '<img src="'+src+'" alt="'+($val(el.heroAlt))+'">' : '';
     if (el.heroAside) el.heroAside.innerHTML = img;
@@ -308,8 +420,8 @@
       if ($val(el.tags)) pieces.push($val(el.tags));
       el.previewMeta.textContent = pieces.join(' • ');
     }
-    if (el.previewSummary) el.previewSummary.textContent = $val(el.summary);
-    if (el.previewBody) el.previewBody.textContent = $val(el.content);
+    if (el.previewSummary) el.previewSummary.textContent = $val($('#summary'));
+    if (el.previewBody) el.previewBody.innerHTML = getBodyHtml();
 
     if (el.heroUrl && el.heroUrl.value && !(el.file?.files?.length)) {
       setHero(el.heroUrl.value.trim());
@@ -318,14 +430,11 @@
     }
   };
   ['input','change','keyup','paste'].forEach(evt => {
-    [el.title, el.author, el.summary, el.content, el.tags, el.heroUrl, el.heroAlt]
+    [el.title, el.author, el.summary, el.tags, el.heroUrl, el.heroAlt]
       .forEach(node => node?.addEventListener(evt, updatePreview));
   });
-  if (document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', updatePreview);
-  } else { updatePreview(); }
 
-  // Upload (multipart to Netlify function)
+  // ========== Upload (multipart to Netlify function) ==========
   el.file?.addEventListener('change', async () => {
     const file = el.file.files?.[0];
     if(!file) return;
@@ -350,7 +459,7 @@
   });
   el.heroUrl?.addEventListener('input', () => setHero(el.heroUrl.value.trim()));
 
-  // Build payload
+  // ========== Build payload ==========
   function buildPayload(){
     const status = (document.querySelector('input[name="status"]:checked')?.value) || 'draft';
     const tags = (el.tags?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
@@ -358,8 +467,8 @@
       title:$val(el.title),
       slug:$val(el.slug),
       author:$val(el.author),
-      summary:$val(el.summary),
-      content:$val(el.content),
+      summary:$val($('#summary')),
+      content:getBodyHtml(),        // HTML from TinyMCE
       tags,
       mediaUrl:$val(el.mediaUrl),
       hero:{ url:$val(el.heroUrl), alt:$val(el.heroAlt) },
@@ -368,7 +477,7 @@
     };
   }
 
-  // Local draft
+  // ========== Local draft ==========
   el.saveDraftLocal?.addEventListener('click', () => {
     localStorage.setItem('bm_draft', JSON.stringify(buildPayload()));
     toast('Draft saved locally', true);
@@ -385,7 +494,6 @@
       if (el.slug) el.slug.value = d.slug||'';
       if (el.author) el.author.value = d.author||'';
       if (el.summary) el.summary.value = d.summary||'';
-      if (el.content) el.content.value = d.content||'';
       if (el.tags) el.tags.value = Array.isArray(d.tags)? d.tags.join(', ') : (d.tags||'');
       if (el.mediaUrl) el.mediaUrl.value = d.mediaUrl||'';
       if (el.heroUrl) el.heroUrl.value = d.hero?.url||'';
@@ -393,11 +501,12 @@
       if (el.publishAt && d.scheduleAt) el.publishAt.value = d.scheduleAt;
       const radio = document.querySelector('input[name="status"][value="'+(d.status||'draft')+'"]');
       radio && (radio.checked = true);
+      setBodyHtml(d.content || '');
       updatePreview();
     }
   }catch(_){}
 
-  // Server draft (if you wire a separate draft-save later, keep this as posts-create)
+  // ========== Server draft / preview / publish / schedule ==========
   el.saveDraftServer?.addEventListener('click', async () => {
     actMsg('Saving draft…');
     const res = await fetch(API.create, {
@@ -410,13 +519,10 @@
     else { actMsg('Draft save failed: '+(json?.error || res.status)); toast('Draft save failed'); }
   });
 
-  // Generate preview (reuse create endpoint as preview hook if you have one; otherwise inline preview is shown)
   el.genPreview?.addEventListener('click', () => {
-    // Inline preview already live; this button just forces refresh.
     updatePreview(); toast('Inline preview updated.', true);
   });
 
-  // Publish
   el.publishNow?.addEventListener('click', async () => {
     actMsg('Publishing…');
     const res = await fetch(API.create, {
@@ -429,7 +535,6 @@
     else { actMsg('Publish failed: '+(json?.error || res.status)); toast('Publish failed'); }
   });
 
-  // Schedule (same function; pass scheduleAt)
   el.schedulePost?.addEventListener('click', async () => {
     if (!el.publishAt?.value){ toast('Pick a publish date/time first.'); return; }
     actMsg('Scheduling…');
@@ -443,11 +548,11 @@
     else { actMsg('Schedule failed: '+(json?.error || res.status)); toast('Schedule failed'); }
   });
 
-  // ===== Comments admin (optional) =====
+  // ========== Comments admin ==========
   async function loadSettings(){
     try{
       const r = await fetch(API.getSettings);
-      const t = await r.text(); let j; try{ j=JSON.parse(t);}catch{j=null;}
+      const t = await r.text(); let j; try{ j=JSON.parse(t);}catch{j=null; }
       if (r.ok){ el.requireApproval.checked = !!j?.requireApproval; }
     }catch(_){}
   }
@@ -466,7 +571,7 @@
     if (el.postId?.value) params.set('postId', el.postId.value.trim());
     try{
       const r = await fetch(API.listComments + (params.toString()?`?${params}`:''));
-      const t = await r.text(); let list; try{ list=JSON.parse(t);}catch{list=null;}
+      const t = await r.text(); let list; try{ list=JSON.parse(t);}catch{list=null; }
       if (!Array.isArray(list)){ el.commentsList.textContent = 'No comments to display'; return; }
       el.commentsList.innerHTML = list.map(c=>(
         `<div class="comment" style="border:1px solid var(--border); border-radius:10px; padding:12px; background:var(--panel-2); margin:8px 0">
@@ -497,11 +602,90 @@
   }
   el.refreshComments?.addEventListener('click', loadComments);
 
-  // Init
+  // ========== Posts list / archive / delete ==========
+  function fmtDate(iso){ try { return new Date(iso).toLocaleString(); } catch { return iso || ''; } }
+  async function fetchJSON(url, opts) {
+    const r = await fetch(url, opts); const t = await r.text();
+    let j; try { j = JSON.parse(t); } catch { j = null; }
+    if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`); return j;
+  }
+  function renderPosts(items){
+    const rows = (items||[]).map(p=>{
+      const id = p.id || p._id || p.item_id || p.itemId || p.uuid || '';
+      const title = p.title || p.name || p.slug || '(untitled)';
+      const status = (p.status || p.state || (p.archived ? 'archived':'')).toString();
+      const updatedAt = p.updated_at || p.updatedAt || p.modified_on || p.last_updated || p._updatedOn || p.updated || p.published_on || '';
+      const slug = p.slug || '';
+      return `
+        <tr data-id="${id}" data-slug="${slug}">
+          <td>${title}</td>
+          <td>${status}</td>
+          <td>${fmtDate(updatedAt)}</td>
+          <td style="display:flex; gap:6px; flex-wrap:wrap">
+            <button class="btn" data-act="open">Open</button>
+            <button class="btn" data-act="archive">Archive</button>
+            <button class="btn danger" data-act="delete">Delete</button>
+          </td>
+        </tr>`;
+    }).join('');
+    el.postsTBody.innerHTML = rows || `<tr><td colspan="4" class="muted" style="padding:10px">No posts found.</td></tr>`;
+
+    // actions
+    el.postsTBody.querySelectorAll('button[data-act]').forEach(btn=>{
+      btn.addEventListener('click', async () => {
+        const tr = btn.closest('tr');
+        const id = tr?.getAttribute('data-id');
+        const slug = tr?.getAttribute('data-slug');
+        if (!id) return;
+        try{
+          if (btn.dataset.act === 'open') {
+            if (slug) window.open(`/blog/${slug}`, '_blank');
+            else toast('No slug found for this post.');
+          }
+          if (btn.dataset.act === 'archive') {
+            await fetchJSON(API.postsArchive, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id })
+            });
+            toast('Archived', true); loadPosts();
+          }
+          if (btn.dataset.act === 'delete') {
+            if (!confirm('Delete this post permanently?')) return;
+            await fetchJSON(API.postsDelete, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id })
+            });
+            toast('Deleted', true); loadPosts();
+          }
+        }catch(e){ toast(e.message || 'Action failed'); }
+      });
+    });
+  }
+  async function loadPosts(){
+    try{
+      const q = (el.postSearch?.value || '').trim();
+      const state = el.postState?.value || '';
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (state) params.set('status', state);
+      const data = await fetchJSON(API.postsList + (params.toString()?`?${params}`:''));
+      const items = Array.isArray(data) ? data : (data.items || data.rows || []);
+      renderPosts(items);
+    }catch(e){
+      el.postsTBody.innerHTML = `<tr><td colspan="4" class="err" style="padding:10px">${e.message}</td></tr>`;
+    }
+  }
+  el.refreshPosts?.addEventListener('click', loadPosts);
+  el.postSearch?.addEventListener('input', () => { clearTimeout(window._postTimer); window._postTimer=setTimeout(loadPosts,250); });
+  el.postState?.addEventListener('change', loadPosts);
+
+  // ========== Init ==========
   document.addEventListener('DOMContentLoaded', () => {
+    initEditor();
     updatePreview();
     loadSettings();
     loadComments();
+    loadPosts();
   });
   </script>
 </body>
