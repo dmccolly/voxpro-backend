@@ -1,8 +1,7 @@
 const API_BASE = 'https://api.webflow.com/v2';
-// Polyfill fetch for Node ≤16
 const fetch =
   global.fetch ||
-  ((...args) => import('node-fetch').then(({ default: f }) => f(...args)));
+  ((...args ) => import('node-fetch').then(({ default: f }) => f(...args)));
 
 const allowOrigin = process.env.ALLOW_ORIGINS || process.env.ALLOW_ORIGIN || '*';
 
@@ -27,11 +26,10 @@ const err = (code, message, extra = {}) => ({
 });
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return ok({ ok: true });
-  if (event.httpMethod !== 'GET') return err(405, 'Method Not Allowed');
+  if (event.httpMethod === 'OPTIONS' ) return ok({ ok: true });
+  if (event.httpMethod !== 'GET' ) return err(405, 'Method Not Allowed');
 
   const token = process.env.WEBFLOW_API_TOKEN;
-  // Fall back to WEBFLOW_COLLECTION_ID if WEBFLOW_POSTS_COLLECTION_ID is missing
   const collectionId =
     process.env.WEBFLOW_POSTS_COLLECTION_ID || process.env.WEBFLOW_COLLECTION_ID;
 
@@ -41,10 +39,8 @@ exports.handler = async (event) => {
 
   try {
     const params = new URLSearchParams(event.rawQuery || '');
-    const limit = Math.max(1, Math.min(200, parseInt(params.get('limit') || '100', 10)));
+    const limit = Math.max(1, Math.min(100, parseInt(params.get('limit') || '100', 10)));
     const offset = Math.max(0, parseInt(params.get('offset') || '0', 10));
-    const wantStatus = (params.get('status') || '').toLowerCase();
-    const q = (params.get('q') || '').trim().toLowerCase();
 
     const url = `${API_BASE}/collections/${collectionId}/items?limit=${limit}&offset=${offset}`;
     const res = await fetch(url, {
@@ -60,20 +56,7 @@ exports.handler = async (event) => {
     const json = safeParse(text) || {};
     const items = (json.items || []).map(normalize);
 
-    const filtered = items.filter((it) => {
-      if (wantStatus) {
-        if (wantStatus === 'archived' && it.status !== 'archived') return false;
-        if (wantStatus === 'draft' && it.status !== 'draft') return false;
-        if (wantStatus === 'published' && it.status !== 'published') return false;
-      }
-      if (q) {
-        const hay = `${it.title} ${it.slug} ${it.summary || ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-
-    return ok(filtered);
+    return ok(items);
   } catch (e) {
     return err(500, 'Unhandled error in blog-posts-list', {
       details: String(e?.message || e),
