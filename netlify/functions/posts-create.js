@@ -1,13 +1,14 @@
-// netlify/functions/posts-create.js
 const API_BASE = 'https://api.webflow.com/v2';
 
-// Polyfill fetch for Node ≤16; on Node 18+ global fetch will be used.
+// Polyfill fetch for Node ≤16. On Node 18+ the global fetch is available.
 const fetch =
   global.fetch ||
   ((...args) => import('node-fetch').then(({ default: f }) => f(...args)));
 
+// Determine the allowed origin for CORS. Allow multiple environment variable names for flexibility.
 const allowOrigin = process.env.ALLOW_ORIGINS || process.env.ALLOW_ORIGIN || '*';
 
+// Helper to build a successful response.
 const ok = (body) => ({
   statusCode: 200,
   headers: {
@@ -19,6 +20,7 @@ const ok = (body) => ({
   body: JSON.stringify(body),
 });
 
+// Helper to build an error response with a code and message. Additional details can be merged into the body.
 const err = (code, message, extra = {}) => ({
   statusCode: code,
   headers: {
@@ -29,14 +31,16 @@ const err = (code, message, extra = {}) => ({
 });
 
 exports.handler = async (event) => {
-  // CORS preflight support
+  // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') return ok({ ok: true });
+  // Only allow POST requests for creating posts
   if (event.httpMethod !== 'POST') return err(405, 'Method Not Allowed');
 
-  // Environment checks
+  // Pull required environment variables. Fallback to WEBFLOW_COLLECTION_ID if POST collection id isn't provided.
   const token = process.env.WEBFLOW_API_TOKEN;
   const collectionId =
     process.env.WEBFLOW_POSTS_COLLECTION_ID || process.env.WEBFLOW_COLLECTION_ID;
+
   if (!token) return err(500, 'Missing WEBFLOW_API_TOKEN');
   if (!collectionId)
     return err(
@@ -44,17 +48,19 @@ exports.handler = async (event) => {
       'Missing WEBFLOW_POSTS_COLLECTION_ID or WEBFLOW_COLLECTION_ID'
     );
 
-  // Parse and validate body
+  // Parse the request body. If body isn't valid JSON, return a 400 error.
   let body;
   try {
     body = JSON.parse(event.body || '{}');
   } catch {
     return err(400, 'Invalid JSON body');
   }
+
+  // Title is required for all posts.
   const title = (body.title || '').trim();
   if (!title) return err(400, 'Missing title');
 
-  // Build slug; if provided, use that. Otherwise derive from title.
+  // Generate a slug. Use provided slug if available, otherwise derive from title. Normalize to URL-friendly format.
   const slug = (body.slug || title)
     .toLowerCase()
     .trim()
@@ -62,27 +68,25 @@ exports.handler = async (event) => {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
 
-  // Normalize status and draft/archived flags
+  // Determine publication status. Allowed values: draft, published, scheduled. Default to draft.
   const status = (body.status || 'draft').toLowerCase();
   const isDraft = status === 'draft';
-  const isArchived = false; // we never create archived items
+  const isArchived = false; // New items aren't archived by default.
 
-  // Map fields from request to Webflow fieldData; adjust labels as needed
+  // Map incoming fields to Webflow collection fields. Adjust keys to your collection's schema as needed.
   const fieldData = {
-    // Use your collection's field labels here; `name` is often required
     name: title,
     slug: slug,
     summary: body.summary || '',
-    body: body.content || '',      // for rich text HTML
+    body: body.content || '', // Use HTML content directly
     mediaUrl: body.mediaUrl || '',
-    // Webflow ImageRef fields can accept { url: string }
     featureImageUrl: body.hero?.url || '',
     heroAlt: body.hero?.alt || '',
     tags: Array.isArray(body.tags) ? body.tags.join(', ') : body.tags || '',
     author: body.author || '',
   };
 
-  // Additional properties (draft/scheduled) outside of fieldData
+  // Construct payload. Additional fields (scheduleAt, etc.) can be added as needed.
   const payload = {
     isDraft,
     isArchived,
@@ -91,7 +95,7 @@ exports.handler = async (event) => {
   };
 
   try {
-    // Create item in Webflow
+    // Send request to Webflow to create an item.
     const res = await fetch(
       `${API_BASE}/collections/${collectionId}/items`,
       {
@@ -106,20 +110,18 @@ exports.handler = async (event) => {
     );
     const text = await res.text();
     const json = safeParse(text);
-    if (!res.ok)
+    if (!res.ok) {
       return err(res.status, 'Webflow create error', { details: json });
-
-    // Optionally, handle scheduled publishing by storing scheduleAt
-    // in a custom field or by invoking another function.
-
-    return ok({ ok: true, id: json.id || json._id || null });
+    }
+    return ok({ ok: true, id: json?.id || json?._id || null });
   } catch (e) {
     return err(500, 'Unhandled error in posts-create', {
-      details: String(e?.message || e),
+      details: e?.message || e,
     });
   }
 };
 
+// Helper to safely parse JSON.
 function safeParse(t) {
   try {
     return JSON.parse(t);
