@@ -1,4 +1,5 @@
+# Security headers for all pages
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://unpkg.com; font-src 'self' https://cdn.jsdelivr.net https://cdn.quilljs.com; frame-ancestors 'self' https://history-of-idaho-broadcasting--717ee2.webflow.io https://www.streamofdan.com https://*.webflow.io;
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://unpkg.com; font-src 'self' https://cdn.jsdelivr.net https://cdn.quilljs.com; frame-ancestors 'self' https://history-of-idaho-broadcasting--717ee2.webflow.io https://www.streamofdan.com https://*.webflow.io
   X-Frame-Options: ALLOWALL
 */
