@@ -3,11 +3,13 @@
   "version": "1.0.0",
   "description": "VoxPro broadcast media management system",
   "scripts": {
-    "build": "echo 'No build required'"
+    "build": "echo 'No build required'",
+    "start": "netlify dev"
   },
   "dependencies": {
     "busboy": "^1.6.0",
-    "cloudinary": "^1.41.0"
+    "cloudinary": "^1.41.0",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {},
   "engines": {
