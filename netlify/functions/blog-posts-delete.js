@@ -2,7 +2,6 @@ const API_BASE = 'https://api.webflow.com/v2';
 const fetch =
   global.fetch ||
   ((...args) => import('node-fetch').then(({ default: f }) => f(...args)));
-
 const allowOrigin = process.env.ALLOW_ORIGINS || process.env.ALLOW_ORIGIN || '*';
 
 const ok = (body) => ({
@@ -49,7 +48,10 @@ exports.handler = async (event) => {
       `${API_BASE}/collections/${collectionId}/items/${id}`,
       {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+        },
       }
     );
 
@@ -58,7 +60,9 @@ exports.handler = async (event) => {
 
     return ok({ ok: true, id, deleted: true });
   } catch (e) {
-    return err(500, 'Unhandled error in blog-posts-delete', { details: String(e?.message || e) });
+    return err(500, 'Unhandled error in blog-posts-delete', {
+      details: String(e?.message || e),
+    });
   }
 };
 
