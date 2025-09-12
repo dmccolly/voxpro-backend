@@ -1,6 +1,6 @@
 const allowOrigin = process.env.ALLOW_ORIGINS || process.env.ALLOW_ORIGIN || '*';
 
-const ok = (body) => ({
+const ok = (body ) => ({
   statusCode: 200,
   headers: {
     'Access-Control-Allow-Origin': allowOrigin,
@@ -12,21 +12,11 @@ const ok = (body) => ({
 });
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return ok({ ok: true });
-  if (event.httpMethod !== 'GET') {
-    return {
-      statusCode: 405,
-      headers: {
-        'Access-Control-Allow-Origin': allowOrigin,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: 'Method Not Allowed' })
-    };
-  }
+  if (event.httpMethod === 'OPTIONS' ) return ok({ ok: true });
+  if (event.httpMethod !== 'GET' ) return { statusCode: 405, body: 'Method Not Allowed' };
 
   return ok({
     requireApproval: false,
     enabled: true
   });
 };
-
