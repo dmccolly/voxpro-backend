@@ -10,6 +10,6 @@
 [[headers]]
   for = "/*"
   [headers.values]
-  Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com; img-src 'self' data: blob: https://res.cloudinary.com https://sp.tinymce.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://app.streamofdan.com https://*.xano.io https://*.netlify.app https://*.netlify/functions https://cdn.tiny.cloud; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+  Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com https://cdn.tiny.cloud; img-src 'self' data: blob: https://res.cloudinary.com https://sp.tinymce.com https://cdn.tiny.cloud; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://app.streamofdan.com https://*.xano.io https://*.netlify.app https://*.netlify/functions https://cdn.tiny.cloud; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
 
 
