@@ -1,31 +1,15 @@
 [build]
   functions = "netlify/functions"
 
-# Map /api/* to your Netlify Functions
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
   force = true
 
-# Security + allow listed CDNs and your backends
 [[headers]]
   for = "/*"
   [headers.values]
-  # Strict but permits TinyMCE, Quill, and jsDelivr
-  Content-Security-Policy = """
-    default-src 'self';
-    script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud;
-    style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com;
-    img-src 'self' data: blob:;
-    font-src 'self' https://fonts.gstatic.com;
-    connect-src 'self' https://app.streamofdan.com https://*.xano.io https://*.netlify.app https://*.netlify/functions;
-    frame-src 'self';
-    object-src 'none';
-    base-uri 'self';
-    form-action 'self'
-  """
-  X-Content-Type-Options = "nosniff"
-  Referrer-Policy = "strict-origin-when-cross-origin"
-  Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-  Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+  Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com; img-src 'self' data: blob: https://res.cloudinary.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://app.streamofdan.com https://*.xano.io https://*.netlify.app https://*.netlify.com; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+  X-Frame-Options = "ALLOWALL"
+
