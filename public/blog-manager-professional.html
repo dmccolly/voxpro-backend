@@ -441,7 +441,7 @@
     if(!file) return;
     const localURL = URL.createObjectURL(file); // instant local preview
     setHero(localURL);
-    const fd = new FormData(); fd.append('file', file);
+    const fd = new FormData(); fd.append('attachment', file);
     try{
       const res = await fetch(API.upload, { method:'POST', body:fd });
       const text = await res.text();
