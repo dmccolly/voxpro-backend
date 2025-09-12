@@ -1,17 +1,12 @@
 [build]
-  functions = "netlify/functions"
+  publish   = "public"
+  functions = "public/functions"
 
 [build.environment]
   NODE_VERSION = "18"
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  to   = "/.netlify/functions/:splat"
   status = 200
-  force = true
-
-[[headers]]
-  for = "/*"
-  [headers.values]
-  Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com https://cdn.tiny.cloud; img-src 'self' data: blob: https://res.cloudinary.com https://sp.tinymce.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://app.streamofdan.com https://*.xano.io https://*.netlify.app https://*.netlify.com https://cdn.tiny.cloud https://sp.tinymce.com; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
-  X-Frame-Options = "ALLOWALL"
+  force  = true
