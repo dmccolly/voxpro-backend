@@ -140,7 +140,7 @@ const htmlPage = `<!DOCTYPE html>
 
 exports.handler = async (event) => {
     const headers = {
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': 'https://app.streamofdan.com',
         'Access-Control-Allow-Headers': '*',
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
     };
