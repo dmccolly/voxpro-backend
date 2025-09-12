@@ -1,7 +1,5 @@
 const API_BASE = 'https://api.webflow.com/v2';
-const fetch =
-  global.fetch ||
-  ((...args ) => import('node-fetch').then(({ default: f }) => f(...args)));
+const fetch = global.fetch || ((...args ) => import('node-fetch').then(({ default: f }) => f(...args)));
 
 const allowOrigin = process.env.ALLOW_ORIGINS || process.env.ALLOW_ORIGIN || '*';
 
@@ -30,17 +28,17 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'GET' ) return err(405, 'Method Not Allowed');
 
   const token = process.env.WEBFLOW_API_TOKEN;
-  const collectionId =
-    process.env.WEBFLOW_POSTS_COLLECTION_ID || process.env.WEBFLOW_COLLECTION_ID;
+  const collectionId = process.env.WEBFLOW_POSTS_COLLECTION_ID || process.env.WEBFLOW_COLLECTION_ID;
 
-  if (!token) return err(500, 'Missing WEBFLOW_API_TOKEN');
-  if (!collectionId)
-    return err(500, 'Missing WEBFLOW_POSTS_COLLECTION_ID or WEBFLOW_COLLECTION_ID');
+  if (!token) return err(500, 'Missing WEBFLOW_API_TOKEN environment variable');
+  if (!collectionId) return err(500, 'Missing WEBFLOW_POSTS_COLLECTION_ID or WEBFLOW_COLLECTION_ID environment variable');
 
   try {
     const params = new URLSearchParams(event.rawQuery || '');
-    const limit = Math.max(1, Math.min(100, parseInt(params.get('limit') || '100', 10)));
+    const limit = Math.max(1, Math.min(200, parseInt(params.get('limit') || '100', 10)));
     const offset = Math.max(0, parseInt(params.get('offset') || '0', 10));
+    const wantStatus = (params.get('status') || '').toLowerCase();
+    const q = (params.get('q') || '').trim().toLowerCase();
 
     const url = `${API_BASE}/collections/${collectionId}/items?limit=${limit}&offset=${offset}`;
     const res = await fetch(url, {
@@ -51,12 +49,25 @@ exports.handler = async (event) => {
     });
 
     const text = await res.text();
-    if (!res.ok) return err(res.status, 'Webflow error', { details: safeParse(text) });
+    if (!res.ok) return err(res.status, 'Webflow API error', { details: safeParse(text) });
 
     const json = safeParse(text) || {};
     const items = (json.items || []).map(normalize);
 
-    return ok(items);
+    const filtered = items.filter((it) => {
+      if (wantStatus) {
+        if (wantStatus === 'archived' && it.status !== 'archived') return false;
+        if (wantStatus === 'draft' && it.status !== 'draft') return false;
+        if (wantStatus === 'published' && it.status !== 'published') return false;
+      }
+      if (q) {
+        const hay = `${it.title} ${it.slug} ${it.summary || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+
+    return ok(filtered);
   } catch (e) {
     return err(500, 'Unhandled error in blog-posts-list', {
       details: String(e?.message || e),
@@ -86,17 +97,8 @@ function normalize(raw) {
   } = raw || {};
 
   const title = fieldData.name || name || '';
-  const summary =
-    fieldData.summary ||
-    fieldData.seoDescription ||
-    fieldData.description ||
-    '';
-  const hero =
-    fieldData.featureImageUrl ||
-    fieldData.hero ||
-    fieldData.mainImage ||
-    fieldData.image ||
-    '';
+  const summary = fieldData.summary || fieldData.seoDescription || fieldData.description || '';
+  const hero = fieldData.featureImageUrl || fieldData.hero || fieldData.mainImage || fieldData.image || '';
 
   let status = 'published';
   if (isArchived) status = 'archived';
