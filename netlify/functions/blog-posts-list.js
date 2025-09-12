@@ -1,121 +1,66 @@
-const API_BASE = 'https://api.webflow.com/v2';
-const fetch = global.fetch || ((...args ) => import('node-fetch').then(({ default: f }) => f(...args)));
+// netlify/functions/blog-posts-list.js
+// Proxies to Xano (or your chosen backend) and normalizes CORS.
+// Configure either BLOG_POSTS_LIST_URL or XANO_API_BASE in Netlify env.
 
-const allowOrigin = process.env.ALLOW_ORIGINS || process.env.ALLOW_ORIGIN || '*';
-
-const ok = (body) => ({
-  statusCode: 200,
-  headers: {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify(body),
-});
-
-const err = (code, message, extra = {}) => ({
-  statusCode: code,
-  headers: {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({ error: message, ...extra }),
-});
+const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
 
 exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS' ) return ok({ ok: true });
-  if (event.httpMethod !== 'GET' ) return err(405, 'Method Not Allowed');
-
-  const token = process.env.WEBFLOW_API_TOKEN;
-  const collectionId = process.env.WEBFLOW_POSTS_COLLECTION_ID || process.env.WEBFLOW_COLLECTION_ID;
-
-  if (!token) return err(500, 'Missing WEBFLOW_API_TOKEN environment variable');
-  if (!collectionId) return err(500, 'Missing WEBFLOW_POSTS_COLLECTION_ID or WEBFLOW_COLLECTION_ID environment variable');
-
   try {
-    const params = new URLSearchParams(event.rawQuery || '');
-    const limit = Math.max(1, Math.min(200, parseInt(params.get('limit') || '100', 10)));
-    const offset = Math.max(0, parseInt(params.get('offset') || '0', 10));
-    const wantStatus = (params.get('status') || '').toLowerCase();
-    const q = (params.get('q') || '').trim().toLowerCase();
+    // Allow only your site (adjust if you preview from a different domain)
+    const allowOrigin = 'https://app.streamofdan.com';
 
-    const url = `${API_BASE}/collections/${collectionId}/items?limit=${limit}&offset=${offset}`;
-    const res = await fetch(url, {
+    // Prefer explicit URL; otherwise fall back to Xano base + conventional path
+    const explicit = process.env.BLOG_POSTS_LIST_URL; // e.g. https://x8a2-1234-foo.xano.io/api:abcd/blog-posts-list
+    const base = process.env.XANO_API_BASE;           // e.g. https://x8a2-1234-foo.xano.io/api:abcd
+    const apiKey = process.env.XANO_API_KEY;          // if your Xano group requires Authorization
+
+    const url = explicit || (base ? `${base.replace(/\/+$/,'')}/blog-posts-list` : null);
+    if (!url) {
+      return {
+        statusCode: 500,
+        headers: {
+          'Access-Control-Allow-Origin': allowOrigin,
+          'Access-Control-Allow-Credentials': 'true',
+        },
+        body: JSON.stringify({ error: 'No BLOG_POSTS_LIST_URL or XANO_API_BASE configured.' })
+      };
+    }
+
+    // Pass through any query params from the frontend (pagination, filters, etc.)
+    const qs = event.rawQuery ? `?${event.rawQuery}` : '';
+    const target = `${url}${qs}`;
+
+    const res = await fetch(target, {
       headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'Authorization': apiKey } : {})
+      }
     });
 
     const text = await res.text();
-    if (!res.ok) return err(res.status, 'Webflow API error', { details: safeParse(text) });
+    // Try to return JSON; if not JSON, return raw text
+    let body;
+    try { body = JSON.parse(text); }
+    catch { body = text; }
 
-    const json = safeParse(text) || {};
-    const items = (json.items || []).map(normalize);
-
-    const filtered = items.filter((it) => {
-      if (wantStatus) {
-        if (wantStatus === 'archived' && it.status !== 'archived') return false;
-        if (wantStatus === 'draft' && it.status !== 'draft') return false;
-        if (wantStatus === 'published' && it.status !== 'published') return false;
-      }
-      if (q) {
-        const hay = `${it.title} ${it.slug} ${it.summary || ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-
-    return ok(filtered);
-  } catch (e) {
-    return err(500, 'Unhandled error in blog-posts-list', {
-      details: String(e?.message || e),
-    });
+    return {
+      statusCode: res.status,
+      headers: {
+        'Access-Control-Allow-Origin': allowOrigin,
+        'Access-Control-Allow-Credentials': 'true',
+        'Content-Type': res.headers.get('content-type') || 'application/json'
+      },
+      body: (typeof body === 'string') ? body : JSON.stringify(body)
+    };
+  } catch (err) {
+    return {
+      statusCode: 502,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://app.streamofdan.com',
+        'Access-Control-Allow-Credentials': 'true',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: 'Upstream fetch failed', detail: String(err) })
+    };
   }
 };
-
-function safeParse(t) {
-  try {
-    return JSON.parse(t);
-  } catch {
-    return null;
-  }
-}
-
-function normalize(raw) {
-  const {
-    id,
-    slug,
-    name,
-    createdOn,
-    updatedOn,
-    lastPublished,
-    isArchived,
-    isDraft,
-    fieldData = {},
-  } = raw || {};
-
-  const title = fieldData.name || name || '';
-  const summary = fieldData.summary || fieldData.seoDescription || fieldData.description || '';
-  const hero = fieldData.featureImageUrl || fieldData.hero || fieldData.mainImage || fieldData.image || '';
-
-  let status = 'published';
-  if (isArchived) status = 'archived';
-  else if (isDraft) status = 'draft';
-
-  return {
-    id,
-    slug,
-    title,
-    summary,
-    featureImageUrl: hero,
-    status,
-    createdOn,
-    updatedOn,
-    lastPublished,
-    isArchived,
-    isDraft,
-    raw,
-  };
-}
