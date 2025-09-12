@@ -12,9 +12,22 @@ exports.handler = async (event) => {
     };
   }
 
+  if (event.httpMethod !== 'GET' ) {
+    return {
+      statusCode: 405,
+      headers: {
+        'Access-Control-Allow-Origin': 'https://app.streamofdan.com',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ error: 'Method Not Allowed' } )
+    };
+  }
+
   try {
     const url = process.env.BLOG_POSTS_LIST_URL;
-    if (!url ) throw new Error('Missing BLOG_POSTS_LIST_URL');
+    if (!url) {
+      throw new Error('Missing BLOG_POSTS_LIST_URL environment variable');
+    }
     
     const res = await fetch(url);
     const body = await res.text();
