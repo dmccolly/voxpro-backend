@@ -2,7 +2,6 @@ const API_BASE = 'https://api.webflow.com/v2';
 const fetch =
   global.fetch ||
   ((...args) => import('node-fetch').then(({ default: f }) => f(...args)));
-
 const allowOrigin = process.env.ALLOW_ORIGINS || process.env.ALLOW_ORIGIN || '*';
 
 const ok = (body) => ({
@@ -41,22 +40,23 @@ exports.handler = async (event) => {
   try {
     body = JSON.parse(event.body || '{}');
   } catch {}
-
   const id = (body.id || '').trim();
   const unarchive = !!body.unarchive;
   if (!id) return err(400, 'Missing id');
 
   try {
-    const url = `${API_BASE}/collections/${collectionId}/items/${id}`;
-    const res = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ isArchived: !unarchive }),
-    });
+    const res = await fetch(
+      `${API_BASE}/collections/${collectionId}/items/${id}`,
+      {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ isArchived: !unarchive }),
+      }
+    );
 
     const text = await res.text();
     if (!res.ok) return err(res.status, 'Webflow error', { details: safeParse(text) });
@@ -64,7 +64,9 @@ exports.handler = async (event) => {
     const data = safeParse(text) || {};
     return ok({ ok: true, id, isArchived: data.isArchived === true });
   } catch (e) {
-    return err(500, 'Unhandled error in blog-posts-archive', { details: String(e?.message || e) });
+    return err(500, 'Unhandled error in blog-posts-archive', {
+      details: String(e?.message || e),
+    });
   }
 };
 
