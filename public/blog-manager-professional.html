@@ -1,456 +1,508 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Blog Manager — Inline Media</title>
-<!-- Optional: set once at build time -->
-<!-- <meta name="admin-token" content="YOUR_ADMIN_TOKEN"> -->
-<style>
-  :root{
-    --bg:#0f0f12; --panel:#151720; --ink:#e7e9ee; --muted:#9aa3b2; --accent:#7aa2ff;
-    --ok:#2ecc71; --warn:#f39c12; --err:#ff6161; --edge:#222635; --panel2:#0e1118;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Inter,sans-serif;color:var(--ink);background:linear-gradient(180deg,#0b0c10,#101217)}
-  .wrap{max-width:1200px;margin:24px auto;padding:0 16px}
-  .topbar{display:flex;align-items:center;gap:12px;margin-bottom:8px}
-  .brand{font-weight:700}
-  .pill{padding:3px 8px;border:1px solid var(--edge);border-radius:999px;color:var(--muted)}
-  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 16px}
-  .tab{appearance:none;border:1px solid var(--edge);background:var(--panel);color:var(--ink);padding:8px 12px;border-radius:10px;cursor:pointer}
-  .tab.active{border-color:var(--accent);outline:1px solid color-mix(in oklab,var(--accent) 40%,transparent)}
-  .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:16px}
-  .card{background:var(--panel);border:1px solid var(--edge);border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-  .card .hd{padding:10px 12px;border-bottom:1px solid var(--edge);color:var(--muted);display:flex;align-items:center;justify-content:space-between}
-  .card .bd{padding:12px}
-  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
-  input[type="text"],textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--edge);background:#0e1016;color:var(--ink)}
-  textarea{min-height:160px;resize:vertical}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-  .toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
-  .btn{border:1px solid var(--edge);background:#0e1016;color:var(--ink);padding:8px 10px;border-radius:10px;cursor:pointer}
-  .btn.primary{border-color:var(--accent)} .btn.ok{border-color:var(--ok)} .btn.warn{border-color:var(--warn)} .btn.ghost{background:transparent}
-  .muted{color:var(--muted)} .hint{font-size:12px;color:var(--muted);margin-top:6px}
-  .preview{background:var(--panel2);border:1px dashed var(--edge);border-radius:12px;padding:12px;min-height:180px}
-  .preview img,.preview video{max-width:100%;border-radius:10px;display:block;margin:8px 0}
-  .list{display:flex;flex-direction:column;gap:10px}
-  .item{border:1px solid var(--edge);border-radius:12px;padding:10px;background:#0d0f15;display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center}
-  .item .meta{font-size:12px}
-  .toast{position:fixed;right:16px;bottom:16px;background:#0b0d13;border:1px solid var(--edge);color:var(--ink);padding:10px 12px;border-radius:12px;opacity:0;transform:translateY(6px);transition:.2s;pointer-events:none}
-  .toast.show{opacity:1;transform:none}
-  .status-dot{width:8px;height:8px;border-radius:999px;display:inline-block;margin-right:6px}
-  .dot-draft{background:var(--muted)} .dot-scheduled{background:var(--warn)} .dot-published{background:var(--ok)}
-  .hidden{display:none !important}
-  /* Inline media panel */
-  .media-tabs{display:flex;gap:8px;margin:0 0 8px 0}
-  .media-tabs .btn{display:flex;align-items:center;gap:6px}
-  .drop{border:1px dashed var(--edge);border-radius:12px;background:#0e1118;padding:16px;text-align:center}
-  .drop.drag{outline:2px dashed var(--accent)}
-  .media-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:10px}
-  .thumb{border:1px solid var(--edge);border-radius:10px;background:#0c0e14;overflow:hidden}
-  .thumb .img{width:100%;height:120px;object-fit:cover;display:block;background:#0b0d12}
-  .thumb .meta{display:flex;justify-content:space-between;gap:6px;padding:6px}
-  .thumb .meta .name{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .thumb .actions{display:flex;gap:6px;padding:6px}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Professional Blog Manager</title>
+
+  <style>
+    :root{
+      --bg:#0f0f10; --panel:#191a1c; --panel-2:#202225;
+      --text:#e9eaee; --muted:#aeb2bb; --border:#2c2f35;
+      --accent:#7ab6ff; --accent-2:#5de6b3; --danger:#ff6b6b; --warn:#ffbe5c;
+      --radius:14px;
+    }
+    [data-theme="light"]{
+      --bg:#f7f8fa; --panel:#ffffff; --panel-2:#f2f4f7;
+      --text:#111318; --muted:#4a5563; --border:#e5e7eb;
+      --accent:#2563eb; --accent-2:#059669; --danger:#dc2626; --warn:#d97706;
+    }
+    html,body{height:100%}
+    body{margin:0; font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text)}
+    .wrap{max-width:1100px; margin:28px auto; padding:0 16px}
+    header{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px}
+    h1{font-size:28px; margin:0 0 6px 0; letter-spacing:.2px}
+    .muted{color:var(--muted)}
+    .grid{display:grid; grid-template-columns:1.2fr .9fr; gap:18px}
+    @media (max-width:980px){ .grid{grid-template-columns:1fr} }
+    .card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:0 8px 20px rgba(0,0,0,.12)}
+    .card h2{margin:0 0 12px 0; font-size:18px}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+    .field{display:flex; flex-direction:column; gap:6px; margin:8px 0}
+    label{font-weight:600; font-size:12px; letter-spacing:.2px}
+    input[type="text"],input[type="url"],input[type="datetime-local"],textarea,select{
+      background:var(--panel-2); color:var(--text); border:1px solid var(--border);
+      border-radius:10px; padding:10px 12px; outline:none;
+    }
+    textarea{min-height:120px; resize:vertical}
+    .hint{font-size:12px; color:var(--muted)}
+    .btn{
+      display:inline-flex; align-items:center; gap:8px; background:var(--panel-2); color:var(--text);
+      border:1px solid var(--border); padding:10px 14px; border-radius:12px; cursor:pointer;
+      transition:.18s transform ease,.18s background ease; user-select:none; text-decoration:none;
+    }
+    .btn:hover{transform:translateY(-1px); background:rgba(122,182,255,.08)}
+    .btn.accent{background:linear-gradient(180deg, rgba(122,182,255,.22), rgba(122,182,255,.08)); border-color:rgba(122,182,255,.45)}
+    .btn.warn{background:linear-gradient(180deg, rgba(255,190,92,.18), rgba(255,190,92,.08)); border-color:rgba(255,190,92,.35)}
+    .btn.danger{background:linear-gradient(180deg, rgba(255,107,107,.18), rgba(255,107,107,.08)); border-color:rgba(255,107,107,.35)}
+    .hr{height:1px; background:var(--border); margin:8px 0}
+    .hero-preview img{max-width:100%; height:auto; border-radius:12px; display:block}
+    .drop{border:1px dashed var(--border); border-radius:12px; padding:14px; text-align:center; background:var(--panel-2); color:var(--muted)}
+    .actions{display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 4px}
+    .badge{font-size:11px; color:var(--muted)}
+    .toast{
+      position:fixed; right:16px; bottom:16px; background:var(--panel); color:var(--text);
+      border:1px solid var(--border); border-radius:12px; padding:10px 12px; box-shadow:0 6px 16px rgba(0,0,0,.2);
+      display:none; max-width:320px; z-index:99999;
+    }
+    .toast.show{display:block}
+    .ok{color:var(--accent-2)} .err{color:var(--danger)}
+  </style>
 </head>
-<body>
-<div class="wrap">
-  <div class="topbar">
-    <div class="brand">Blog Manager</div>
-    <span class="pill">Pro</span>
-    <span class="muted">Write · Posts · Comments · Settings</span>
-  </div>
-
-  <div class="tabs">
-    <button class="tab active" data-panel="write">Write</button>
-    <button class="tab" data-panel="posts">Posts</button>
-    <button class="tab" data-panel="comments">Comments</button>
-    <button class="tab" data-panel="settings">Settings</button>
-  </div>
-
-  <section class="panel" id="panel-write">
-    <div class="grid">
-      <div class="card">
-        <div class="hd"><span>Compose</span><span class="muted" id="dirtyFlag" hidden>unsaved</span></div>
-        <div class="bd">
-          <div class="row">
-            <div><label>Title</label><input id="title" type="text" placeholder="Post title"/></div>
-            <div><label>Slug</label><input id="slug" type="text" placeholder="auto-from-title"/></div>
-          </div>
-          <div class="row">
-            <div><label>Summary</label><input id="summary" type="text" placeholder="Short teaser for cards & SEO"/></div>
-            <div>
-              <label>Hero (image only)</label>
-              <div style="display:flex;gap:6px;align-items:center">
-                <input id="hero" type="text" placeholder="https://… (drop an image file here to upload)"/>
-                <button class="btn" id="heroUrl">Set by URL…</button>
-              </div>
-              <div class="hint">Drop an image onto the field to upload & set.</div>
-            </div>
-          </div>
-
-          <div class="toolbar">
-            <button class="btn" data-cmd="bold"><b>B</b></button>
-            <button class="btn" data-cmd="italic"><i>I</i></button>
-            <button class="btn" data-cmd="underline"><u>U</u></button>
-            <button class="btn" data-cmd="insertUnorderedList">• List</button>
-            <button class="btn" data-cmd="createLink">Link</button>
-            <button class="btn" id="fg">Text Color</button>
-            <button class="btn" id="bg">Highlight</button>
-            <button class="btn" id="embedUrl">Embed URL…</button>
-            <button class="btn ghost" id="clearFmt">Clear</button>
-          </div>
-
-          <label>Body</label>
-          <div id="body" contenteditable="true" style="border:1px solid var(--edge);border-radius:12px;padding:12px;min-height:260px;background:#0b0e14"></div>
-          <div class="hint">Drop files (image/video/audio) into Body or paste from clipboard. Upload happens once and content appears immediately.</div>
-
-          <div class="row-3" style="margin-top:12px">
-            <button class="btn" id="saveDraft">Save Draft</button>
-            <button class="btn warn" id="scheduleBtn">Schedule…</button>
-            <button class="btn ok" id="publishBtn">Publish</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Inline Media panel (Upload + Library) -->
-      <div class="card">
-        <div class="hd"><span>Media (Blog)</span><span class="muted"><span id="mediaCounter">0</span> items</span></div>
-        <div class="bd">
-          <div class="media-tabs">
-            <button class="btn" id="btnUpload"><span>⬆️</span> Upload</button>
-            <button class="btn" id="btnLibrary"><span>🗂</span> Blog Library</button>
-          </div>
-
-          <!-- Upload -->
-          <div id="pane-upload">
-            <div class="drop" id="drop">
-              <p style="margin:0 0 6px 0">Drag & drop files, paste from clipboard, or <label for="fileInput" style="text-decoration:underline;cursor:pointer">browse</label></p>
-              <input id="fileInput" type="file" accept="image/*,video/*,audio/*" multiple class="hidden"/>
-              <div class="muted" id="uploadHint">Ready</div>
-            </div>
-          </div>
-
-          <!-- Library -->
-          <div id="pane-library" class="hidden">
-            <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-              <input id="mediaSearch" type="text" class="btn" placeholder="Search titles…" style="min-width:220px"/>
-              <button class="btn" id="refreshMedia">Refresh</button>
-            </div>
-            <div class="media-grid" id="mediaGrid"></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- POSTS -->
-  <section class="panel hidden" id="panel-posts">
-    <div class="card">
-      <div class="hd">
-        <span>Posts</span>
-        <div>
-          <select id="filterPosts" class="btn">
-            <option value="">All</option>
-            <option value="draft">Draft</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
-          </select>
-          <button class="btn" id="refreshPosts">Refresh</button>
-        </div>
-      </div>
-      <div class="bd"><div class="list" id="postList"></div></div>
-    </div>
-  </section>
-
-  <!-- COMMENTS -->
-  <section class="panel hidden" id="panel-comments">
-    <div class="card">
-      <div class="hd">
-        <span>Comments</span>
-        <div>
-          <select id="filterComments" class="btn">
-            <option value="pending">Pending</option>
-            <option value="approved">Approved</option>
-            <option value="rejected">Rejected</option>
-            <option value="">All</option>
-          </select>
-          <button class="btn" id="refreshComments">Refresh</button>
-        </div>
-      </div>
-      <div class="bd"><div class="list" id="commentList"></div></div>
-    </div>
-  </section>
-
-  <!-- SETTINGS -->
-  <section class="panel hidden" id="panel-settings">
-    <div class="card">
-      <div class="hd"><span>Settings</span></div>
-      <div class="bd">
-        <div class="row">
-          <div><label>Admin Token (remembered)</label><input id="cfgAdmin" type="text" placeholder="Set once; page remembers"/></div>
-          <div><label>Preview Debounce (ms)</label><input id="cfgDebounce" type="text" value="120"/></div>
-        </div>
-        <div class="row">
-          <div><label>Media Scope</label><input id="cfgCollection" type="text" value="blog"/></div>
-          <div><label>Endpoints</label><input type="text" value="blog-media-*, blog-posts-*, posts-create" disabled/></div>
-        </div>
-        <button class="btn primary" id="saveCfg">Save Settings</button>
-      </div>
-    </div>
-  </section>
-
-  <div class="toast" id="toast">Saved</div>
-</div>
-
-<script>
-/* ================== Endpoints (blog first, legacy fallback) ================== */
-const EP = {
-  mediaList:   ['/.netlify/functions/blog-media-list','/.netlify/functions/list-cloudinary'],
-  mediaUpload: ['/.netlify/functions/blog-media-upload','/.netlify/functions/file-manager-upload'],
-  mediaDelete: ['/.netlify/functions/blog-media-delete','/.netlify/functions/delete-cloudinary'],
-  postsList:   ['/.netlify/functions/blog-posts-list','/.netlify/functions/posts-list'],
-  postsArchive:['/.netlify/functions/blog-posts-archive','/.netlify/functions/posts-archive'],
-  postsDelete: ['/.netlify/functions/blog-posts-delete','/.netlify/functions/posts-delete'],
-  postsCreate: '/.netlify/functions/posts-create',
-  commentsList:'/.netlify/functions/comments-list',
-  commentsMod: '/.netlify/functions/comments-moderate'
-};
-const CONFIG = { MEDIA_SCOPE:'blog', PREVIEW_DEBOUNCE_MS:120 };
-
-/* ================== helpers ================== */
-const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
-const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v);
-const toast=(m,t='ok')=>{const el=$('#toast');el.textContent=m;el.style.borderColor=t==='err'?css('--err'):t==='warn'?css('--warn'):css('--edge');el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
-const debounce=(fn,ms=150)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)};}
-const slugify=s=>(s||'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,96);
-async function fetchJSON(url,opt={}){const res=await fetch(url,{cache:'no-store',...opt});const ct=res.headers.get('content-type')||'';const body=ct.includes('application/json')?await res.json().catch(()=>null):await res.text();if(!res.ok)throw new Error(typeof body==='string'?body:JSON.stringify(body||{}));return body;}
-async function tryEndpoints(urls, build){let last=null;for(const base of urls){try{return await build(base);}catch(e){last=e}}throw last||new Error('All endpoints failed');}
-
-/* admin token */
-function setCookie(name,value,days=365){const d=new Date();d.setTime(d.getTime()+days*24*60*60*1000);document.cookie=`${name}=${encodeURIComponent(value)}; expires=${d.toUTCString()}; path=/; SameSite=Lax`;}
-function getCookie(name){const m=document.cookie.match(new RegExp('(^|; )'+name+'=([^;]*)'));return m?decodeURIComponent(m[2]):'';}
-function getMeta(name){const el=document.querySelector(`meta[name="${name}"]`);return el?el.content.trim():'';}
-function getAdminToken(){return getCookie('bm_admin')||localStorage.getItem('ADMIN_TOKEN')||getMeta('admin-token')||'';}
-function setAdminToken(tok){if(!tok)return;localStorage.setItem('ADMIN_TOKEN',tok);setCookie('bm_admin',tok,365);}
-
-/* ================== Tabs ================== */
-$$('.tab').forEach(b=>b.addEventListener('click',()=>{$$('.tab').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.panel').forEach(p=>p.classList.add('hidden'));$('#panel-'+b.dataset.panel)?.classList.remove('hidden')}));
-
-/* ================== Editor + Preview ================== */
-const state={id:null,dirty:false,adminToken:''};
-const titleEl=$('#title'), slugEl=$('#slug'), sumEl=$('#summary'), heroEl=$('#hero'), bodyEl=$('#body');
-const pTitle=$('#p-title'), pSlug=$('#p-slug'), pImg=$('#p-img'), pSum=$('#p-summary'), pBody=$('#p-body');
-const setDirty=v=>{state.dirty=v;$('#dirtyFlag').hidden=!v;}
-const updatePreview=()=>{pTitle.textContent=titleEl.value||'Title';pSlug.textContent='/posts/'+(slugEl.value||'title');const h=(heroEl.value||'').trim();if(h){pImg.src=h;pImg.classList.remove('hidden')}else pImg.classList.add('hidden');pSum.textContent=sumEl.value||'Summary appears here…';pBody.innerHTML=bodyEl.innerHTML||'Start writing…';}
-const previewTick=debounce(updatePreview,CONFIG.PREVIEW_DEBOUNCE_MS);
-const syncSlug=()=>{if(!slugEl.dataset.manual)slugEl.value=slugify(titleEl.value);}
-titleEl.addEventListener('input',()=>{syncSlug();setDirty(true);previewTick();});
-slugEl.addEventListener('input',()=>{slugEl.dataset.manual='1';setDirty(true);previewTick();});
-sumEl.addEventListener('input',()=>{setDirty(true);previewTick();});
-heroEl.addEventListener('input',()=>{setDirty(true);previewTick();});
-bodyEl.addEventListener('input',()=>{setDirty(true);previewTick();});
-$$('.toolbar .btn[data-cmd]').forEach(b=>b.addEventListener('click',()=>{const cmd=b.dataset.cmd;if(cmd==='createLink'){const url=prompt('URL:');if(url)document.execCommand('createLink',false,url);}else{document.execCommand(cmd,false,null);}setDirty(true);previewTick();}));
-$('#fg').addEventListener('click',()=>{const c=prompt('Text color','#e7e9ee');if(c)document.execCommand('foreColor',false,c);setDirty(true);previewTick();});
-$('#bg').addEventListener('click',()=>{const c=prompt('Highlight','#2b344a');if(c)document.execCommand('hiliteColor',false,c);setDirty(true);previewTick();});
-$('#clearFmt').addEventListener('click',()=>{document.execCommand('removeFormat',false,null);setDirty(true);previewTick();});
-
-/* ================== Inline media helpers ================== */
-function inferType(url){const u=(url||'').toLowerCase();if(/\.(mp4|mov|webm|mkv)(\?|$)/.test(u))return'video';if(/\.(mp3|wav|m4a|flac|ogg)(\?|$)/.test(u))return'audio';return'image';}
-async function insertByUrl(url){
-  const t=inferType(url);
-  if(t==='video'){const v=document.createElement('video');v.src=url;v.controls=true;v.preload='none';v.style.maxWidth='100%';bodyEl.appendChild(v);}
-  else if(t==='audio'){const a=document.createElement('audio');a.src=url;a.controls=true;bodyEl.appendChild(a);}
-  else{const img=document.createElement('img');img.src=url;img.alt='';img.style.maxWidth='100%';bodyEl.appendChild(img);}
-  setDirty(true);previewTick();toast('Inserted');
-}
-$('#embedUrl').addEventListener('click',()=>{const url=prompt('Media URL (image/video/audio):'); if(url) insertByUrl(url.trim());});
-
-/* Hero drop/paste */
-function handleHeroFiles(files){
-  const [f]=files||[]; if(!f) return;
-  if(!f.type.startsWith('image/')){toast('Hero must be an image','warn');return;}
-  uploadFile(f).then(u=>{heroEl.value=u.url;updatePreview();toast('Hero set');}).catch(e=>toast('Upload failed: '+e.message,'err'));
-}
-heroEl.addEventListener('dragover',e=>{e.preventDefault(); heroEl.style.outline='2px dashed var(--accent)';});
-heroEl.addEventListener('dragleave',()=>heroEl.style.outline='');
-heroEl.addEventListener('drop',e=>{e.preventDefault(); heroEl.style.outline=''; handleHeroFiles(e.dataTransfer.files);});
-$('#heroUrl').addEventListener('click',()=>{const url=prompt('Image URL:'); if(url){heroEl.value=url.trim(); updatePreview();}});
-
-/* Body drop/paste */
-function handleBodyFiles(files){
-  const arr=Array.from(files||[]); if(!arr.length) return;
-  (async()=>{for(const f of arr){try{const u=await uploadFile(f); await insertByUrl(u.url);}catch(e){toast('Upload failed: '+e.message,'err');}}})();
-}
-bodyEl.addEventListener('dragover',e=>{e.preventDefault(); bodyEl.style.outline='2px dashed var(--accent)';});
-bodyEl.addEventListener('dragleave',()=>bodyEl.style.outline='');
-bodyEl.addEventListener('drop',e=>{e.preventDefault(); bodyEl.style.outline=''; handleBodyFiles(e.dataTransfer.files);});
-
-/* ================== Upload (single call, used by Hero & Body & panel) ================== */
-async function uploadFile(file){
-  const qs=`?collection=${encodeURIComponent(CONFIG.MEDIA_SCOPE)}&_=${Date.now()}`;
-  const res = await tryEndpoints(EP.mediaUpload, base=>{
-    const fd=new FormData(); fd.append('file',file);
-    return fetchJSON(base+qs,{method:'POST',body:fd});
-  });
-  return { url: res.secure_url||res.url, type: res.resource_type||inferType(res.secure_url||res.url) };
-}
-
-/* ================== Inline Media Panel ================== */
-const btnUpload=$('#btnUpload'), btnLibrary=$('#btnLibrary'), paneUpload=$('#pane-upload'), paneLibrary=$('#pane-library');
-btnUpload.addEventListener('click',()=>{paneUpload.classList.remove('hidden');paneLibrary.classList.add('hidden');});
-btnLibrary.addEventListener('click',()=>{paneLibrary.classList.remove('hidden');paneUpload.classList.add('hidden');loadMedia();});
-$('#drop').addEventListener('dragenter',e=>{e.preventDefault();$('#drop').classList.add('drag');});
-$('#drop').addEventListener('dragover',e=>{e.preventDefault();});
-$('#drop').addEventListener('dragleave',()=>$('#drop').classList.remove('drag'));
-$('#drop').addEventListener('drop',e=>{e.preventDefault();$('#drop').classList.remove('drag'); handlePanelFiles(e.dataTransfer.files);});
-$('#fileInput').addEventListener('change',e=>handlePanelFiles(e.target.files));
-document.addEventListener('paste',e=>{ if(!paneUpload.classList.contains('hidden')){ const files=Array.from(e.clipboardData.files||[]); if(files.length){ e.preventDefault(); handlePanelFiles(files);} }});
-async function handlePanelFiles(files){
-  const arr=Array.from(files||[]); if(!arr.length) return;
-  for(const f of arr){
-    try{$('#uploadHint').textContent=`Uploading ${f.name}…`; await uploadFile(f); toast('Uploaded');}catch(e){toast('Upload failed: '+e.message,'err');}finally{$('#uploadHint').textContent='Ready';}
-  }
-  btnLibrary.click(); // swap to library and refresh
-}
-function tileHTML(m){
-  const url=m.url||m.secure_url||m.secureUrl||m.path||'';
-  const type=m.resource_type||m.type||inferType(url);
-  const thumb=m.thumb||m.thumbnail_url||(type==='image'?url:'');
-  const name=m.filename||m.public_id||m.name||(url.split('/').pop());
-  return `
-    <div class="thumb">
-      ${thumb ? `<img class="img" src="${thumb}" alt="">` : `<div class="img"></div>`}
-      <div class="meta"><span class="name" title="${name}">${name}</span><span class="muted">${type}</span></div>
-      <div class="actions">
-        <button class="btn ok" data-act="insert" data-url="${url}">Insert</button>
-        <button class="btn" data-act="hero" data-url="${url}">Set as Hero</button>
-        ${m.id ? `<button class="btn" data-act="del" data-id="${m.id}">Delete</button>` : ''}
-      </div>
-    </div>`;
-}
-async function loadMedia(){
-  try{
-    const q=$('#mediaSearch')?.value?.trim()||'';
-    const qs=new URLSearchParams(); qs.set('collection',CONFIG.MEDIA_SCOPE); if(q) qs.set('q',q); qs.set('_',String(Date.now()));
-    const data=await tryEndpoints(EP.mediaList, base=>fetchJSON(`${base}?${qs.toString()}`));
-    const items=Array.isArray(data)?data:(data.items||data.data||[]);
-    $('#mediaCounter').textContent=items.length;
-    const grid=$('#mediaGrid'); grid.innerHTML= items.map(tileHTML).join('');
-    grid.querySelectorAll('.actions .btn').forEach(btn=>{
-      const act=btn.dataset.act;
-      if(act==='insert') btn.addEventListener('click',()=>insertByUrl(btn.dataset.url));
-      if(act==='hero') btn.addEventListener('click',()=>{heroEl.value=btn.dataset.url; updatePreview(); toast('Hero set');});
-      if(act==='del')  btn.addEventListener('click',async()=>{ if(!confirm('Delete media?'))return; try{ await tryEndpoints(EP.mediaDelete, base=>fetchJSON(`${base}?id=${encodeURIComponent(btn.dataset.id)}&collection=${encodeURIComponent(CONFIG.MEDIA_SCOPE)}`,{method:'DELETE'})); toast('Deleted'); loadMedia(); }catch(e){ toast('Delete failed: '+e.message,'err'); } });
-    });
-  }catch(e){
-    $('#mediaGrid').innerHTML='<div class="muted">Couldn’t fetch media for BLOG collection.</div>';
-  }
-}
-$('#refreshMedia').addEventListener('click',loadMedia);
-$('#mediaSearch').addEventListener('input',debounce(loadMedia,300));
-
-/* ================== Posts ================== */
-function statusDot(s){if(s==='published')return'<span class="status-dot dot-published"></span>Published';if(s==='scheduled')return'<span class="status-dot dot-scheduled"></span>Scheduled';if(s==='archived')return'<span class="status-dot dot-draft"></span>Archived';return'<span class="status-dot dot-draft"></span>Draft';}
-const postListEl=$('#postList'), filterPostsEl=$('#filterPosts');
-function renderPosts(items){
-  postListEl.innerHTML='';
-  if(!items?.length){postListEl.innerHTML='<div class="muted">No posts found.</div>';return;}
-  for(const it of items){
-    const id=it.id||it._id||'';
-    const el=document.createElement('div');el.className='item';
-    el.innerHTML=`
+<body data-theme="dark">
+  <div class="wrap">
+    <header>
       <div>
-        <div style="font-weight:600">${it.title||'(untitled)'} <span class="muted">/${it.slug||''}</span></div>
-        <div class="meta muted">${statusDot(it.status||'draft')} · Updated ${new Date(it.updatedOn||it.updated_at||it.createdOn||it.created_at||Date.now()).toLocaleString()}</div>
+        <h1>Blog Manager</h1>
+        <div class="muted">Professional</div>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="btn" data-act="edit" data-id="${id}">Edit</button>
-        ${(it.status||'')!=='published'?`<button class="btn ok" data-act="pub" data-id="${id}">Publish</button>`:''}
-        <button class="btn warn" data-act="archive" data-id="${id}">Archive</button>
-        <button class="btn" data-act="delete" data-id="${id}">Delete</button>
-      </div>`;
-    postListEl.appendChild(el);
-  }
-  postListEl.querySelectorAll('.btn').forEach(b=>b.addEventListener('click',async()=>{
-    const id=b.dataset.id, act=b.dataset.act;
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="toggleTheme" class="btn" type="button">Toggle Theme</button>
+        <button id="clearDraftLocal" class="btn danger" type="button" title="Clear local draft only">Clear Local Draft</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- LEFT: Post Editor -->
+      <section class="card" aria-labelledby="post-details">
+        <h2 id="post-details">Post Details</h2>
+
+        <div class="field">
+          <label for="title">Title <span class="badge">*</span></label>
+          <input id="title" name="title" type="text" placeholder="Post title" autocomplete="off" />
+          <div class="hint">Used for the page headline and preview.</div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="slug">Slug (URL)</label>
+            <input id="slug" name="slug" type="text" placeholder="my-post-title" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="author">Author</label>
+            <input id="author" name="author" type="text" placeholder="Jane Doe" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Status</label>
+          <div class="status-pill" role="group" aria-label="Status" style="display:flex; gap:8px; flex-wrap:wrap">
+            <label class="opt"><input type="radio" name="status" value="draft" checked /> Draft</label>
+            <label class="opt"><input type="radio" name="status" value="published" /> Published</label>
+            <label class="opt"><input type="radio" name="status" value="scheduled" /> Scheduled</label>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="publishAt">Publish Date/Time (for scheduled posts)</label>
+            <input id="publishAt" name="publishAt" type="datetime-local" />
+          </div>
+          <div class="field">
+            <label for="tags">Tags</label>
+            <input id="tags" name="tags" type="text" placeholder="news, updates" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="summary">Summary</label>
+          <textarea id="summary" name="summary" placeholder="One or two compelling sentences..."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="mediaUrl">Media URL</label>
+          <input id="mediaUrl" name="mediaUrl" type="url" placeholder="Canonical media link (optional)" />
+        </div>
+      </section>
+
+      <!-- RIGHT: Hero Image + Aside Preview -->
+      <aside class="card">
+        <h2>Hero Image</h2>
+
+        <div class="row">
+          <div class="field">
+            <label for="heroUrl">Image URL</label>
+            <input id="heroUrl" name="heroImageUrl" type="url" placeholder="https://..." />
+          </div>
+          <div class="field">
+            <label for="heroAlt">Alt Text</label>
+            <input id="heroAlt" name="heroAlt" type="text" placeholder="Describe the image" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="heroFile">Upload Image</label>
+          <input id="heroFile" name="heroImage" type="file" accept=".jpg,.jpeg,.png,.webp" />
+          <div class="drop">Click to upload or drag &amp; drop<br/><span class="hint">Supports: JPG, PNG, WebP (Max: 50MB)</span></div>
+        </div>
+
+        <div class="hero-preview" id="heroPreviewAside"></div>
+      </aside>
+    </div>
+
+    <!-- CONTENT + ACTIONS -->
+    <section class="card" style="margin-top:18px" aria-labelledby="content-label">
+      <h2 id="content-label">Content</h2>
+      <div class="field">
+        <textarea id="content" name="content" placeholder="Write your post content here..."></textarea>
+      </div>
+
+      <div class="actions">
+        <button id="saveDraftLocal" class="btn" type="button">Save Draft (Local)</button>
+        <button id="saveDraftServer" class="btn" type="button">Save Draft (Server)</button>
+        <button id="genPreview" class="btn" type="button">Generate Preview</button>
+        <button id="publishNow" class="btn accent" type="button">Publish Now</button>
+        <button id="schedulePost" class="btn warn" type="button">Schedule Post</button>
+      </div>
+      <div id="actionMsg" class="hint"></div>
+    </section>
+
+    <!-- LIVE PREVIEW (main) -->
+    <section class="card" style="margin-top:18px" aria-labelledby="live-preview">
+      <h2 id="live-preview">Live Preview</h2>
+      <div id="livePreview" class="preview">
+        <div class="hero-preview" id="heroPreviewMain"></div>
+        <h2 id="previewTitle">(Untitled)</h2>
+        <div id="previewMeta" class="muted"></div>
+        <p id="previewSummary" class="summary" style="font-weight:600; margin:.4rem 0 .6rem"></p>
+        <div id="previewBody" style="white-space:pre-wrap"></div>
+        <div class="hr"></div>
+        <div class="hint">Start writing to see a preview...</div>
+      </div>
+    </section>
+
+    <!-- COMMENTS (optional admin tools) -->
+    <section class="card" style="margin-top:18px" aria-labelledby="comments">
+      <h2 id="comments">Comments</h2>
+
+      <div class="row">
+        <label class="opt"><input id="requireApproval" type="checkbox" /> Require approval for new comments</label>
+        <div></div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="commentState">Filter by state:</label>
+          <select id="commentState">
+            <option value="">All Comments</option>
+            <option>Pending</option>
+            <option>Approved</option>
+            <option>Rejected</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="postId">Post ID:</label>
+          <input id="postId" type="text" placeholder="uuid..." />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="refreshComments" class="btn" type="button">Refresh Comments</button>
+      </div>
+
+      <div id="commentsList" class="muted">No comments to display</div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- SCRIPT STARTS HERE -->
+  <script>
+  // ===== Hard-wired endpoints (Netlify functions) =====
+  const API = {
+    create: '/.netlify/functions/posts-create',
+    update: '/.netlify/functions/posts-create',
+    schedule: '/.netlify/functions/posts-create',
+    listComments: '/.netlify/functions/comments-list',
+    moderateComment: '/.netlify/functions/comments-moderate',
+    getSettings: '/.netlify/functions/comments-settings-get',
+    setSettings: '/.netlify/functions/comments-settings-set',
+    upload: '/.netlify/functions/file-manager-upload'
+  };
+  // ===== Utilities & wiring =====
+  const $ = s => document.querySelector(s);
+  const $val = el => (el?.value ?? '').toString();
+
+  // Theme
+  const setTheme = t => document.body.setAttribute('data-theme', t);
+  $('#toggleTheme')?.addEventListener('click', () => {
+    const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    setTheme(next); localStorage.setItem('bm_theme', next);
+  });
+  setTheme(localStorage.getItem('bm_theme') || 'dark');
+
+  // Toast + action msg
+  const toast = (msg, ok=false) => {
+    const t = $('#toast'); if(!t) return;
+    t.innerHTML = msg;
+    t.classList.toggle('ok', !!ok);
+    t.classList.toggle('err', !ok);
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 4200);
+  };
+  const actMsg = (msg, ok=false) => {
+    const a = $('#actionMsg'); if(!a) return;
+    a.textContent = msg; a.className = ok ? 'hint ok' : 'hint err';
+    if(!msg) a.className='hint';
+  };
+
+  const el = {
+    title: $('#title'), slug: $('#slug'), author: $('#author'),
+    summary: $('#summary'), content: $('#content'), tags: $('#tags'),
+    heroUrl: $('#heroUrl'), heroAlt: $('#heroAlt'), mediaUrl: $('#mediaUrl'),
+    file: $('#heroFile'),
+    heroAside: $('#heroPreviewAside'), heroMain: $('#heroPreviewMain'),
+
+    saveDraftLocal: $('#saveDraftLocal'),
+    saveDraftServer: $('#saveDraftServer'),
+    genPreview: $('#genPreview'),
+    publishNow: $('#publishNow'),
+    schedulePost: $('#schedulePost'),
+    publishAt: $('#publishAt'),
+
+    previewTitle: $('#previewTitle'),
+    previewMeta: $('#previewMeta'),
+    previewSummary: $('#previewSummary'),
+    previewBody: $('#previewBody'),
+
+    clearDraftLocal: $('#clearDraftLocal'),
+
+    requireApproval: $('#requireApproval'),
+    commentState: $('#commentState'),
+    postId: $('#postId'),
+    refreshComments: $('#refreshComments'),
+    commentsList: $('#commentsList')
+  };
+
+  // Slug helper (gentle)
+  let slugTouched = false;
+  el.slug?.addEventListener('input', () => slugTouched = true);
+  el.title?.addEventListener('input', () => {
+    if (slugTouched) return;
+    const s = $val(el.title).trim().toLowerCase()
+      .replace(/[^\w\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-');
+    if (el.slug) el.slug.value = s;
+  });
+
+  // Live Preview
+  const setHero = (src) => {
+    const img = src ? '<img src="'+src+'" alt="'+($val(el.heroAlt))+'">' : '';
+    if (el.heroAside) el.heroAside.innerHTML = img;
+    if (el.heroMain)  el.heroMain.innerHTML  = img;
+  };
+  const updatePreview = () => {
+    if (el.previewTitle) el.previewTitle.textContent = $val(el.title) || '(Untitled)';
+    if (el.previewMeta) {
+      const pieces = [];
+      if ($val(el.author)) pieces.push($val(el.author));
+      if ($val(el.tags)) pieces.push($val(el.tags));
+      el.previewMeta.textContent = pieces.join(' • ');
+    }
+    if (el.previewSummary) el.previewSummary.textContent = $val(el.summary);
+    if (el.previewBody) el.previewBody.textContent = $val(el.content);
+
+    if (el.heroUrl && el.heroUrl.value && !(el.file?.files?.length)) {
+      setHero(el.heroUrl.value.trim());
+    } else if (!(el.file?.files?.length) && !el.heroUrl?.value) {
+      setHero('');
+    }
+  };
+  ['input','change','keyup','paste'].forEach(evt => {
+    [el.title, el.author, el.summary, el.content, el.tags, el.heroUrl, el.heroAlt]
+      .forEach(node => node?.addEventListener(evt, updatePreview));
+  });
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', updatePreview);
+  } else { updatePreview(); }
+
+  // Upload (multipart to Netlify function)
+  el.file?.addEventListener('change', async () => {
+    const file = el.file.files?.[0];
+    if(!file) return;
+    const localURL = URL.createObjectURL(file); // instant local preview
+    setHero(localURL);
+    const fd = new FormData(); fd.append('file', file);
     try{
-      if(act==='pub'){await publishNow();return;}
-      if(act==='archive'){if(!confirm('Archive this post?'))return;await tryEndpoints(EP.postsArchive, base=>fetchJSON(base,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}));toast('Archived');await loadPosts();return;}
-      if(act==='delete'){if(!confirm('Delete this post? This cannot be undone.'))return;await tryEndpoints(EP.postsDelete, base=>fetchJSON(base,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}));toast('Deleted');await loadPosts();return;}
-      if(act==='edit'){
-        const list=await loadPosts(true);
-        const found=list.find(x=>String(x.id||x._id||'')===String(id));
-        if(found){
-          titleEl.value=found.title||'';slugEl.value=found.slug||'';sumEl.value=found.summary||found.seoDescription||'';heroEl.value=found.featureImageUrl||found.hero||'';
-          bodyEl.innerHTML=found.bodyHtml||found.body_html||found.body||'';setDirty(false);updatePreview();document.querySelector('.tab[data-panel="write"]').click();toast('Loaded into editor');
-        }
+      const res = await fetch(API.upload, { method:'POST', body:fd });
+      const text = await res.text();
+      let json; try{ json = JSON.parse(text); } catch{ json=null; }
+      if (res.ok && json?.url){
+        if (el.heroUrl) el.heroUrl.value = json.url;
+        setHero(json.url);
+        toast('Image uploaded', true);
+      } else {
+        toast('Upload failed: '+(json?.error || res.status));
       }
-    }catch(e){toast('Action failed: '+e.message,'err');}
-  }));
-}
-async function loadPosts(returnData=false){
-  try{
-    const f=filterPostsEl.value;const qs=new URLSearchParams();if(f)qs.set('status',f);qs.set('_',String(Date.now()));
-    const data=await tryEndpoints(EP.postsList, base=>fetchJSON(`${base}?${qs.toString()}`));
-    const items=Array.isArray(data)?data:(data.items||data.data||[]);
-    if(returnData)return items;renderPosts(items);return items;
-  }catch(e){postListEl.innerHTML='<div class="muted">Failed to fetch posts (no list function available).</div>';return[];}
-}
-$('#refreshPosts').addEventListener('click',()=>loadPosts());$('#filterPosts').addEventListener('change',()=>loadPosts());
+    }catch(e){
+      toast('Upload error: '+e.message);
+    }
+    updatePreview();
+  });
+  el.heroUrl?.addEventListener('input', () => setHero(el.heroUrl.value.trim()));
 
-/* ================== Comments ================== */
-const commentListEl=$('#commentList');
-function renderComments(items){
-  commentListEl.innerHTML='';if(!items?.length){commentListEl.innerHTML='<div class="muted">No comments.</div>';return;}
-  for(const c of items){
-    const el=document.createElement('div');el.className='item';
-    el.innerHTML=`<div><div style="display:flex;gap:8px;align-items:center"><strong>${c.authorName||c.name||'Anon'}</strong>${c.postId?`<span class="chip">/${c.postId}</span>`:''}<span class="muted">${new Date(c.createdOn||c.created_at||Date.now()).toLocaleString()}</span></div><div style="margin-top:6px">${(c.message||c.body||'').toString()}</div></div><div style="display:flex;gap:6px"><button class="btn ok" data-act="approve" data-id="${c.id}">Approve</button><button class="btn" data-act="delete" data-id="${c.id}">Delete</button></div>`;
-    commentListEl.appendChild(el);
+  // Build payload
+  function buildPayload(){
+    const status = (document.querySelector('input[name="status"]:checked')?.value) || 'draft';
+    const tags = (el.tags?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+    return {
+      title:$val(el.title),
+      slug:$val(el.slug),
+      author:$val(el.author),
+      summary:$val(el.summary),
+      content:$val(el.content),
+      tags,
+      mediaUrl:$val(el.mediaUrl),
+      hero:{ url:$val(el.heroUrl), alt:$val(el.heroAlt) },
+      status,
+      scheduleAt:$val(el.publishAt)
+    };
   }
-  commentListEl.querySelectorAll('.btn').forEach(b=>b.addEventListener('click',async()=>{
-    const id=b.dataset.id, act=b.dataset.act;
+
+  // Local draft
+  el.saveDraftLocal?.addEventListener('click', () => {
+    localStorage.setItem('bm_draft', JSON.stringify(buildPayload()));
+    toast('Draft saved locally', true);
+  });
+  el.clearDraftLocal?.addEventListener('click', () => {
+    localStorage.removeItem('bm_draft'); toast('Local draft cleared', true);
+  });
+  // Restore
+  try{
+    const saved = localStorage.getItem('bm_draft');
+    if (saved){
+      const d = JSON.parse(saved);
+      if (el.title) el.title.value = d.title||'';
+      if (el.slug) el.slug.value = d.slug||'';
+      if (el.author) el.author.value = d.author||'';
+      if (el.summary) el.summary.value = d.summary||'';
+      if (el.content) el.content.value = d.content||'';
+      if (el.tags) el.tags.value = Array.isArray(d.tags)? d.tags.join(', ') : (d.tags||'');
+      if (el.mediaUrl) el.mediaUrl.value = d.mediaUrl||'';
+      if (el.heroUrl) el.heroUrl.value = d.hero?.url||'';
+      if (el.heroAlt) el.heroAlt.value = d.hero?.alt||'';
+      if (el.publishAt && d.scheduleAt) el.publishAt.value = d.scheduleAt;
+      const radio = document.querySelector('input[name="status"][value="'+(d.status||'draft')+'"]');
+      radio && (radio.checked = true);
+      updatePreview();
+    }
+  }catch(_){}
+
+  // Server draft (if you wire a separate draft-save later, keep this as posts-create)
+  el.saveDraftServer?.addEventListener('click', async () => {
+    actMsg('Saving draft…');
+    const res = await fetch(API.create, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({...buildPayload(), status:'draft'})
+    });
+    const text = await res.text();
+    let json; try{ json = JSON.parse(text); }catch{ json=null; }
+    if (res.ok){ actMsg('Draft saved on server.', true); toast('Draft saved on server', true); }
+    else { actMsg('Draft save failed: '+(json?.error || res.status)); toast('Draft save failed'); }
+  });
+
+  // Generate preview (reuse create endpoint as preview hook if you have one; otherwise inline preview is shown)
+  el.genPreview?.addEventListener('click', () => {
+    // Inline preview already live; this button just forces refresh.
+    updatePreview(); toast('Inline preview updated.', true);
+  });
+
+  // Publish
+  el.publishNow?.addEventListener('click', async () => {
+    actMsg('Publishing…');
+    const res = await fetch(API.create, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({...buildPayload(), status:'published'})
+    });
+    const text = await res.text();
+    let json; try{ json = JSON.parse(text); }catch{ json=null; }
+    if (res.ok){ actMsg('Published.', true); toast('Published', true); }
+    else { actMsg('Publish failed: '+(json?.error || res.status)); toast('Publish failed'); }
+  });
+
+  // Schedule (same function; pass scheduleAt)
+  el.schedulePost?.addEventListener('click', async () => {
+    if (!el.publishAt?.value){ toast('Pick a publish date/time first.'); return; }
+    actMsg('Scheduling…');
+    const res = await fetch(API.schedule, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({...buildPayload(), status:'scheduled'})
+    });
+    const text = await res.text();
+    let json; try{ json = JSON.parse(text); }catch{ json=null; }
+    if (res.ok){ actMsg('Scheduled.', true); toast('Scheduled', true); }
+    else { actMsg('Schedule failed: '+(json?.error || res.status)); toast('Schedule failed'); }
+  });
+
+  // ===== Comments admin (optional) =====
+  async function loadSettings(){
     try{
-      const headers={'Content-Type':'application/json'};const tok=state.adminToken;if(tok)headers['Authorization']='Bearer '+tok;
-      await fetchJSON(EP.commentsMod,{method:'POST',headers,body:JSON.stringify({id,action:act==='approve'?'approve':'delete'})});
-      toast('Updated');await loadComments();
-    }catch(e){toast('Action failed: '+e.message,'err');}
-  }));
-}
-async function loadComments(){
-  try{const data=await fetchJSON(EP.commentsList);renderComments(Array.isArray(data)?data:(data.items||data.data||[]));}
-  catch(e){commentListEl.innerHTML='<div class="muted">Couldn’t fetch comments.</div>';}
-}
+      const r = await fetch(API.getSettings);
+      const t = await r.text(); let j; try{ j=JSON.parse(t);}catch{j=null;}
+      if (r.ok){ el.requireApproval.checked = !!j?.requireApproval; }
+    }catch(_){}
+  }
+  el.requireApproval?.addEventListener('change', async function(){
+    try{
+      const r = await fetch(API.setSettings, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ requireApproval: this.checked })
+      });
+      if (!r.ok) throw 0; toast('Settings saved', true);
+    }catch(_){ toast('Failed to save settings'); }
+  });
+  async function loadComments(){
+    const params = new URLSearchParams();
+    if (el.commentState?.value) params.set('state', el.commentState.value);
+    if (el.postId?.value) params.set('postId', el.postId.value.trim());
+    try{
+      const r = await fetch(API.listComments + (params.toString()?`?${params}`:''));
+      const t = await r.text(); let list; try{ list=JSON.parse(t);}catch{list=null;}
+      if (!Array.isArray(list)){ el.commentsList.textContent = 'No comments to display'; return; }
+      el.commentsList.innerHTML = list.map(c=>(
+        `<div class="comment" style="border:1px solid var(--border); border-radius:10px; padding:12px; background:var(--panel-2); margin:8px 0">
+          <div style="font-weight:600">${c.author||'Anon'} <span class="muted">• ${c.state||'pending'}</span></div>
+          <div>${(c.text||'').replace(/[<>]/g,'')}</div>
+          <div class="actions" style="margin-top:8px">
+            <button class="btn" data-act="approve" data-id="${c.id}">Approve</button>
+            <button class="btn danger" data-act="reject" data-id="${c.id}">Reject</button>
+          </div>
+        </div>`
+      )).join('');
+      el.commentsList.querySelectorAll('button[data-act]').forEach(b=>{
+        b.addEventListener('click', async () => {
+          const id = b.getAttribute('data-id');
+          const action = b.getAttribute('data-act');
+          try{
+            const r = await fetch(API.moderateComment, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id, action })
+            });
+            if (!r.ok) throw 0; toast('Updated', true); loadComments();
+          }catch(_){ toast('Moderation failed'); }
+        });
+      });
+    }catch(_){
+      el.commentsList.textContent = 'Failed to load comments';
+    }
+  }
+  el.refreshComments?.addEventListener('click', loadComments);
 
-/* ================== Posts create/publish/schedule ================== */
-async function postsCreate(payload){return await fetchJSON(EP.postsCreate,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});}
-async function saveDraft(){const p={...collectForm(),status:'draft'};if(!p.title){toast('Title required','warn');return;}try{await postsCreate(p);setDirty(false);toast('Draft saved');await loadPosts();}catch(e){toast('Save failed: '+e.message,'err');}}
-async function publishNow(){const p={...collectForm(),status:'published'};if(!p.title){toast('Title required','warn');return;}try{await postsCreate(p);setDirty(false);toast('Published');await loadPosts();}catch(e){toast('Publish failed: '+e.message,'err');}}
-async function schedule(){const when=prompt('Publish at (YYYY-MM-DD HH:MM) local:');if(!when)return;const iso=new Date(when.replace(' ','T')).toISOString();const p={...collectForm(),status:'scheduled',publishDate:iso};if(!p.title){toast('Title required','warn');return;}try{await postsCreate(p);setDirty(false);toast('Scheduled');await loadPosts();}catch(e){toast('Schedule failed: '+e.message,'err');}}
-$('#saveDraft').addEventListener('click',saveDraft);$('#publishBtn').addEventListener('click',publishNow);$('#scheduleBtn').addEventListener('click',schedule);
-
-/* ================== Settings ================== */
-$('#cfgDebounce').value=String(CONFIG.PREVIEW_DEBOUNCE_MS);
-$('#cfgCollection').value=CONFIG.MEDIA_SCOPE;
-$('#saveCfg').addEventListener('click',()=>{const tok=$('#cfgAdmin')?.value.trim();if(tok){state.adminToken=tok;setAdminToken(tok);}CONFIG.MEDIA_SCOPE=($('#cfgCollection')?.value.trim()||'blog');CONFIG.PREVIEW_DEBOUNCE_MS=parseInt($('#cfgDebounce')?.value||'120',10);toast('Settings saved');});
-
-/* ================== Init ================== */
-(async function init(){
-  const remembered=getAdminToken();if(remembered){state.adminToken=remembered;const i=$('#cfgAdmin');if(i)i.value=remembered;}
-  updatePreview();
-  // default: show Library with contents; Upload remains visible if you click it
-  btnLibrary.click();
-  await Promise.all([loadPosts(), loadComments()]);
-})();
-
-/* utilities shared */
-function collectForm(){return{title:titleEl.value.trim(),slug:slugEl.value.trim()||slugify(titleEl.value),summary:sumEl.value.trim(),featureImageUrl:heroEl.value.trim(),bodyHtml:bodyEl.innerHTML.trim()};}
-</script>
-
-<div class="toast" id="toast">Saved</div>
+  // Init
+  document.addEventListener('DOMContentLoaded', () => {
+    updatePreview();
+    loadSettings();
+    loadComments();
+  });
+  </script>
 </body>
 </html>
