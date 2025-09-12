@@ -1,4 +1,4 @@
-const fetch = (...args) => import('node-fetch').then(({default: f}) => f(...args));
+const fetch = (...args ) => import('node-fetch').then(({default: f}) => f(...args));
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS' ) {
@@ -13,8 +13,8 @@ exports.handler = async (event) => {
   }
 
   try {
-    const url = process.env.BLOG_POSTS_LIST_URL || process.env.XANO_ADMIN_LIST_URL;
-    if (!url ) throw new Error('Missing URL');
+    const url = process.env.BLOG_POSTS_LIST_URL;
+    if (!url ) throw new Error('Missing BLOG_POSTS_LIST_URL');
     
     const res = await fetch(url);
     const body = await res.text();
