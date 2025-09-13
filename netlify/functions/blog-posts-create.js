@@ -1,9 +1,6 @@
-// netlify/functions/blog-posts-create.js
-// Creates a Webflow item with v2 API. Expects JSON { fieldData: {...}, isDraft?:bool, isArchived?:bool }
-// Optional ?publish=true will publish the created item.
-
+// Create Webflow v2 item; POST body: { fieldData:{...}, isDraft?:bool, isArchived?:bool }
+// Optional ?publish=true to publish after create.
 const ALLOW = 'https://app.streamofdan.com';
-
 const resJSON = (code, obj) => ({
   statusCode: code,
   headers: {
@@ -24,20 +21,18 @@ exports.handler = async (event) => {
   const coll  = process.env.WEBFLOW_COLLECTION_ID;
   if (!token || !coll) return resJSON(500, { error: 'Missing WEBFLOW_API_TOKEN or WEBFLOW_COLLECTION_ID' });
 
-  let payload;
+  let payload = {};
   try { payload = JSON.parse(event.body || '{}'); } catch { return resJSON(400, { error: 'Invalid JSON body' }); }
 
   const fieldData = payload.fieldData || {};
   const isDraft = typeof payload.isDraft === 'boolean' ? payload.isDraft : false;
   const isArchived = typeof payload.isArchived === 'boolean' ? payload.isArchived : false;
 
-  // REQUIRED FIELDS for Webflow CMS: name and slug at minimum
   if (!fieldData.name) return resJSON(400, { error: 'fieldData.name is required' });
-  if (!fieldData.slug) {
-    fieldData.slug = String(fieldData.name).toLowerCase().trim().replace(/[^\w\- ]+/g,'').replace(/\s+/g,'-');
-  }
+  if (!fieldData.slug) fieldData.slug = String(fieldData.name).toLowerCase().trim().replace(/[^\w\- ]+/g,'').replace(/\s+/g,'-');
 
   const createURL = `https://api.webflow.com/v2/collections/${coll}/items`;
+
   try {
     const createRes = await fetch(createURL, {
       method: 'POST',
@@ -55,14 +50,10 @@ exports.handler = async (event) => {
     const created = JSON.parse(createText);
     const itemId = created?.id;
 
-    // Optional publish flow
     const publish = (event.queryStringParameters || {}).publish === 'true';
     if (publish && itemId) {
       const publishURL = `https://api.webflow.com/v2/collections/${coll}/items/${itemId}/publish`;
-      const pubRes = await fetch(publishURL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }
-      });
+      const pubRes = await fetch(publishURL, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
       const pubText = await pubRes.text();
       if (!pubRes.ok) {
         return resJSON(pubRes.status, { error: 'Webflow publish failed', status: pubRes.status, body_preview: pubText.slice(0,2000), item: created });
