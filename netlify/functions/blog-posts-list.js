@@ -1,87 +1,59 @@
-// netlify/functions/blog-posts-list.js
-// Proxy function: forwards /api/blog-posts-list → Xano (or other backend)
-
+// Node 18 native fetch — returns precise upstream errors
 exports.handler = async (event) => {
   const ALLOW = 'https://app.streamofdan.com';
+  const url =
+    process.env.BLOG_POSTS_LIST_URL ||
+    process.env.XANO_ASSETS_ENDPOINT ||
+    (process.env.XANO_API_BASE ? `${process.env.XANO_API_BASE.replace(/\/+$/,'')}/asset` : '');
 
-  // --- Handle CORS preflight ---
-  if (event.httpMethod === 'OPTIONS') {
-    return {
-      statusCode: 200,
-      headers: {
-        'Access-Control-Allow-Origin': ALLOW,
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-        'Access-Control-Allow-Methods': 'GET, OPTIONS'
-      }
-    };
-  }
+  const debug = process.env.DEBUG_BLOG === '1';
 
-  // --- Enforce GET only ---
-  if (event.httpMethod !== 'GET') {
-    return {
-      statusCode: 405,
-      headers: {
-        'Access-Control-Allow-Origin': ALLOW,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: 'Method Not Allowed' })
-    };
-  }
+  const reply = (status, data, type='application/json') => ({
+    statusCode: debug ? 200 : status,   // force 200 in debug so body shows in browser
+    headers: {
+      'Access-Control-Allow-Origin': ALLOW,
+      'Access-Control-Allow-Credentials': 'true',
+      'Content-Type': type
+    },
+    body: typeof data === 'string' ? data : JSON.stringify(data)
+  });
 
-  // --- Build upstream URL ---
-  const url = process.env.BLOG_POSTS_LIST_URL; // e.g. https://<xano-domain>/<api-group>/asset
-  if (!url) {
-    return {
-      statusCode: 500,
-      headers: {
-        'Access-Control-Allow-Origin': ALLOW,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ error: 'Missing BLOG_POSTS_LIST_URL env var' })
-    };
-  }
+  if (event.httpMethod === 'OPTIONS')
+    return { statusCode: 200, headers: {
+      'Access-Control-Allow-Origin': ALLOW,
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS'
+    }};
 
-  // Add query string passthrough
-  const target = event.rawQuery ? `${url}${url.includes('?') ? '&' : '?'}${event.rawQuery}` : url;
+  if (event.httpMethod !== 'GET') return reply(405, { error: 'Method Not Allowed' });
+  if (!url) return reply(500, { error: 'No upstream URL', tried: ['BLOG_POSTS_LIST_URL','XANO_ASSETS_ENDPOINT','XANO_API_BASE+/asset'] });
+
+  const target = event.rawQuery ? `${url}${url.includes('?')?'&':'?'}${event.rawQuery}` : url;
 
   try {
-    // Timeout guard
-    const ac = new AbortController();
-    const timeout = setTimeout(() => ac.abort(), 12000);
-
+    const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 12000);
     const res = await fetch(target, {
-      method: 'GET',
       headers: {
         'Accept': 'application/json',
         ...(process.env.XANO_API_KEY ? { 'Authorization': process.env.XANO_API_KEY } : {})
       },
       signal: ac.signal
     });
-    clearTimeout(timeout);
+    clearTimeout(t);
 
     const text = await res.text();
+    const ctype = res.headers.get('content-type') || 'application/json';
 
-    return {
-      statusCode: res.status,
-      headers: {
-        'Access-Control-Allow-Origin': ALLOW,
-        'Access-Control-Allow-Credentials': 'true',
-        'Content-Type': res.headers.get('content-type') || 'application/json'
-      },
-      body: text
-    };
-  } catch (err) {
-    return {
-      statusCode: 502,
-      headers: {
-        'Access-Control-Allow-Origin': ALLOW,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        error: 'Upstream fetch failed',
-        detail: String(err),
-        target: url
-      })
-    };
+    if (!res.ok) {
+      return reply(res.status, {
+        error: 'Upstream non-OK',
+        status: res.status,
+        target,
+        body_preview: text.slice(0, 2000)
+      });
+    }
+    return reply(200, text, ctype);
+  } catch (e) {
+    return reply(502, { error: 'Upstream fetch failed', target, detail: String(e) });
   }
 };
