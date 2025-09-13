@@ -1,10 +1,1 @@
-# Redirect rules for API calls to your Xano backend. The colon in the
-# destination URL is encoded to avoid Netlify treating it as a placeholder.
-# Adjust the hostname and secret as needed for your environment. If you
-# prefer to manage these redirects in netlify.toml, delete this file and
-# add equivalent [[redirects]] entries there.
-
-# Redirect all requests under /api/ to the Xano endpoint. The colon after
-# `api` is URL‑encoded as `%3A` to avoid Netlify parsing it as a
-# placeholder. The `:splat` placeholder captures the remainder of the path.
-/api/* https://xgm6-u3bi-jbxy.n7c.xano.io/api%3AVhM7OdLM/:splat 200
+/api/* /.netlify/functions/:splat 200
