@@ -101,14 +101,14 @@ exports.handler = async (event) => {
     '';
 
   // 👇 ONLY SEND FIELDS THAT EXIST IN YOUR COLLECTION
-  const fieldData = {
-    name: title,
-    slug: slug,
-    summary: summary,
-    body: content,
-    'feature-image-url': heroUrl,
-    'feature-image-alt': heroAlt,
-  };
+const fieldData = {
+  name: title,
+  slug: slug,
+  summary: summary,
+  body: content,
+  'feature-image-url': heroUrl,
+  'feature-image-alt': heroAlt,
+};
 
   const payload = {
     isDraft,
