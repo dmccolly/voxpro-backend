@@ -100,16 +100,7 @@ exports.handler = async (event) => {
     (body.fieldData && body.fieldData.heroAlt) ||
     '';
 
-  let tags = body.tags || (body.fieldData && body.fieldData.tags) || '';
-  if (Array.isArray(tags)) {
-    tags = tags.join(', ');
-  } else if (typeof tags === 'string') {
-  } else {
-    tags = '';
-  }
-
-  const author = body.author || (body.fieldData && body.fieldData.author) || '';
-
+  // 👇 ONLY SEND FIELDS THAT EXIST IN YOUR COLLECTION
   const fieldData = {
     name: title,
     slug: slug,
@@ -117,8 +108,6 @@ exports.handler = async (event) => {
     body: content,
     'feature-image-url': heroUrl,
     'feature-image-alt': heroAlt,
-    tags: tags,
-    author: author,
   };
 
   const payload = {
