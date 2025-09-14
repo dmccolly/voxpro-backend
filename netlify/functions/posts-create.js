@@ -115,8 +115,8 @@ exports.handler = async (event) => {
     slug: slug,
     summary: summary,
     body: content,
-    'feature-image-url': heroUrl, // 👈 This matches the LABEL you typed
-    'feature-image-alt': heroAlt, // 👈 New alt text field (see step 3)
+    'feature-image-url': heroUrl,
+    'feature-image-alt': heroAlt,
     tags: tags,
     author: author,
   };
