@@ -465,9 +465,9 @@
       content: getBodyHtml(),
       tags: tags,
       mediaUrl: $val(el.mediaUrl),
-      'feature-image': {  // 👈 CORRECTED: Use Webflow's actual field slug
-        url: $val(el.heroUrl),
-        alt: $val(el.heroAlt)
+      'feature-image': {
+        url: $val(el.heroUrl) || '',
+        alt: $val(el.heroAlt) || ''
       },
       status: status,
       scheduleAt: $val(el.publishAt)
@@ -506,13 +506,31 @@
   // ========== Server draft / preview / publish / schedule ==========
   el.saveDraftServer?.addEventListener('click', async () => {
     actMsg('Saving draft…');
-    const payload = {...buildPayload(), status:'draft'};
+    const payload = buildPayload();
+    
+    // Validate required fields
+    if (!payload.title) {
+      actMsg('Error: Title is required.', false);
+      toast('Title is required', false);
+      return;
+    }
+    if (!payload.slug) {
+      actMsg('Error: Slug is required.', false);
+      toast('Slug is required', false);
+      return;
+    }
+    if (payload['feature-image'].url && !payload['feature-image'].url.startsWith('http')) {
+      actMsg('Error: Hero image URL must be HTTPS.', false);
+      toast('Hero image URL must be HTTPS', false);
+      return;
+    }
+
     console.log('Sending draft payload:', payload);
     try {
       const res = await fetch(API.create, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
+        body: JSON.stringify({...payload, status:'draft'})
       });
       const text = await res.text();
       let json; try{ json = JSON.parse(text); }catch{ json = { raw: text }; }
@@ -520,12 +538,12 @@
         actMsg('Draft saved on server.', true);
         toast('Draft saved on server', true);
       } else {
-        actMsg('Draft save failed: ' + (json.error || res.status));
+        actMsg('Draft save failed: ' + (json.error || res.status), false);
         toast('Draft save failed');
         console.error('Draft save error:', json);
       }
     } catch (err) {
-      actMsg('Network error: ' + err.message);
+      actMsg('Network error: ' + err.message, false);
       toast('Network error');
       console.error('Fetch error:', err);
     }
@@ -538,13 +556,30 @@
 
   el.publishNow?.addEventListener('click', async () => {
     actMsg('Publishing…');
-    const payload = {...buildPayload(), status:'published'};
+    const payload = buildPayload();
+    
+    if (!payload.title) {
+      actMsg('Error: Title is required.', false);
+      toast('Title is required', false);
+      return;
+    }
+    if (!payload.slug) {
+      actMsg('Error: Slug is required.', false);
+      toast('Slug is required', false);
+      return;
+    }
+    if (payload['feature-image'].url && !payload['feature-image'].url.startsWith('http')) {
+      actMsg('Error: Hero image URL must be HTTPS.', false);
+      toast('Hero image URL must be HTTPS', false);
+      return;
+    }
+
     console.log('Sending publish payload:', payload);
     try {
       const res = await fetch(API.create, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
+        body: JSON.stringify({...payload, status:'published'})
       });
       const text = await res.text();
       let json; try{ json = JSON.parse(text); }catch{ json = { raw: text }; }
@@ -553,12 +588,12 @@
         toast('Published', true);
         console.log('Success:', json);
       } else {
-        actMsg('Publish failed: ' + (json.error || res.status));
+        actMsg('Publish failed: ' + (json.error || res.status), false);
         toast('Publish failed');
         console.error('Publish error:', json);
       }
     } catch (err) {
-      actMsg('Network error: ' + err.message);
+      actMsg('Network error: ' + err.message, false);
       toast('Network error');
       console.error('Fetch error:', err);
     }
@@ -570,13 +605,30 @@
       return;
     }
     actMsg('Scheduling…');
-    const payload = {...buildPayload(), status:'scheduled'};
+    const payload = buildPayload();
+    
+    if (!payload.title) {
+      actMsg('Error: Title is required.', false);
+      toast('Title is required', false);
+      return;
+    }
+    if (!payload.slug) {
+      actMsg('Error: Slug is required.', false);
+      toast('Slug is required', false);
+      return;
+    }
+    if (payload['feature-image'].url && !payload['feature-image'].url.startsWith('http')) {
+      actMsg('Error: Hero image URL must be HTTPS.', false);
+      toast('Hero image URL must be HTTPS', false);
+      return;
+    }
+
     console.log('Sending scheduled payload:', payload);
     try {
       const res = await fetch(API.schedule, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
+        body: JSON.stringify({...payload, status:'scheduled'})
       });
       const text = await res.text();
       let json; try{ json = JSON.parse(text); }catch{ json = { raw: text }; }
@@ -585,12 +637,12 @@
         toast('Scheduled', true);
         console.log('Success:', json);
       } else {
-        actMsg('Schedule failed: ' + (json.error || res.status));
+        actMsg('Schedule failed: ' + (json.error || res.status), false);
         toast('Schedule failed');
         console.error('Schedule error:', json);
       }
     } catch (err) {
-      actMsg('Network error: ' + err.message);
+      actMsg('Network error: ' + err.message, false);
       toast('Network error');
       console.error('Fetch error:', err);
     }
