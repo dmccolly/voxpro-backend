@@ -428,11 +428,11 @@
       .forEach(node => node?.addEventListener(evt, updatePreview));
   });
 
-  // ========== Upload (multipart to Netlify function) ==========
+  // ========== Upload ==========
   el.file?.addEventListener('change', async () => {
     const file = el.file.files?.[0];
     if(!file) return;
-    const localURL = URL.createObjectURL(file); // instant local preview
+    const localURL = URL.createObjectURL(file);
     setHero(localURL);
     const fd = new FormData(); fd.append('attachment', file);
     try{
@@ -465,10 +465,8 @@
       content: getBodyHtml(),
       tags: tags,
       mediaUrl: $val(el.mediaUrl),
-      'feature-image': {
-        url: $val(el.heroUrl) || '',
-        alt: $val(el.heroAlt) || ''
-      },
+      heroUrl: $val(el.heroUrl),
+      heroAlt: $val(el.heroAlt),
       status: status,
       scheduleAt: $val(el.publishAt)
     };
@@ -479,10 +477,25 @@
     localStorage.setItem('bm_draft', JSON.stringify(buildPayload()));
     toast('Draft saved locally', true);
   });
+
   el.clearDraftLocal?.addEventListener('click', () => {
-    localStorage.removeItem('bm_draft'); toast('Local draft cleared', true);
+    localStorage.removeItem('bm_draft');
+    toast('Local draft cleared', true);
+
+    el.title.value = '';
+    el.slug.value = '';
+    el.author.value = '';
+    el.summary.value = '';
+    el.tags.value = '';
+    el.mediaUrl.value = '';
+    el.heroUrl.value = '';
+    el.heroAlt.value = '';
+    el.publishAt.value = '';
+    document.querySelector('input[name="status"][value="draft"]').checked = true;
+    setBodyHtml('');
+    updatePreview();
   });
-  // Restore
+
   try{
     const saved = localStorage.getItem('bm_draft');
     if (saved){
@@ -493,8 +506,8 @@
       if (el.summary) el.summary.value = d.summary||'';
       if (el.tags) el.tags.value = Array.isArray(d.tags)? d.tags.join(', ') : (d.tags||'');
       if (el.mediaUrl) el.mediaUrl.value = d.mediaUrl||'';
-      if (el.heroUrl) el.heroUrl.value = d['feature-image']?.url||'';
-      if (el.heroAlt) el.heroAlt.value = d['feature-image']?.alt||'';
+      if (el.heroUrl) el.heroUrl.value = d.heroUrl||'';
+      if (el.heroAlt) el.heroAlt.value = d.heroAlt||'';
       if (el.publishAt && d.scheduleAt) el.publishAt.value = d.scheduleAt;
       const radio = document.querySelector('input[name="status"][value="'+(d.status||'draft')+'"]');
       radio && (radio.checked = true);
@@ -508,7 +521,6 @@
     actMsg('Saving draft…');
     const payload = buildPayload();
     
-    // Validate required fields
     if (!payload.title) {
       actMsg('Error: Title is required.', false);
       toast('Title is required', false);
@@ -519,7 +531,7 @@
       toast('Slug is required', false);
       return;
     }
-    if (payload['feature-image'].url && !payload['feature-image'].url.startsWith('http')) {
+    if (payload.heroUrl && !payload.heroUrl.startsWith('http')) {
       actMsg('Error: Hero image URL must be HTTPS.', false);
       toast('Hero image URL must be HTTPS', false);
       return;
@@ -530,7 +542,12 @@
       const res = await fetch(API.create, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({...payload, status:'draft'})
+        body: JSON.stringify({
+          ...payload,
+          status: 'draft',
+          'feature-image-url': payload.heroUrl,
+          'feature-image-alt': payload.heroAlt
+        })
       });
       const text = await res.text();
       let json; try{ json = JSON.parse(text); }catch{ json = { raw: text }; }
@@ -568,7 +585,7 @@
       toast('Slug is required', false);
       return;
     }
-    if (payload['feature-image'].url && !payload['feature-image'].url.startsWith('http')) {
+    if (payload.heroUrl && !payload.heroUrl.startsWith('http')) {
       actMsg('Error: Hero image URL must be HTTPS.', false);
       toast('Hero image URL must be HTTPS', false);
       return;
@@ -579,7 +596,12 @@
       const res = await fetch(API.create, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({...payload, status:'published'})
+        body: JSON.stringify({
+          ...payload,
+          status: 'published',
+          'feature-image-url': payload.heroUrl,
+          'feature-image-alt': payload.heroAlt
+        })
       });
       const text = await res.text();
       let json; try{ json = JSON.parse(text); }catch{ json = { raw: text }; }
@@ -617,7 +639,7 @@
       toast('Slug is required', false);
       return;
     }
-    if (payload['feature-image'].url && !payload['feature-image'].url.startsWith('http')) {
+    if (payload.heroUrl && !payload.heroUrl.startsWith('http')) {
       actMsg('Error: Hero image URL must be HTTPS.', false);
       toast('Hero image URL must be HTTPS', false);
       return;
@@ -628,7 +650,12 @@
       const res = await fetch(API.schedule, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({...payload, status:'scheduled'})
+        body: JSON.stringify({
+          ...payload,
+          status: 'scheduled',
+          'feature-image-url': payload.heroUrl,
+          'feature-image-alt': payload.heroAlt
+        })
       });
       const text = await res.text();
       let json; try{ json = JSON.parse(text); }catch{ json = { raw: text }; }
@@ -730,7 +757,6 @@
     }).join('');
     el.postsTBody.innerHTML = rows || `<tr><td colspan="4" class="muted" style="padding:10px">No posts found.</td></tr>`;
 
-    // actions
     el.postsTBody.querySelectorAll('button[data-act]').forEach(btn=>{
       btn.addEventListener('click', async () => {
         const tr = btn.closest('tr');
