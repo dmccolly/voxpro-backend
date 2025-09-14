@@ -127,10 +127,6 @@ exports.handler = async (event) => {
     (body.fieldData && body.fieldData.body) ||
     '';
 
-  // Media URL (e.g. video, audio). Accept `mediaUrl` from body or fieldData.
-  const mediaUrl =
-    body.mediaUrl || (body.fieldData && body.fieldData.mediaUrl) || '';
-
   // Hero image normalisation. Support nested `hero` (legacy),
   // separate `heroUrl`/`heroAlt`, and `fieldData.featureImageUrl`.
   const heroUrl =
@@ -148,33 +144,22 @@ exports.handler = async (event) => {
         (body.fieldData.hero && body.fieldData.hero.alt))) ||
     '';
 
-  // Tags. Accept array of strings, comma‑separated string, or fieldData.tags.
-  let tags = body.tags || (body.fieldData && body.fieldData.tags) || '';
-  if (Array.isArray(tags)) {
-    tags = tags.join(', ');
-  } else if (typeof tags === 'string') {
-    // leave as is; user may provide comma‑separated string already
-  } else {
-    tags = '';
-  }
-
-  // Author. Accept `author` or `fieldData.author`.
-  const author = body.author || (body.fieldData && body.fieldData.author) || '';
-
-  // Assemble fieldData according to your Webflow collection schema. Adjust
-  // keys to match your collection’s field slugs as needed.
+  // Assemble fieldData using ONLY fields that exist in your Webflow collection.
+  // Based on your screenshots, these are the ONLY valid field slugs:
+  // - name
+  // - slug
+  // - summary
+  // - body
+  // - feature-image
   const fieldData = {
     name: title,
     slug: slug,
     summary: summary,
     body: content,
-    mediaUrl: mediaUrl,
     'feature-image': {
       url: heroUrl,
       alt: heroAlt
-    },
-    tags: tags,
-    author: author,
+    }
   };
 
   // Construct payload. Additional fields (scheduleAt, etc.) can be
