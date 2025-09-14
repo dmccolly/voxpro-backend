@@ -2,113 +2,692 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Professional Blog Manager</title>
 
-  <!-- TinyMCE (your working key) -->
+  <!-- TinyMCE (rich text editor) -->
   <script src="https://cdn.tiny.cloud/1/siwxtemdwh0tqidlreq3djqjv6pvqjcgl4v43rzu19yuqgs2/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+          referrerpolicy="origin"></script>
 
-  <!-- Basic styling so it’s readable -->
   <style>
-    :root{--bg:#111315;--panel:#1b1f23;--txt:#e7e9ee;--muted:#98a2b3;--accent:#3b82f6;--bad:#ef4444;--ok:#22c55e;}
-    html,body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    .wrap{max-width:1100px;margin:24px auto;padding:0 16px}
-    h1{margin:0 0 16px}
-    .card{background:var(--panel);border-radius:12px;padding:16px;margin:16px 0;box-shadow:0 1px 0 rgba(255,255,255,.04), 0 8px 24px rgba(0,0,0,.35)}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
-    label{display:block;font-weight:600;margin:4px 0}
-    input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #2a2f36;background:#0f1216;color:var(--txt)}
-    textarea{min-height:120px}
-    .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-    button{background:#222a36;border:1px solid #2c3442;color:var(--txt);padding:10px 14px;border-radius:10px;cursor:pointer}
-    button.primary{background:var(--accent);border-color:#2c6eea;color:#fff}
-    button.warn{background:#2a1b1b;border-color:#4d1c1c}
-    .msg{margin-top:8px;font-weight:600}
-    .msg.bad{color:var(--bad)} .msg.ok{color:var(--ok)} .msg.note{color:var(--muted)}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{padding:10px;border-bottom:1px solid #232a33}
-    th{text-align:left;color:var(--muted);font-weight:600}
-    .small{font-size:12px;color:var(--muted)}
+    :root{
+      --bg:#0f0f10; --panel:#191a1c; --panel-2:#202225;
+      --text:#e9eaee; --muted:#aeb2bb; --border:#2c2f35;
+      --accent:#7ab6ff; --accent-2:#5de6b3; --danger:#ff6b6b; --warn:#ffbe5c;
+      --radius:14px;
+    }
+    [data-theme="light"]{
+      --bg:#f7f8fa; --panel:#ffffff; --panel-2:#f2f4f7;
+      --text:#111318; --muted:#4a5563; --border:#e5e7eb;
+      --accent:#2563eb; --accent-2:#059669; --danger:#dc2626; --warn:#d97706;
+    }
+    html,body{height:100%}
+    body{margin:0; font:14px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial; background:var(--bg); color:var(--text)}
+    .wrap{max-width:1100px; margin:28px auto; padding:0 16px}
+    header{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px}
+    h1{font-size:28px; margin:0 0 6px 0; letter-spacing:.2px}
+    .muted{color:var(--muted)}
+    .grid{display:grid; grid-template-columns:1.2fr .9fr; gap:18px}
+    @media (max-width:980px){ .grid{grid-template-columns:1fr} }
+    .card{background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px; box-shadow:0 8px 20px rgba(0,0,0,.12)}
+    .card h2{margin:0 0 12px 0; font-size:18px}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+    .field{display:flex; flex-direction:column; gap:6px; margin:8px 0}
+    label{font-weight:600; font-size:12px; letter-spacing:.2px}
+    input[type="text"],input[type="url"],input[type="datetime-local"],textarea,select{
+      background:var(--panel-2); color:var(--text); border:1px solid var(--border);
+      border-radius:10px; padding:10px 12px; outline:none;
+    }
+    textarea{min-height:120px; resize:vertical}
+    .hint{font-size:12px; color:var(--muted)}
+    .btn{
+      display:inline-flex; align-items:center; gap:8px; background:var(--panel-2); color:var(--text);
+      border:1px solid var(--border); padding:10px 14px; border-radius:12px; cursor:pointer;
+      transition:.18s transform ease,.18s background ease; user-select:none; text-decoration:none;
+    }
+    .btn:hover{transform:translateY(-1px); background:rgba(122,182,255,.08)}
+    .btn.accent{background:linear-gradient(180deg, rgba(122,182,255,.22), rgba(122,182,255,.08)); border-color:rgba(122,182,255,.45)}
+    .btn.warn{background:linear-gradient(180deg, rgba(255,190,92,.18), rgba(255,190,92,.08)); border-color:rgba(255,190,92,.35)}
+    .btn.danger{background:linear-gradient(180deg, rgba(255,107,107,.18), rgba(255,107,107,.08)); border-color:rgba(255,107,107,.35)}
+    .hr{height:1px; background:var(--border); margin:8px 0}
+    .hero-preview img{max-width:100%; height:auto; border-radius:12px; display:block}
+    .drop{border:1px dashed var(--border); border-radius:12px; padding:14px; text-align:center; background:var(--panel-2); color:var(--muted)}
+    .actions{display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 4px}
+    .badge{font-size:11px; color:var(--muted)}
+    .toast{
+      position:fixed; right:16px; bottom:16px; background:var(--panel); color:var(--text);
+      border:1px solid var(--border); border-radius:12px; padding:10px 12px; box-shadow:0 6px 16px rgba(0,0,0,.2);
+      display:none; max-width:320px; z-index:99999;
+    }
+    .toast.show{display:block}
+    .ok{color:var(--accent-2)} .err{color:var(--danger)}
+    table{border-collapse:collapse; width:100%}
+    th,td{padding:8px 6px; border-bottom:1px solid var(--border); text-align:left}
   </style>
 </head>
-<body>
+<body data-theme="dark">
   <div class="wrap">
-    <h1>Blog Manager</h1>
+    <header>
+      <div>
+        <h1>Blog Manager</h1>
+        <div class="muted">Professional</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="toggleTheme" class="btn" type="button">Toggle Theme</button>
+        <button id="clearDraftLocal" class="btn danger" type="button" title="Clear local draft only">Clear Local Draft</button>
+      </div>
+    </header>
 
-    <!-- Compose -->
-    <div class="card">
-      <h2>Post Details</h2>
-      <div class="row">
-        <div>
-          <label for="title">Title *</label>
-          <input id="title" placeholder="Post title" />
+    <div class="grid">
+      <!-- LEFT: Post Editor -->
+      <section class="card" aria-labelledby="post-details">
+        <h2 id="post-details">Post Details</h2>
+
+        <div class="field">
+          <label for="title">Title <span class="badge">*</span></label>
+          <input id="title" name="title" type="text" placeholder="Post title" autocomplete="off" />
+          <div class="hint">Used for the page headline and preview.</div>
         </div>
-        <div>
-          <label for="slug">Slug</label>
-          <input id="slug" placeholder="auto-generated if blank" />
+
+        <div class="row">
+          <div class="field">
+            <label for="slug">Slug (URL)</label>
+            <input id="slug" name="slug" type="text" placeholder="my-post-title" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="author">Author</label>
+            <input id="author" name="author" type="text" placeholder="Jane Doe" autocomplete="off" />
+          </div>
         </div>
+
+        <div class="field">
+          <label>Status</label>
+          <div class="status-pill" role="group" aria-label="Status" style="display:flex; gap:8px; flex-wrap:wrap">
+            <label class="opt"><input type="radio" name="status" value="draft" checked /> Draft</label>
+            <label class="opt"><input type="radio" name="status" value="published" /> Published</label>
+            <label class="opt"><input type="radio" name="status" value="scheduled" /> Scheduled</label>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="publishAt">Publish Date/Time (for scheduled posts)</label>
+            <input id="publishAt" name="publishAt" type="datetime-local" />
+          </div>
+          <div class="field">
+            <label for="tags">Tags</label>
+            <input id="tags" name="tags" type="text" placeholder="news, updates" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="summary">Summary</label>
+          <textarea id="summary" name="summary" placeholder="One or two compelling sentences..."></textarea>
+        </div>
+
+        <div class="field">
+          <label for="mediaUrl">Media URL</label>
+          <input id="mediaUrl" name="mediaUrl" type="url" placeholder="Canonical media link (optional)" />
+        </div>
+      </section>
+
+      <!-- RIGHT: Hero Image + Aside Preview -->
+      <aside class="card">
+        <h2>Hero Image</h2>
+
+        <div class="row">
+          <div class="field">
+            <label for="heroUrl">Image URL</label>
+            <input id="heroUrl" name="heroImageUrl" type="url" placeholder="https://..." />
+          </div>
+          <div class="field">
+            <label for="heroAlt">Alt Text</label>
+            <input id="heroAlt" name="heroAlt" type="text" placeholder="Describe the image" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="heroFile">Upload Image</label>
+          <input id="heroFile" name="heroImage" type="file" accept=".jpg,.jpeg,.png,.webp" />
+          <div class="drop">Click to upload or drag &amp; drop<br/><span class="hint">Supports: JPG, PNG, WebP (Max: 50MB)</span></div>
+        </div>
+
+        <div class="hero-preview" id="heroPreviewAside"></div>
+      </aside>
+    </div>
+
+    <!-- CONTENT + ACTIONS -->
+    <section class="card" style="margin-top:18px" aria-labelledby="content-label">
+      <h2 id="content-label">Content</h2>
+      <div class="field">
+        <textarea id="content" name="content" placeholder="Write your post content here..."></textarea>
       </div>
 
+      <div class="actions">
+        <button id="saveDraftLocal" class="btn" type="button">Save Draft (Local)</button>
+        <button id="saveDraftServer" class="btn" type="button">Save Draft (Server)</button>
+        <button id="genPreview" class="btn" type="button">Generate Preview</button>
+        <button id="publishNow" class="btn accent" type="button">Publish Now</button>
+        <button id="schedulePost" class="btn warn" type="button">Schedule Post</button>
+      </div>
+      <div id="actionMsg" class="hint"></div>
+    </section>
+
+    <!-- LIVE PREVIEW (main) -->
+    <section class="card" style="margin-top:18px" aria-labelledby="live-preview">
+      <h2 id="live-preview">Live Preview</h2>
+      <div id="livePreview" class="preview">
+        <div class="hero-preview" id="heroPreviewMain"></div>
+        <h2 id="previewTitle">(Untitled)</h2>
+        <div id="previewMeta" class="muted"></div>
+        <p id="previewSummary" class="summary" style="font-weight:600; margin:.4rem 0 .6rem"></p>
+        <div id="previewBody" style="white-space:pre-wrap"></div>
+        <div class="hr"></div>
+        <div class="hint">Start writing to see a preview...</div>
+      </div>
+    </section>
+
+    <!-- POSTS (list/archive/delete using existing functions) -->
+    <section class="card" style="margin-top:18px" aria-labelledby="posts-label" id="postsCard">
+      <h2 id="posts-label">Posts</h2>
+
       <div class="row">
-        <div>
-          <label for="summary">Summary</label>
-          <textarea id="summary" placeholder="One or two compelling sentences..."></textarea>
+        <div class="field">
+          <label for="postSearch">Search</label>
+          <input id="postSearch" type="text" placeholder="title, slug, tag…" />
         </div>
-        <div>
-          <label for="status">State</label>
-          <select id="state">
-            <option value="published" selected>Published</option>
+        <div class="field">
+          <label for="postState">State</label>
+          <select id="postState">
+            <option value="">All</option>
+            <option value="published">Published</option>
             <option value="draft">Draft</option>
+            <option value="scheduled">Scheduled</option>
             <option value="archived">Archived</option>
           </select>
-          <div class="small" style="margin-top:8px">Tip: “Publish Now” creates + publishes. “Save Draft (Server)” creates/updates as draft.</div>
         </div>
       </div>
 
-      <div style="margin-top:12px">
-        <label for="post-body">Content</label>
-        <textarea id="post-body"></textarea>
+      <div class="actions">
+        <button id="refreshPosts" class="btn" type="button">Refresh</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <div id="postsTableWrap" style="overflow:auto">
+        <table id="postsTable">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="postsTBody">
+            <tr><td colspan="4" class="muted" style="padding:10px">No posts yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- COMMENTS -->
+    <section class="card" style="margin-top:18px" aria-labelledby="comments">
+      <h2 id="comments">Comments</h2>
+
+      <div class="row">
+        <label class="opt"><input id="requireApproval" type="checkbox" /> Require approval for new comments</label>
+        <div></div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="commentState">Filter by state:</label>
+          <select id="commentState">
+            <option value="">All Comments</option>
+            <option>Pending</option>
+            <option>Approved</option>
+            <option>Rejected</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="postId">Post ID:</label>
+          <input id="postId" type="text" placeholder="uuid..." />
+        </div>
       </div>
 
       <div class="actions">
-        <button id="btn-save-draft-server">Save Draft (Server)</button>
-        <button id="btn-generate-preview">Generate Preview</button>
-        <button id="btn-publish" class="primary">Publish Now</button>
-        <button id="btn-clear" class="warn">Clear</button>
+        <button id="refreshComments" class="btn" type="button">Refresh Comments</button>
       </div>
-      <div id="compose-msg" class="msg note"></div>
-    </div>
 
-    <!-- Posts list -->
-    <div class="card">
-      <h2>Posts</h2>
-      <div class="actions">
-        <button id="btn-refresh">Refresh</button>
-      </div>
-      <div id="list-msg" class="msg note"></div>
-      <table id="posts-table">
-        <thead><tr><th>Title</th><th>Status</th><th>Updated</th><th>Actions</th></tr></thead>
-        <tbody></tbody>
-      </table>
-    </div>
+      <div id="commentsList" class="muted">No comments to display</div>
+    </section>
   </div>
 
-  <!-- App logic -->
-  <script src="./blog-manager.js"></script>
+  <div id="toast" class="toast"></div>
 
-  <!-- TinyMCE init (after DOM + above HTML exist) -->
+  <!-- SCRIPT STARTS HERE -->
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      if (!window.tinymce) { console.error('TinyMCE failed to load'); return; }
-      tinymce.init({
-        selector: '#post-body',
-        menubar: false,
-        height: 380,
-        plugins: 'lists link image table code',
-        toolbar: 'undo redo | styles | bold italic underline | bullist numlist | link image | table | code'
+  // ===== Hard-wired endpoints =====
+  const API = {
+    // blog create/update/schedule & comments (same as before)
+    create: '/.netlify/functions/posts-create',
+    update: '/.netlify/functions/posts-create',
+    schedule: '/.netlify/functions/posts-create',
+    listComments: '/.netlify/functions/comments-list',
+    moderateComment: '/.netlify/functions/comments-moderate',
+    getSettings: '/.netlify/functions/comments-settings-get',
+    setSettings: '/.netlify/functions/comments-settings-set',
+    upload: '/.netlify/functions/file-manager-upload',
+
+    // existing posts list/archive/delete (as defined in netlify.toml redirects)
+    postsList: '/api/blog-posts-list',
+    postsArchive: '/api/blog-posts-archive',
+    postsDelete: '/api/blog-posts-delete'
+  };
+
+  // ===== Utilities & wiring =====
+  const $ = s => document.querySelector(s);
+  const $val = el => (el?.value ?? '').toString();
+
+  // Theme
+  const setTheme = t => document.body.setAttribute('data-theme', t);
+  $('#toggleTheme')?.addEventListener('click', () => {
+    const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    setTheme(next); localStorage.setItem('bm_theme', next);
+    // re-skin TinyMCE
+    reinitEditorForTheme();
+  });
+  setTheme(localStorage.getItem('bm_theme') || 'dark');
+
+  // Toast + action msg
+  const toast = (msg, ok=false) => {
+    const t = $('#toast'); if(!t) return;
+    t.innerHTML = msg;
+    t.classList.toggle('ok', !!ok);
+    t.classList.toggle('err', !ok);
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 4200);
+  };
+  const actMsg = (msg, ok=false) => {
+    const a = $('#actionMsg'); if(!a) return;
+    a.textContent = msg; a.className = ok ? 'hint ok' : 'hint err';
+    if(!msg) a.className='hint';
+  };
+
+  const el = {
+    title: $('#title'), slug: $('#slug'), author: $('#author'),
+    summary: $('#summary'), tags: $('#tags'),
+    heroUrl: $('#heroUrl'), heroAlt: $('#heroAlt'), mediaUrl: $('#mediaUrl'),
+    file: $('#heroFile'),
+    heroAside: $('#heroPreviewAside'), heroMain: $('#heroPreviewMain'),
+
+    saveDraftLocal: $('#saveDraftLocal'),
+    saveDraftServer: $('#saveDraftServer'),
+    genPreview: $('#genPreview'),
+    publishNow: $('#publishNow'),
+    schedulePost: $('#schedulePost'),
+    publishAt: $('#publishAt'),
+
+    previewTitle: $('#previewTitle'),
+    previewMeta: $('#previewMeta'),
+    previewSummary: $('#previewSummary'),
+    previewBody: $('#previewBody'),
+
+    clearDraftLocal: $('#clearDraftLocal'),
+
+    // Posts panel
+    postSearch: $('#postSearch'),
+    postState: $('#postState'),
+    refreshPosts: $('#refreshPosts'),
+    postsTBody: $('#postsTBody'),
+
+    // Comments panel
+    requireApproval: $('#requireApproval'),
+    commentState: $('#commentState'),
+    postId: $('#postId'),
+    refreshComments: $('#refreshComments'),
+    commentsList: $('#commentsList')
+  };
+
+  // ========== TinyMCE ==========
+  function getEditor(){ return (window.tinymce && tinymce.get('content')) || null; }
+  function getBodyHtml(){
+    const ed = getEditor();
+    if (ed) return ed.getContent();
+    const ta = document.getElementById('content'); return (ta?.value || '');
+  }
+  function setBodyHtml(html){
+    const ed = getEditor();
+    if (ed) ed.setContent(html || '');
+    else { const ta = document.getElementById('content'); if (ta) ta.value = html || ''; }
+  }
+  function initEditor(){
+    if (!window.tinymce) return;
+    const dark = document.body.getAttribute('data-theme') === 'dark';
+    tinymce.init({
+      selector: '#content',
+      height: 420,
+      menubar: false,
+      plugins: 'link lists code advlist',
+      toolbar: 'undo redo | styles | bold italic underline | forecolor backcolor | ' +
+               'alignleft aligncenter alignright | bullist numlist | link | removeformat | code | ' +
+               'fontfamily fontsize',
+      font_family_formats: 'Arial=arial,helvetica,sans-serif; Courier New=courier new,courier,monospace; ' +
+                           'Georgia=georgia,palatino; Helvetica=helvetica; Times New Roman=times new roman,times; ' +
+                           'Trebuchet MS=trebuchet ms,geneva; Verdana=verdana,geneva',
+      font_size_formats: '8pt 10pt 12pt 14pt 16pt 18pt 24pt 36pt 48pt',
+      skin: dark ? 'oxide-dark' : 'oxide',
+      content_css: dark ? 'dark' : 'default',
+      valid_elements: '*[*]',
+      setup: (ed) => {
+        ed.on('keyup change paste input', () => { try { updatePreview(); } catch(_){} });
+      }
+    });
+  }
+  function reinitEditorForTheme(){
+    const ed = getEditor();
+    const html = ed ? ed.getContent() : (document.getElementById('content')?.value || '');
+    if (ed) ed.remove();
+    initEditor();
+    // restore after editor init completes
+    const intv = setInterval(()=>{
+      const e2 = getEditor();
+      if (e2){ e2.setContent(html || ''); clearInterval(intv); }
+    }, 50);
+  }
+
+  // ========== Slug helper ==========
+  let slugTouched = false;
+  el.slug?.addEventListener('input', () => slugTouched = true);
+  $('#title')?.addEventListener('input', () => {
+    if (slugTouched) return;
+    const s = $val(el.title).trim().toLowerCase()
+      .replace(/[^\w\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-');
+    if (el.slug) el.slug.value = s;
+  });
+
+  // ========== Live Preview ==========
+  const setHero = (src) => {
+    const img = src ? '<img src="'+src+'" alt="'+($val(el.heroAlt))+'">' : '';
+    if (el.heroAside) el.heroAside.innerHTML = img;
+    if (el.heroMain)  el.heroMain.innerHTML  = img;
+  };
+  const updatePreview = () => {
+    if (el.previewTitle) el.previewTitle.textContent = $val(el.title) || '(Untitled)';
+    if (el.previewMeta) {
+      const pieces = [];
+      if ($val(el.author)) pieces.push($val(el.author));
+      if ($val(el.tags)) pieces.push($val(el.tags));
+      el.previewMeta.textContent = pieces.join(' • ');
+    }
+    if (el.previewSummary) el.previewSummary.textContent = $val($('#summary'));
+    if (el.previewBody) el.previewBody.innerHTML = getBodyHtml();
+
+    if (el.heroUrl && el.heroUrl.value && !(el.file?.files?.length)) {
+      setHero(el.heroUrl.value.trim());
+    } else if (!(el.file?.files?.length) && !el.heroUrl?.value) {
+      setHero('');
+    }
+  };
+  ['input','change','keyup','paste'].forEach(evt => {
+    [el.title, el.author, el.summary, el.tags, el.heroUrl, el.heroAlt]
+      .forEach(node => node?.addEventListener(evt, updatePreview));
+  });
+
+  // ========== Upload (multipart to Netlify function) ==========
+  el.file?.addEventListener('change', async () => {
+    const file = el.file.files?.[0];
+    if(!file) return;
+    const localURL = URL.createObjectURL(file); // instant local preview
+    setHero(localURL);
+    const fd = new FormData(); fd.append('attachment', file);
+    try{
+      const res = await fetch(API.upload, { method:'POST', body:fd });
+      const text = await res.text();
+      let json; try{ json = JSON.parse(text); } catch{ json=null; }
+      if (res.ok && json?.url){
+        if (el.heroUrl) el.heroUrl.value = json.url;
+        setHero(json.url);
+        toast('Image uploaded', true);
+      } else {
+        toast('Upload failed: '+(json?.error || res.status));
+      }
+    }catch(e){
+      toast('Upload error: '+e.message);
+    }
+    updatePreview();
+  });
+  el.heroUrl?.addEventListener('input', () => setHero(el.heroUrl.value.trim()));
+
+  // ========== Build payload ==========
+  function buildPayload(){
+    const status = (document.querySelector('input[name="status"]:checked')?.value) || 'draft';
+    const tags = (el.tags?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
+    return {
+      title:$val(el.title),
+      slug:$val(el.slug),
+      author:$val(el.author),
+      summary:$val($('#summary')),
+      content:getBodyHtml(),        // HTML from TinyMCE
+      tags,
+      mediaUrl:$val(el.mediaUrl),
+      hero:{ url:$val(el.heroUrl), alt:$val(el.heroAlt) },
+      status,
+      scheduleAt:$val(el.publishAt)
+    };
+  }
+
+  // ========== Local draft ==========
+  el.saveDraftLocal?.addEventListener('click', () => {
+    localStorage.setItem('bm_draft', JSON.stringify(buildPayload()));
+    toast('Draft saved locally', true);
+  });
+  el.clearDraftLocal?.addEventListener('click', () => {
+    localStorage.removeItem('bm_draft'); toast('Local draft cleared', true);
+  });
+  // Restore
+  try{
+    const saved = localStorage.getItem('bm_draft');
+    if (saved){
+      const d = JSON.parse(saved);
+      if (el.title) el.title.value = d.title||'';
+      if (el.slug) el.slug.value = d.slug||'';
+      if (el.author) el.author.value = d.author||'';
+      if (el.summary) el.summary.value = d.summary||'';
+      if (el.tags) el.tags.value = Array.isArray(d.tags)? d.tags.join(', ') : (d.tags||'');
+      if (el.mediaUrl) el.mediaUrl.value = d.mediaUrl||'';
+      if (el.heroUrl) el.heroUrl.value = d.hero?.url||'';
+      if (el.heroAlt) el.heroAlt.value = d.hero?.alt||'';
+      if (el.publishAt && d.scheduleAt) el.publishAt.value = d.scheduleAt;
+      const radio = document.querySelector('input[name="status"][value="'+(d.status||'draft')+'"]');
+      radio && (radio.checked = true);
+      setBodyHtml(d.content || '');
+      updatePreview();
+    }
+  }catch(_){}
+
+  // ========== Server draft / preview / publish / schedule ==========
+  el.saveDraftServer?.addEventListener('click', async () => {
+    actMsg('Saving draft…');
+    const res = await fetch(API.create, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({...buildPayload(), status:'draft'})
+    });
+    const text = await res.text();
+    let json; try{ json = JSON.parse(text); }catch{ json=null; }
+    if (res.ok){ actMsg('Draft saved on server.', true); toast('Draft saved on server', true); }
+    else { actMsg('Draft save failed: '+(json?.error || res.status)); toast('Draft save failed'); }
+  });
+
+  el.genPreview?.addEventListener('click', () => {
+    updatePreview(); toast('Inline preview updated.', true);
+  });
+
+  el.publishNow?.addEventListener('click', async () => {
+    actMsg('Publishing…');
+    const res = await fetch(API.create, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({...buildPayload(), status:'published'})
+    });
+    const text = await res.text();
+    let json; try{ json = JSON.parse(text); }catch{ json=null; }
+    if (res.ok){ actMsg('Published.', true); toast('Published', true); }
+    else { actMsg('Publish failed: '+(json?.error || res.status)); toast('Publish failed'); }
+  });
+
+  el.schedulePost?.addEventListener('click', async () => {
+    if (!el.publishAt?.value){ toast('Pick a publish date/time first.'); return; }
+    actMsg('Scheduling…');
+    const res = await fetch(API.schedule, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({...buildPayload(), status:'scheduled'})
+    });
+    const text = await res.text();
+    let json; try{ json = JSON.parse(text); }catch{ json=null; }
+    if (res.ok){ actMsg('Scheduled.', true); toast('Scheduled', true); }
+    else { actMsg('Schedule failed: '+(json?.error || res.status)); toast('Schedule failed'); }
+  });
+
+  // ========== Comments admin ==========
+  async function loadSettings(){
+    try{
+      const r = await fetch(API.getSettings);
+      const t = await r.text(); let j; try{ j=JSON.parse(t);}catch{j=null; }
+      if (r.ok){ el.requireApproval.checked = !!j?.requireApproval; }
+    }catch(_){}
+  }
+  el.requireApproval?.addEventListener('change', async function(){
+    try{
+      const r = await fetch(API.setSettings, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ requireApproval: this.checked })
+      });
+      if (!r.ok) throw 0; toast('Settings saved', true);
+    }catch(_){ toast('Failed to save settings'); }
+  });
+  async function loadComments(){
+    const params = new URLSearchParams();
+    if (el.commentState?.value) params.set('state', el.commentState.value);
+    if (el.postId?.value) params.set('postId', el.postId.value.trim());
+    try{
+      const r = await fetch(API.listComments + (params.toString()?`?${params}`:''));
+      const t = await r.text(); let list; try{ list=JSON.parse(t);}catch{list=null; }
+      if (!Array.isArray(list)){ el.commentsList.textContent = 'No comments to display'; return; }
+      el.commentsList.innerHTML = list.map(c=>(
+        `<div class="comment" style="border:1px solid var(--border); border-radius:10px; padding:12px; background:var(--panel-2); margin:8px 0">
+          <div style="font-weight:600">${c.author||'Anon'} <span class="muted">• ${c.state||'pending'}</span></div>
+          <div>${(c.text||'').replace(/[<>]/g,'')}</div>
+          <div class="actions" style="margin-top:8px">
+            <button class="btn" data-act="approve" data-id="${c.id}">Approve</button>
+            <button class="btn danger" data-act="reject" data-id="${c.id}">Reject</button>
+          </div>
+        </div>`
+      )).join('');
+      el.commentsList.querySelectorAll('button[data-act]').forEach(b=>{
+        b.addEventListener('click', async () => {
+          const id = b.getAttribute('data-id');
+          const action = b.getAttribute('data-act');
+          try{
+            const r = await fetch(API.moderateComment, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id, action })
+            });
+            if (!r.ok) throw 0; toast('Updated', true); loadComments();
+          }catch(_){ toast('Moderation failed'); }
+        });
+      });
+    }catch(_){
+      el.commentsList.textContent = 'Failed to load comments';
+    }
+  }
+  el.refreshComments?.addEventListener('click', loadComments);
+
+  // ========== Posts list / archive / delete ==========
+  function fmtDate(iso){ try { return new Date(iso).toLocaleString(); } catch { return iso || ''; } }
+  async function fetchJSON(url, opts) {
+    const r = await fetch(url, opts); const t = await r.text();
+    let j; try { j = JSON.parse(t); } catch { j = null; }
+    if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`); return j;
+  }
+  function renderPosts(items){
+    const rows = (items||[]).map(p=>{
+      const id = p.id || p._id || p.item_id || p.itemId || p.uuid || '';
+      const title = p.title || p.name || p.slug || '(untitled)';
+      const status = (p.status || p.state || (p.archived ? 'archived':'')).toString();
+      const updatedAt = p.updated_at || p.updatedAt || p.modified_on || p.last_updated || p._updatedOn || p.updated || p.published_on || '';
+      const slug = p.slug || '';
+      return `
+        <tr data-id="${id}" data-slug="${slug}">
+          <td>${title}</td>
+          <td>${status}</td>
+          <td>${fmtDate(updatedAt)}</td>
+          <td style="display:flex; gap:6px; flex-wrap:wrap">
+            <button class="btn" data-act="open">Open</button>
+            <button class="btn" data-act="archive">Archive</button>
+            <button class="btn danger" data-act="delete">Delete</button>
+          </td>
+        </tr>`;
+    }).join('');
+    el.postsTBody.innerHTML = rows || `<tr><td colspan="4" class="muted" style="padding:10px">No posts found.</td></tr>`;
+
+    // actions
+    el.postsTBody.querySelectorAll('button[data-act]').forEach(btn=>{
+      btn.addEventListener('click', async () => {
+        const tr = btn.closest('tr');
+        const id = tr?.getAttribute('data-id');
+        const slug = tr?.getAttribute('data-slug');
+        if (!id) return;
+        try{
+          if (btn.dataset.act === 'open') {
+            if (slug) window.open(`/blog/${slug}`, '_blank');
+            else toast('No slug found for this post.');
+          }
+          if (btn.dataset.act === 'archive') {
+            await fetchJSON(API.postsArchive, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id })
+            });
+            toast('Archived', true); loadPosts();
+          }
+          if (btn.dataset.act === 'delete') {
+            if (!confirm('Delete this post permanently?')) return;
+            await fetchJSON(API.postsDelete, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id })
+            });
+            toast('Deleted', true); loadPosts();
+          }
+        }catch(e){ toast(e.message || 'Action failed'); }
       });
     });
+  }
+  async function loadPosts(){
+    try{
+      const q = (el.postSearch?.value || '').trim();
+      const state = el.postState?.value || '';
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (state) params.set('status', state);
+      const data = await fetchJSON(API.postsList + (params.toString()?`?${params}`:''));
+      const items = Array.isArray(data) ? data : (data.items || data.rows || []);
+      renderPosts(items);
+    }catch(e){
+      el.postsTBody.innerHTML = `<tr><td colspan="4" class="err" style="padding:10px">${e.message}</td></tr>`;
+    }
+  }
+  el.refreshPosts?.addEventListener('click', loadPosts);
+  el.postSearch?.addEventListener('input', () => { clearTimeout(window._postTimer); window._postTimer=setTimeout(loadPosts,250); });
+  el.postState?.addEventListener('change', loadPosts);
+
+  // ========== Init ==========
+  document.addEventListener('DOMContentLoaded', () => {
+    initEditor();
+    updatePreview();
+    loadSettings();
+    loadComments();
+    loadPosts();
+  });
   </script>
 </body>
 </html>
