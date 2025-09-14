@@ -7,7 +7,6 @@
 
   <!-- TinyMCE (rich text editor) -->
   <script src="https://cdn.tiny.cloud/1/siwxtemdwh0tqidlreq3djqjv6pvqjcgl4v43rzu19yuqgs2/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
-          referrerpolicy="origin"></script>
 
   <style>
     :root{
@@ -270,17 +269,15 @@
   <script>
   // ===== Hard-wired endpoints =====
   const API = {
-    // blog create/update/schedule & comments (same as before)
-    create: '/.netlify/functions/posts-create',
-    update: '/.netlify/functions/posts-create',
-    schedule: '/.netlify/functions/posts-create',
+    create: 'https://app.streamofdan.com/.netlify/functions/posts-create',
+    update: 'https://app.streamofdan.com/.netlify/functions/posts-create',
+    schedule: 'https://app.streamofdan.com/.netlify/functions/posts-create',
     listComments: '/.netlify/functions/comments-list',
     moderateComment: '/.netlify/functions/comments-moderate',
     getSettings: '/.netlify/functions/comments-settings-get',
     setSettings: '/.netlify/functions/comments-settings-set',
     upload: '/.netlify/functions/file-manager-upload',
 
-    // existing posts list/archive/delete (as defined in netlify.toml redirects)
     postsList: '/api/blog-posts-list',
     postsArchive: '/api/blog-posts-archive',
     postsDelete: '/api/blog-posts-delete'
@@ -295,7 +292,6 @@
   $('#toggleTheme')?.addEventListener('click', () => {
     const next = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
     setTheme(next); localStorage.setItem('bm_theme', next);
-    // re-skin TinyMCE
     reinitEditorForTheme();
   });
   setTheme(localStorage.getItem('bm_theme') || 'dark');
@@ -336,13 +332,11 @@
 
     clearDraftLocal: $('#clearDraftLocal'),
 
-    // Posts panel
     postSearch: $('#postSearch'),
     postState: $('#postState'),
     refreshPosts: $('#refreshPosts'),
     postsTBody: $('#postsTBody'),
 
-    // Comments panel
     requireApproval: $('#requireApproval'),
     commentState: $('#commentState'),
     postId: $('#postId'),
@@ -390,7 +384,6 @@
     const html = ed ? ed.getContent() : (document.getElementById('content')?.value || '');
     if (ed) ed.remove();
     initEditor();
-    // restore after editor init completes
     const intv = setInterval(()=>{
       const e2 = getEditor();
       if (e2){ e2.setContent(html || ''); clearInterval(intv); }
@@ -465,16 +458,19 @@
     const status = (document.querySelector('input[name="status"]:checked')?.value) || 'draft';
     const tags = (el.tags?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
     return {
-      title:$val(el.title),
-      slug:$val(el.slug),
-      author:$val(el.author),
-      summary:$val($('#summary')),
-      content:getBodyHtml(),        // HTML from TinyMCE
-      tags,
-      mediaUrl:$val(el.mediaUrl),
-      hero:{ url:$val(el.heroUrl), alt:$val(el.heroAlt) },
-      status,
-      scheduleAt:$val(el.publishAt)
+      title: $val(el.title),
+      slug: $val(el.slug),
+      author: $val(el.author),
+      summary: $val($('#summary')),
+      content: getBodyHtml(),
+      tags: tags,
+      mediaUrl: $val(el.mediaUrl),
+      'feature-image': {  // 👈 CORRECTED: Use Webflow's actual field slug
+        url: $val(el.heroUrl),
+        alt: $val(el.heroAlt)
+      },
+      status: status,
+      scheduleAt: $val(el.publishAt)
     };
   }
 
@@ -497,8 +493,8 @@
       if (el.summary) el.summary.value = d.summary||'';
       if (el.tags) el.tags.value = Array.isArray(d.tags)? d.tags.join(', ') : (d.tags||'');
       if (el.mediaUrl) el.mediaUrl.value = d.mediaUrl||'';
-      if (el.heroUrl) el.heroUrl.value = d.hero?.url||'';
-      if (el.heroAlt) el.heroAlt.value = d.hero?.alt||'';
+      if (el.heroUrl) el.heroUrl.value = d['feature-image']?.url||'';
+      if (el.heroAlt) el.heroAlt.value = d['feature-image']?.alt||'';
       if (el.publishAt && d.scheduleAt) el.publishAt.value = d.scheduleAt;
       const radio = document.querySelector('input[name="status"][value="'+(d.status||'draft')+'"]');
       radio && (radio.checked = true);
@@ -510,43 +506,94 @@
   // ========== Server draft / preview / publish / schedule ==========
   el.saveDraftServer?.addEventListener('click', async () => {
     actMsg('Saving draft…');
-    const res = await fetch(API.create, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({...buildPayload(), status:'draft'})
-    });
-    const text = await res.text();
-    let json; try{ json = JSON.parse(text); }catch{ json=null; }
-    if (res.ok){ actMsg('Draft saved on server.', true); toast('Draft saved on server', true); }
-    else { actMsg('Draft save failed: '+(json?.error || res.status)); toast('Draft save failed'); }
+    const payload = {...buildPayload(), status:'draft'};
+    console.log('Sending draft payload:', payload);
+    try {
+      const res = await fetch(API.create, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const text = await res.text();
+      let json; try{ json = JSON.parse(text); }catch{ json = { raw: text }; }
+      if (res.ok){
+        actMsg('Draft saved on server.', true);
+        toast('Draft saved on server', true);
+      } else {
+        actMsg('Draft save failed: ' + (json.error || res.status));
+        toast('Draft save failed');
+        console.error('Draft save error:', json);
+      }
+    } catch (err) {
+      actMsg('Network error: ' + err.message);
+      toast('Network error');
+      console.error('Fetch error:', err);
+    }
   });
 
   el.genPreview?.addEventListener('click', () => {
-    updatePreview(); toast('Inline preview updated.', true);
+    updatePreview();
+    toast('Inline preview updated.', true);
   });
 
   el.publishNow?.addEventListener('click', async () => {
     actMsg('Publishing…');
-    const res = await fetch(API.create, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({...buildPayload(), status:'published'})
-    });
-    const text = await res.text();
-    let json; try{ json = JSON.parse(text); }catch{ json=null; }
-    if (res.ok){ actMsg('Published.', true); toast('Published', true); }
-    else { actMsg('Publish failed: '+(json?.error || res.status)); toast('Publish failed'); }
+    const payload = {...buildPayload(), status:'published'};
+    console.log('Sending publish payload:', payload);
+    try {
+      const res = await fetch(API.create, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const text = await res.text();
+      let json; try{ json = JSON.parse(text); }catch{ json = { raw: text }; }
+      if (res.ok){
+        actMsg('Published.', true);
+        toast('Published', true);
+        console.log('Success:', json);
+      } else {
+        actMsg('Publish failed: ' + (json.error || res.status));
+        toast('Publish failed');
+        console.error('Publish error:', json);
+      }
+    } catch (err) {
+      actMsg('Network error: ' + err.message);
+      toast('Network error');
+      console.error('Fetch error:', err);
+    }
   });
 
   el.schedulePost?.addEventListener('click', async () => {
-    if (!el.publishAt?.value){ toast('Pick a publish date/time first.'); return; }
+    if (!el.publishAt?.value){
+      toast('Pick a publish date/time first.');
+      return;
+    }
     actMsg('Scheduling…');
-    const res = await fetch(API.schedule, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({...buildPayload(), status:'scheduled'})
-    });
-    const text = await res.text();
-    let json; try{ json = JSON.parse(text); }catch{ json=null; }
-    if (res.ok){ actMsg('Scheduled.', true); toast('Scheduled', true); }
-    else { actMsg('Schedule failed: '+(json?.error || res.status)); toast('Schedule failed'); }
+    const payload = {...buildPayload(), status:'scheduled'};
+    console.log('Sending scheduled payload:', payload);
+    try {
+      const res = await fetch(API.schedule, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const text = await res.text();
+      let json; try{ json = JSON.parse(text); }catch{ json = { raw: text }; }
+      if (res.ok){
+        actMsg('Scheduled.', true);
+        toast('Scheduled', true);
+        console.log('Success:', json);
+      } else {
+        actMsg('Schedule failed: ' + (json.error || res.status));
+        toast('Schedule failed');
+        console.error('Schedule error:', json);
+      }
+    } catch (err) {
+      actMsg('Network error: ' + err.message);
+      toast('Network error');
+      console.error('Fetch error:', err);
+    }
   });
 
   // ========== Comments admin ==========
