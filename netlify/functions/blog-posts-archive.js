@@ -26,19 +26,13 @@ export const handler = async (event) => {
         const { id } = JSON.parse(event.body);
         if (!id) throw new Error('Post ID is required');
 
-        const url = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}`;
+        const url = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}/unpublish`;
         const response = await fetch(url, {
-            method: 'PATCH',
+            method: 'POST',
             headers: {
                 'Authorization': `Bearer ${API_TOKEN}`,
-                'accept': 'application/json',
                 'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                fieldData: {
-                    status: 'draft'
-                }
-            })
+            }
         });
 
         const data = await response.json();
