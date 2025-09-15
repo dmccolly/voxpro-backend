@@ -39,16 +39,18 @@ export const handler = async (event) => {
         }
 
         const items = data.items || [];
+        console.log('Webflow API response sample:', JSON.stringify(items[0], null, 2));
+        
         const filteredItems = showArchived 
-            ? items.filter(item => !item.isPublished)
-            : items.filter(item => item.isPublished);
+            ? items.filter(item => !item.lastPublished)
+            : items.filter(item => item.lastPublished);
             
         const mappedItems = filteredItems.map(item => ({
             id: item.id,
             name: item.fieldData?.name || '(untitled)',
             title: item.fieldData?.name || '(untitled)',
             slug: item.fieldData?.slug || '',
-            status: item.isPublished ? 'published' : 'draft',
+            status: item.lastPublished ? 'published' : 'draft',
             updated_at: item.lastUpdated || item.createdOn || '',
             'feature-image-url': item.fieldData?.['feature-image-url'] || ''
         }));
