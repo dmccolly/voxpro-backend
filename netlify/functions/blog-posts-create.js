@@ -52,13 +52,16 @@ exports.handler = async (event) => {
         }
 
         if (publish && createData.id) {
-            const publishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${createData.id}/publish`;
+            const publishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/publish`;
             const publishResponse = await fetch(publishUrl, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${API_TOKEN}`,
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify({
+                    itemIds: [createData.id]
+                })
             });
 
             if (!publishResponse.ok) {

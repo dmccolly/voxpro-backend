@@ -40,13 +40,16 @@ exports.handler = async (event) => {
             throw new Error(`Failed to get post data (${getResponse.status}): ${JSON.stringify(existingData)}`);
         }
 
-        const publishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}/publish`;
+        const publishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/publish`;
         const publishResponse = await fetch(publishUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${API_TOKEN}`,
                 'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+                itemIds: [id]
+            })
         });
         
         if (!publishResponse.ok) {
