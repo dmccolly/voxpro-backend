@@ -64,10 +64,7 @@ exports.handler = async (event) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                fieldData: {
-                    ...existingData.fieldData,
-                    lastPublished: null
-                }
+                fieldData: existingData.fieldData || {}
             })
         });
 
