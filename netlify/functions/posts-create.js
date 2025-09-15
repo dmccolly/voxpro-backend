@@ -100,15 +100,13 @@ exports.handler = async (event) => {
     (body.fieldData && body.fieldData.heroAlt) ||
     '';
 
-  // ✅ This is the fix: Send `name` explicitly
   const fieldData = {
     name: title,
     slug: slug,
     summary: summary,
     body: content,
     'feature-image-url': heroUrl,
-    'feature-image-alt': heroAlt,
-    updated_at: new Date().toISOString(), // ✅ Add this line
+    'feature-image-alt': heroAlt
   };
 
   const payload = {
