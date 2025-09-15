@@ -1,6 +1,7 @@
 {
   "name": "voxpro-proxy-function",
   "version": "1.0.0",
+  "description": "VoxPro backend serverless functions for broadcast media management",
   "dependencies": {
     "node-fetch": "^2.6.1"
   }
