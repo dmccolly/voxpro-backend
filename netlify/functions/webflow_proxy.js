@@ -4,7 +4,8 @@ const API_TOKEN = process.env.WEBFLOW_API_TOKEN;
 const API_BASE_URL = "https://api.webflow.com/v2";
 const COLLECTION_IDS = {
     "media_assets": "6891479d29ed1066b71124e9",
-    "voxpro_assignments": "689ac6bdf10259dd9be04e16"
+    "voxpro_assignments": "689ac6bdf10259dd9be04e16",
+    "blog_posts": process.env.WEBFLOW_COLLECTION_ID
 };
 
 const CORS_HEADERS = {

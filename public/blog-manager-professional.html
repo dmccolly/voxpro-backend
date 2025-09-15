@@ -256,9 +256,9 @@
   <script>
   // ===== Hard-wired endpoints =====
   const API = {
-    create: 'https://app.streamofdan.com/.netlify/functions/posts-create',
-    update: 'https://app.streamofdan.com/.netlify/functions/posts-create',
-    schedule: 'https://app.streamofdan.com/.netlify/functions/posts-create',
+    create: '/api/blog-posts-create',
+    update: '/api/blog-posts-create',
+    schedule: '/api/blog-posts-create',
     listComments: '/.netlify/functions/comments-list',
     moderateComment: '/.netlify/functions/comments-moderate',
     getSettings: '/.netlify/functions/comments-settings-get',
@@ -569,14 +569,14 @@
 
     console.log('Sending publish payload:', payload);
     try {
-      const res = await fetch(API.create, {
+      const res = await fetch(`${API.create}?publish=true`, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           name: payload.name,
           slug: payload.slug,
           summary: payload.summary,
-          body: payload.content,
+          content: payload.content,
           'feature-image-url': payload.heroUrl,
           'feature-image-alt': payload.heroAlt,
           status: 'published',
@@ -628,14 +628,14 @@
 
     console.log('Sending scheduled payload:', payload);
     try {
-      const res = await fetch(API.schedule, {
+      const res = await fetch(`${API.schedule}?publish=false`, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           name: payload.name,
           slug: payload.slug,
           summary: payload.summary,
-          body: payload.content,
+          content: payload.content,
           'feature-image-url': payload.heroUrl,
           'feature-image-alt': payload.heroAlt,
           status: 'scheduled',
