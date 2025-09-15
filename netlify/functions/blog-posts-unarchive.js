@@ -39,24 +39,22 @@ export const handler = async (event) => {
             })
         });
 
-        if (response.ok) {
-            const publishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}/publish`;
-            const publishResponse = await fetch(publishUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!publishResponse.ok) {
-                console.warn('Post updated but publish failed:', await publishResponse.text());
-            }
-        }
-
         const data = await response.json();
         if (!response.ok) {
             throw new Error(`Webflow API Error (${response.status}): ${JSON.stringify(data)}`);
+        }
+
+        const publishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}/publish`;
+        const publishResponse = await fetch(publishUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_TOKEN}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!publishResponse.ok) {
+            console.warn('Post updated but publish failed:', await publishResponse.text());
         }
 
         return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(data) };
