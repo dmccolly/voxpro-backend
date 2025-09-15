@@ -23,8 +23,12 @@ export const handler = async (event) => {
             throw new Error('Missing Webflow API configuration');
         }
 
-        const showArchived = event.queryStringParameters?.archived === 'true';
-        const url = `${API_BASE_URL}/collections/${COLLECTION_ID}/items`;
+        const postId = event.queryStringParameters?.id;
+        if (!postId) {
+            throw new Error('Post ID is required');
+        }
+
+        const url = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${postId}`;
         const response = await fetch(url, {
             method: 'GET',
             headers: {
@@ -38,26 +42,22 @@ export const handler = async (event) => {
             throw new Error(`Webflow API Error (${response.status}): ${JSON.stringify(data)}`);
         }
 
-        const items = data.items || [];
-        console.log('Webflow API response sample:', JSON.stringify(items[0], null, 2));
-        
-        const filteredItems = showArchived 
-            ? items.filter(item => !item.lastPublished)
-            : items.filter(item => item.lastPublished);
-            
-        const mappedItems = filteredItems.map(item => ({
-            id: item.id,
-            name: item.fieldData?.name || '(untitled)',
-            title: item.fieldData?.name || '(untitled)',
-            slug: item.fieldData?.slug || '',
-            status: item.lastPublished ? 'published' : 'draft',
-            updated_at: item.lastUpdated || item.createdOn || '',
-            'feature-image-url': item.fieldData?.['feature-image-url'] || ''
-        }));
+        const mappedData = {
+            id: data.id,
+            name: data.fieldData?.name || '(untitled)',
+            title: data.fieldData?.name || '(untitled)',
+            slug: data.fieldData?.slug || '',
+            status: data.fieldData?.status || 'published',
+            body: data.fieldData?.body || '',
+            content: data.fieldData?.body || '',
+            summary: data.fieldData?.summary || '',
+            updated_at: data.lastUpdated || data.createdOn || '',
+            'feature-image-url': data.fieldData?.['feature-image-url'] || ''
+        };
 
-        return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(mappedItems) };
+        return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(mappedData) };
     } catch (error) {
-        console.error('Blog posts list error:', error);
+        console.error('Blog posts get error:', error);
         return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: error.message }) };
     }
 };

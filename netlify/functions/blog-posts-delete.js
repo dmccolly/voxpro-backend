@@ -1,75 +1,48 @@
-const API_BASE = 'https://api.webflow.com/v2';
-const fetch =
-  global.fetch ||
-  ((...args) => import('node-fetch').then(({ default: f }) => f(...args)));
-const allowOrigin = process.env.ALLOW_ORIGINS || process.env.ALLOW_ORIGIN || '*';
+import fetch from 'node-fetch';
 
-const ok = (body) => ({
-  statusCode: 200,
-  headers: {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify(body),
-});
+const API_TOKEN = process.env.WEBFLOW_API_TOKEN;
+const API_BASE_URL = "https://api.webflow.com/v2";
+const COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
 
-const err = (code, message, extra = {}) => ({
-  statusCode: code,
-  headers: {
-    'Access-Control-Allow-Origin': allowOrigin,
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({ error: message, ...extra }),
-});
-
-exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return ok({ ok: true });
-  if (event.httpMethod !== 'POST') return err(405, 'Method Not Allowed');
-
-  const token = process.env.WEBFLOW_API_TOKEN;
-  const collectionId =
-    process.env.WEBFLOW_POSTS_COLLECTION_ID || process.env.WEBFLOW_COLLECTION_ID;
-
-  if (!token) return err(500, 'Missing WEBFLOW_API_TOKEN');
-  if (!collectionId)
-    return err(500, 'Missing WEBFLOW_POSTS_COLLECTION_ID or WEBFLOW_COLLECTION_ID');
-
-  let body = {};
-  try {
-    body = JSON.parse(event.body || '{}');
-  } catch {}
-  const id = (body.id || '').trim();
-  if (!id) return err(400, 'Missing id');
-
-  try {
-    const res = await fetch(
-      `${API_BASE}/collections/${collectionId}/items/${id}`,
-      {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      }
-    );
-
-    const text = await res.text();
-    if (!res.ok) return err(res.status, 'Webflow error', { details: safeParse(text) });
-
-    return ok({ ok: true, id, deleted: true });
-  } catch (e) {
-    return err(500, 'Unhandled error in blog-posts-delete', {
-      details: String(e?.message || e),
-    });
-  }
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-function safeParse(t) {
-  try {
-    return JSON.parse(t);
-  } catch {
-    return null;
-  }
-}
+export const handler = async (event) => {
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+    }
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+    }
+
+    try {
+        if (!API_TOKEN || !COLLECTION_ID) {
+            throw new Error('Missing Webflow API configuration');
+        }
+
+        const { id } = JSON.parse(event.body);
+        if (!id) throw new Error('Post ID is required');
+
+        const url = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}`;
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${API_TOKEN}`,
+                'accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(`Webflow API Error (${response.status}): ${JSON.stringify(data)}`);
+        }
+
+        return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ success: true, message: 'Post deleted successfully' }) };
+    } catch (error) {
+        console.error('Blog posts delete error:', error);
+        return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: error.message }) };
+    }
+};

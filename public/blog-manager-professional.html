@@ -196,6 +196,7 @@
 
       <div class="actions">
         <button id="refreshPosts" class="btn" type="button">Refresh</button>
+        <button id="toggleArchived" class="btn" type="button">Show Archived</button>
       </div>
 
       <div class="hr"></div>
@@ -248,6 +249,46 @@
 
       <div id="commentsList" class="muted">No comments to display</div>
     </section>
+
+    <!-- Archived Posts Section -->
+    <section class="card" style="margin-top:18px; display:none;" id="archivedSection" aria-labelledby="archived-label">
+      <h2 id="archived-label">Archived Posts</h2>
+      
+      <div class="actions">
+        <button id="refreshArchived" class="btn" type="button">Refresh</button>
+        <button id="hideArchived" class="btn" type="button">Hide Archived</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <div id="archivedTableWrap" style="overflow:auto">
+        <table id="archivedTable">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Status</th>
+              <th>Updated</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="archivedTBody">
+            <tr><td colspan="4" class="muted" style="padding:10px">No archived posts.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Blog Post Modal -->
+  <div id="blogPostModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-secondary); border-radius:12px; padding:20px; max-width:80%; max-height:80%; overflow:auto; position:relative;">
+      <button id="closeBlogModal" style="position:absolute; top:10px; right:15px; background:none; border:none; color:var(--text-primary); font-size:1.5rem; cursor:pointer;">&times;</button>
+      <div id="blogPostContent">
+        <h2 id="modalPostTitle">Loading...</h2>
+        <div id="modalPostMeta" style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:20px;"></div>
+        <div id="modalPostBody" style="line-height:1.6;"></div>
+      </div>
+    </div>
   </div>
 
   <div id="toast" class="toast"></div>
@@ -256,9 +297,9 @@
   <script>
   // ===== Hard-wired endpoints =====
   const API = {
-    create: 'https://app.streamofdan.com/.netlify/functions/posts-create',
-    update: 'https://app.streamofdan.com/.netlify/functions/posts-create',
-    schedule: 'https://app.streamofdan.com/.netlify/functions/posts-create',
+    create: '/api/blog-posts-create',
+    update: '/api/blog-posts-create',
+    schedule: '/api/blog-posts-create',
     listComments: '/.netlify/functions/comments-list',
     moderateComment: '/.netlify/functions/comments-moderate',
     getSettings: '/.netlify/functions/comments-settings-get',
@@ -267,6 +308,7 @@
 
     postsList: '/api/blog-posts-list',
     postsArchive: '/api/blog-posts-archive',
+    postsUnarchive: '/api/blog-posts-unarchive',
     postsDelete: '/api/blog-posts-delete'
   };
 
@@ -323,6 +365,11 @@
     postState: $('#postState'),
     refreshPosts: $('#refreshPosts'),
     postsTBody: $('#postsTBody'),
+    toggleArchived: $('#toggleArchived'),
+    hideArchived: $('#hideArchived'),
+    refreshArchived: $('#refreshArchived'),
+    archivedTBody: $('#archivedTBody'),
+    archivedSection: $('#archivedSection'),
 
     requireApproval: $('#requireApproval'),
     commentState: $('#commentState'),
@@ -568,15 +615,27 @@
     }
 
     console.log('Sending publish payload:', payload);
+    console.log('API endpoint:', `${API.create}?publish=true`);
+    console.log('Request body:', JSON.stringify({
+      name: payload.name,
+      slug: payload.slug,
+      summary: payload.summary,
+      content: payload.content,
+      'feature-image-url': payload.heroUrl,
+      'feature-image-alt': payload.heroAlt,
+      status: 'published',
+      scheduleAt: payload.scheduleAt,
+      updated_at: new Date().toISOString()
+    }));
     try {
-      const res = await fetch(API.create, {
+      const res = await fetch(`${API.create}?publish=true`, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           name: payload.name,
           slug: payload.slug,
           summary: payload.summary,
-          body: payload.content,
+          content: payload.content,
           'feature-image-url': payload.heroUrl,
           'feature-image-alt': payload.heroAlt,
           status: 'published',
@@ -586,9 +645,12 @@
       });
       const text = await res.text();
       let json; try{ json = JSON.parse(text); }catch{ json = { raw: text }; }
+      console.log('Publish response:', json);
+      console.log('Response status:', res.status);
       if (res.ok){
-        actMsg('Published.', true);
-        toast('Published', true);
+        actMsg('Published successfully!', true);
+        toast('Post published!', true);
+        loadPosts();
         console.log('Success:', json);
       } else {
         actMsg('Publish failed: ' + (json.error || res.status), false);
@@ -628,14 +690,14 @@
 
     console.log('Sending scheduled payload:', payload);
     try {
-      const res = await fetch(API.schedule, {
+      const res = await fetch(`${API.schedule}?publish=false`, {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           name: payload.name,
           slug: payload.slug,
           summary: payload.summary,
-          body: payload.content,
+          content: payload.content,
           'feature-image-url': payload.heroUrl,
           'feature-image-alt': payload.heroAlt,
           status: 'scheduled',
@@ -715,36 +777,89 @@
   }
   el.refreshComments?.addEventListener('click', loadComments);
 
+  // ========== Blog Post Modal ==========
+  async function openBlogPostModal(postId) {
+    const modal = document.getElementById('blogPostModal');
+    const titleEl = document.getElementById('modalPostTitle');
+    const metaEl = document.getElementById('modalPostMeta');
+    const bodyEl = document.getElementById('modalPostBody');
+    
+    try {
+      titleEl.textContent = 'Loading...';
+      metaEl.textContent = '';
+      bodyEl.textContent = '';
+      modal.style.display = 'block';
+      
+      const postData = await fetchJSON(`/api/blog-posts-get?id=${postId}`);
+      
+      titleEl.textContent = postData.name || postData.title || '(Untitled)';
+      metaEl.innerHTML = `
+        <div>Status: ${postData.status || 'Unknown'}</div>
+        <div>Updated: ${fmtDate(postData.updated_at || postData.lastUpdated)}</div>
+        ${postData.slug ? `<div>Slug: ${postData.slug}</div>` : ''}
+      `;
+      bodyEl.innerHTML = postData.body || postData.content || '<em>No content available</em>';
+      
+    } catch (error) {
+      titleEl.textContent = 'Error Loading Post';
+      bodyEl.textContent = `Failed to load post: ${error.message}`;
+    }
+  }
+  
+  document.getElementById('closeBlogModal')?.addEventListener('click', () => {
+    document.getElementById('blogPostModal').style.display = 'none';
+  });
+  
+  document.getElementById('blogPostModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'blogPostModal') {
+      document.getElementById('blogPostModal').style.display = 'none';
+    }
+  });
+
   // ========== Posts list / archive / delete ==========
-  function fmtDate(iso){ try { return new Date(iso).toLocaleString(); } catch { return iso || ''; } }
+  function fmtDate(iso){ 
+    try { 
+      return new Date(iso).toLocaleString(); 
+    } catch (e) { 
+      return iso || ''; 
+    } 
+  }
   async function fetchJSON(url, opts) {
     const r = await fetch(url, opts); const t = await r.text();
     let j; try { j = JSON.parse(t); } catch { j = null; }
     if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`); return j;
   }
-  function renderPosts(items){
+  function renderPosts(items, isArchived = false){
+    const tbody = isArchived ? el.archivedTBody : el.postsTBody;
     const rows = (items||[]).map(p=>{
       const id = p.id || p._id || p.item_id || p.itemId || p.uuid || '';
       const title = p.name || p.title || p.slug || '(untitled)';
       const status = (p.status || p.state || (p.archived ? 'archived':'')).toString();
       const updatedAt = p.updated_at || p.updatedAt || p.modified_on || p.last_updated || p._updatedOn || p.updated || p.published_on || '';
       const slug = p.slug || '';
+      
+      const actionButtons = isArchived 
+        ? `<button class="btn" data-act="open">Open</button>
+           <button class="btn" data-act="unarchive">Unarchive</button>
+           <button class="btn danger" data-act="delete">Delete</button>`
+        : `<button class="btn" data-act="open">Open</button>
+           <button class="btn" data-act="archive">Archive</button>
+           <button class="btn danger" data-act="delete">Delete</button>`;
+      
       return `
         <tr data-id="${id}" data-slug="${slug}">
           <td>${title}</td>
           <td>${status}</td>
           <td>${fmtDate(updatedAt)}</td>
           <td style="display:flex; gap:6px; flex-wrap:wrap">
-            <button class="btn" data-act="open">Open</button>
-            <button class="btn" data-act="archive">Archive</button>
-            <button class="btn danger" data-act="delete">Delete</button>
+            ${actionButtons}
           </td>
         </tr>`;
     }).join('');
-    el.postsTBody.innerHTML = rows || `<tr><td colspan="4" class="muted" style="padding:10px">No posts found.</td></tr>`;
+    tbody.innerHTML = rows || `<tr><td colspan="4" class="muted" style="padding:10px">No posts found.</td></tr>`;
 
     // actions
-    el.postsTBody.querySelectorAll('button[data-act]').forEach(btn=>{
+    tbody.querySelectorAll('button[data-act]').forEach(btn=>{
       btn.addEventListener('click', async () => {
         const tr = btn.closest('tr');
         const id = tr?.getAttribute('data-id');
@@ -752,15 +867,27 @@
         if (!id) return;
         try{
           if (btn.dataset.act === 'open') {
-            if (slug) window.open(`/blog/${slug}`, '_blank');
-            else toast('No slug found for this post.');
+            if (id) {
+              await openBlogPostModal(id);
+            } else toast('No post ID found.');
           }
           if (btn.dataset.act === 'archive') {
             await fetchJSON(API.postsArchive, {
               method:'POST', headers:{'Content-Type':'application/json'},
               body: JSON.stringify({ id })
             });
-            toast('Archived', true); loadPosts();
+            toast('Archived', true); 
+            loadPosts();
+            if (el.archivedSection.style.display !== 'none') loadArchivedPosts();
+          }
+          if (btn.dataset.act === 'unarchive') {
+            await fetchJSON(API.postsUnarchive, {
+              method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ id })
+            });
+            toast('Unarchived', true); 
+            loadArchivedPosts();
+            loadPosts();
           }
           if (btn.dataset.act === 'delete') {
             if (!confirm('Delete this post permanently?')) return;
@@ -768,7 +895,8 @@
               method:'POST', headers:{'Content-Type':'application/json'},
               body: JSON.stringify({ id })
             });
-            toast('Deleted', true); loadPosts();
+            toast('Deleted', true); 
+            if (isArchived) loadArchivedPosts(); else loadPosts();
           }
         }catch(e){ toast(e.message || 'Action failed'); }
       });
@@ -783,14 +911,35 @@
       if (state) params.set('status', state);
       const data = await fetchJSON(API.postsList + (params.toString()?`?${params}`:''));
       const items = Array.isArray(data) ? data : (data.items || data.rows || []);
-      renderPosts(items);
+      renderPosts(items, false);
     }catch(e){
       el.postsTBody.innerHTML = `<tr><td colspan="4" class="err" style="padding:10px">${e.message}</td></tr>`;
     }
   }
+  
+  async function loadArchivedPosts(){
+    try{
+      const data = await fetchJSON(API.postsList + '?archived=true');
+      const items = Array.isArray(data) ? data : (data.items || data.rows || []);
+      renderPosts(items, true);
+    }catch(e){
+      el.archivedTBody.innerHTML = `<tr><td colspan="4" class="err" style="padding:10px">${e.message}</td></tr>`;
+    }
+  }
+  
   el.refreshPosts?.addEventListener('click', loadPosts);
+  el.refreshArchived?.addEventListener('click', loadArchivedPosts);
   el.postSearch?.addEventListener('input', () => { clearTimeout(window._postTimer); window._postTimer=setTimeout(loadPosts,250); });
   el.postState?.addEventListener('change', loadPosts);
+  
+  el.toggleArchived?.addEventListener('click', () => {
+    el.archivedSection.style.display = 'block';
+    loadArchivedPosts();
+  });
+  
+  el.hideArchived?.addEventListener('click', () => {
+    el.archivedSection.style.display = 'none';
+  });
 
   // ========== Init ==========
   document.addEventListener('DOMContentLoaded', () => {

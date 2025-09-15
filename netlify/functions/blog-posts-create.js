@@ -1,68 +1,74 @@
-// Create Webflow v2 item; POST body: { fieldData:{...}, isDraft?:bool, isArchived?:bool }
-// Optional ?publish=true to publish after create.
-const ALLOW = 'https://app.streamofdan.com';
-const resJSON = (code, obj) => ({
-  statusCode: code,
-  headers: {
-    'Access-Control-Allow-Origin': ALLOW,
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'OPTIONS,POST',
-    'Access-Control-Allow-Credentials': 'true',
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify(obj)
-});
+import fetch from 'node-fetch';
 
-exports.handler = async (event) => {
-  if (event.httpMethod === 'OPTIONS') return resJSON(200, { ok: true });
-  if (event.httpMethod !== 'POST') return resJSON(405, { error: 'Method Not Allowed' });
+const API_TOKEN = process.env.WEBFLOW_API_TOKEN;
+const API_BASE_URL = "https://api.webflow.com/v2";
+const COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
 
-  const token = process.env.WEBFLOW_API_TOKEN;
-  const coll  = process.env.WEBFLOW_COLLECTION_ID;
-  if (!token || !coll) return resJSON(500, { error: 'Missing WEBFLOW_API_TOKEN or WEBFLOW_COLLECTION_ID' });
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
 
-  let payload = {};
-  try { payload = JSON.parse(event.body || '{}'); } catch { return resJSON(400, { error: 'Invalid JSON body' }); }
-
-  const fieldData = payload.fieldData || {};
-  const isDraft = typeof payload.isDraft === 'boolean' ? payload.isDraft : false;
-  const isArchived = typeof payload.isArchived === 'boolean' ? payload.isArchived : false;
-
-  if (!fieldData.name) return resJSON(400, { error: 'fieldData.name is required' });
-  if (!fieldData.slug) fieldData.slug = String(fieldData.name).toLowerCase().trim().replace(/[^\w\- ]+/g,'').replace(/\s+/g,'-');
-
-  const createURL = `https://api.webflow.com/v2/collections/${coll}/items`;
-
-  try {
-    const createRes = await fetch(createURL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ isArchived, isDraft, fieldData })
-    });
-    const createText = await createRes.text();
-    if (!createRes.ok) {
-      return resJSON(createRes.status, { error: 'Webflow create failed', status: createRes.status, body_preview: createText.slice(0,2000) });
+export const handler = async (event) => {
+    if (event.httpMethod === 'OPTIONS') {
+        return { statusCode: 204, headers: CORS_HEADERS, body: '' };
     }
-    const created = JSON.parse(createText);
-    const itemId = created?.id;
-
-    const publish = (event.queryStringParameters || {}).publish === 'true';
-    if (publish && itemId) {
-      const publishURL = `https://api.webflow.com/v2/collections/${coll}/items/${itemId}/publish`;
-      const pubRes = await fetch(publishURL, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' } });
-      const pubText = await pubRes.text();
-      if (!pubRes.ok) {
-        return resJSON(pubRes.status, { error: 'Webflow publish failed', status: pubRes.status, body_preview: pubText.slice(0,2000), item: created });
-      }
-      return resJSON(200, { ok: true, item: created, published: true });
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method Not Allowed' }) };
     }
 
-    return resJSON(200, { ok: true, item: created, published: false });
-  } catch (e) {
-    return resJSON(502, { error: 'Create exception', detail: String(e) });
-  }
+    try {
+        if (!API_TOKEN || !COLLECTION_ID) {
+            throw new Error('Missing Webflow API configuration');
+        }
+
+        const payload = JSON.parse(event.body);
+        const publish = event.queryStringParameters?.publish === 'true';
+
+        const url = `${API_BASE_URL}/collections/${COLLECTION_ID}/items`;
+        const createResponse = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_TOKEN}`,
+                'accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                fieldData: {
+                    name: payload.name,
+                    slug: payload.slug,
+                    summary: payload.summary,
+                    body: payload.content || payload.body,
+                    'feature-image-url': payload['feature-image-url'] || payload.heroUrl,
+                    'feature-image-alt': payload['feature-image-alt'] || payload.heroAlt
+                }
+            })
+        });
+
+        const createData = await createResponse.json();
+        if (!createResponse.ok) {
+            throw new Error(`Webflow API Error (${createResponse.status}): ${JSON.stringify(createData)}`);
+        }
+
+        if (publish && createData.id) {
+            const publishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${createData.id}/publish`;
+            const publishResponse = await fetch(publishUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!publishResponse.ok) {
+                console.warn('Post created but publish failed:', await publishResponse.text());
+            }
+        }
+
+        return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(createData) };
+    } catch (error) {
+        console.error('Blog posts create error:', error);
+        return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: error.message }) };
+    }
 };
