@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Blog Manager Redirect</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Automatically redirect to the blog manager interface.  If you want to
+       display another home page instead, update the href below. -->
+  <meta http-equiv="refresh" content="0; url=/blog-manager-professional.html">
+  <style>
+    html, body { height: 100%; margin: 0; font-family: sans-serif; }
+    body { display: flex; align-items: center; justify-content: center; background: #f3f4f6; color: #1f2937; }
+    .card { padding: 2rem; border-radius: 0.5rem; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
+    a { color: #2563eb; text-decoration: none; }
+  </style>
+  <script>
+    // Fallback JavaScript redirect if meta refresh fails or is blocked.
+    (function() {
+      var target = '/blog-manager-professional.html';
+      if (window.location.pathname !== target) {
+        window.location.replace(target);
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="card">
+    <h1>Redirecting…</h1>
+    <p>If you are not automatically redirected, please <a href="/blog-manager-professional.html">click here</a> to open the Blog Manager.</p>
+    <p style="font-size: 0.875rem; color: #6b7280;">
+      Looking for the public website? Return to the main site at
+      <a href="https://streamofdan.com">streamofdan.com</a>.
+    </p>
+  </div>
+</body>
+</html>
