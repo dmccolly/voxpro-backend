@@ -40,6 +40,21 @@ exports.handler = async (event) => {
             throw new Error(`Failed to get post data (${getResponse.status}): ${JSON.stringify(existingData)}`);
         }
 
+        const publishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}/publish`;
+        const publishResponse = await fetch(publishUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_TOKEN}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!publishResponse.ok) {
+            const publishError = await publishResponse.text();
+            console.warn('Publish failed:', publishError);
+            throw new Error(`Failed to publish post: ${publishError}`);
+        }
+
         const url = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}`;
         const response = await fetch(url, {
             method: 'PATCH',
@@ -56,21 +71,6 @@ exports.handler = async (event) => {
         const data = await response.json();
         if (!response.ok) {
             throw new Error(`Webflow API Error (${response.status}): ${JSON.stringify(data)}`);
-        }
-
-        const publishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}/publish`;
-        const publishResponse = await fetch(publishUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${API_TOKEN}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!publishResponse.ok) {
-            const publishError = await publishResponse.text();
-            console.warn('Post updated but publish failed:', publishError);
-            throw new Error(`Failed to publish post: ${publishError}`);
         }
 
         return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(data) };

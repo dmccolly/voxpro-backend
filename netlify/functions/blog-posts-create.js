@@ -66,6 +66,9 @@ exports.handler = async (event) => {
                 console.error('Post created but publish failed:', publishError);
                 throw new Error(`Failed to publish post: ${publishError}`);
             }
+
+            const publishData = await publishResponse.json();
+            console.log('Publish successful:', publishData);
         }
 
         return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(createData) };
