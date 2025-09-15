@@ -26,6 +26,20 @@ exports.handler = async (event) => {
         const { id } = JSON.parse(event.body);
         if (!id) throw new Error('Post ID is required');
 
+        const getUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}`;
+        const getResponse = await fetch(getUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${API_TOKEN}`,
+                'accept': 'application/json'
+            }
+        });
+
+        const existingData = await getResponse.json();
+        if (!getResponse.ok) {
+            throw new Error(`Failed to get post data (${getResponse.status}): ${JSON.stringify(existingData)}`);
+        }
+
         const url = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}`;
         const response = await fetch(url, {
             method: 'PATCH',
@@ -35,28 +49,26 @@ exports.handler = async (event) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                fieldData: {}
+                fieldData: existingData.fieldData || {}
             })
         });
-
-        if (response.ok) {
-            const unpublishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}/unpublish`;
-            const unpublishResponse = await fetch(unpublishUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${API_TOKEN}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (!unpublishResponse.ok) {
-                console.warn('Post updated but unpublish failed:', await unpublishResponse.text());
-            }
-        }
 
         const data = await response.json();
         if (!response.ok) {
             throw new Error(`Webflow API Error (${response.status}): ${JSON.stringify(data)}`);
+        }
+
+        const unpublishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}/unpublish`;
+        const unpublishResponse = await fetch(unpublishUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_TOKEN}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!unpublishResponse.ok) {
+            console.warn('Post updated but unpublish failed:', await unpublishResponse.text());
         }
 
         return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(data) };
