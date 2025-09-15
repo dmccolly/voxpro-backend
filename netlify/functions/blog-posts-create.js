@@ -62,7 +62,9 @@ exports.handler = async (event) => {
             });
 
             if (!publishResponse.ok) {
-                console.warn('Post created but publish failed:', await publishResponse.text());
+                const publishError = await publishResponse.text();
+                console.error('Post created but publish failed:', publishError);
+                throw new Error(`Failed to publish post: ${publishError}`);
             }
         }
 

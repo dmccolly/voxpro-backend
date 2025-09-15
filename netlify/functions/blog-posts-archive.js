@@ -40,6 +40,21 @@ exports.handler = async (event) => {
             throw new Error(`Failed to get post data (${getResponse.status}): ${JSON.stringify(existingData)}`);
         }
 
+        const unpublishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}/unpublish`;
+        const unpublishResponse = await fetch(unpublishUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${API_TOKEN}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!unpublishResponse.ok) {
+            const unpublishError = await unpublishResponse.text();
+            console.warn('Unpublish failed:', unpublishError);
+            throw new Error(`Failed to unpublish post: ${unpublishError}`);
+        }
+
         const url = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}`;
         const response = await fetch(url, {
             method: 'PATCH',
@@ -56,19 +71,6 @@ exports.handler = async (event) => {
         const data = await response.json();
         if (!response.ok) {
             throw new Error(`Webflow API Error (${response.status}): ${JSON.stringify(data)}`);
-        }
-
-        const unpublishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/${id}/unpublish`;
-        const unpublishResponse = await fetch(unpublishUrl, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${API_TOKEN}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (!unpublishResponse.ok) {
-            console.warn('Post updated but unpublish failed:', await unpublishResponse.text());
         }
 
         return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(data) };

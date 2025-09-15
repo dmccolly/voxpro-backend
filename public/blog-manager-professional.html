@@ -650,7 +650,8 @@
       if (res.ok){
         actMsg('Published successfully!', true);
         toast('Post published!', true);
-        loadPosts();
+        // Auto-refresh posts list to show newly published post
+        await loadPosts();
         console.log('Success:', json);
       } else {
         actMsg('Publish failed: ' + (json.error || res.status), false);
@@ -877,8 +878,9 @@
               body: JSON.stringify({ id })
             });
             toast('Archived', true); 
-            loadPosts();
-            if (el.archivedSection.style.display !== 'none') loadArchivedPosts();
+            // Auto-refresh both lists to show changes immediately
+            await loadPosts();
+            if (el.archivedSection.style.display !== 'none') await loadArchivedPosts();
           }
           if (btn.dataset.act === 'unarchive') {
             await fetchJSON(API.postsUnarchive, {
@@ -886,8 +888,9 @@
               body: JSON.stringify({ id })
             });
             toast('Unarchived', true); 
-            loadArchivedPosts();
-            loadPosts();
+            // Auto-refresh both lists to show changes immediately
+            await loadArchivedPosts();
+            await loadPosts();
           }
           if (btn.dataset.act === 'delete') {
             if (!confirm('Delete this post permanently?')) return;
@@ -896,7 +899,8 @@
               body: JSON.stringify({ id })
             });
             toast('Deleted', true); 
-            if (isArchived) loadArchivedPosts(); else loadPosts();
+            // Auto-refresh appropriate list to show changes immediately
+            if (isArchived) await loadArchivedPosts(); else await loadPosts();
           }
         }catch(e){ toast(e.message || 'Action failed'); }
       });

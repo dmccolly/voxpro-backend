@@ -68,7 +68,9 @@ exports.handler = async (event) => {
         });
         
         if (!publishResponse.ok) {
-            console.warn('Post updated but publish failed:', await publishResponse.text());
+            const publishError = await publishResponse.text();
+            console.warn('Post updated but publish failed:', publishError);
+            throw new Error(`Failed to publish post: ${publishError}`);
         }
 
         return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(data) };
