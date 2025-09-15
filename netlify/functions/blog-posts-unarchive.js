@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+const fetch = require('node-fetch');
 
 const API_TOKEN = process.env.WEBFLOW_API_TOKEN;
 const API_BASE_URL = "https://api.webflow.com/v2";
@@ -10,7 +10,7 @@ const CORS_HEADERS = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
     if (event.httpMethod === 'OPTIONS') {
         return { statusCode: 204, headers: CORS_HEADERS, body: '' };
     }
