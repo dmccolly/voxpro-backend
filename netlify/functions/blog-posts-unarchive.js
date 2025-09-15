@@ -53,7 +53,6 @@ export const handler = async (event) => {
                 console.warn('Post updated but publish failed:', await publishResponse.text());
             }
         }
-        });
 
         const data = await response.json();
         if (!response.ok) {
