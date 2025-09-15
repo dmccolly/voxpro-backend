@@ -40,15 +40,15 @@ exports.handler = async (event) => {
             throw new Error(`Failed to get post data (${getResponse.status}): ${JSON.stringify(existingData)}`);
         }
 
-        const unpublishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/unpublish`;
+        const unpublishUrl = `${API_BASE_URL}/collections/${COLLECTION_ID}/items/live`;
         const unpublishResponse = await fetch(unpublishUrl, {
-            method: 'POST',
+            method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${API_TOKEN}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                itemIds: [id]
+                items: [{ id: id }]
             })
         });
         
