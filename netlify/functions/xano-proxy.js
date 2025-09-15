@@ -6,7 +6,7 @@ import { makeJsonRequest } from './_http-utils.js';
 const XANO_API_BASE = process.env.XANO_API_BASE || 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
 const XANO_API_KEY = process.env.XANO_API_KEY;
 
-exports.handler = async (event, context) => {
+export const handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
