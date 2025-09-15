@@ -716,19 +716,32 @@
   el.refreshComments?.addEventListener('click', loadComments);
 
   // ========== Posts list / archive / delete ==========
-  function fmtDate(iso){ try { return new Date(iso).toLocaleString(); } catch { return iso || ''; } }
+  function fmtDate(iso){ 
+    console.log('fmtDate input:', iso); // Debug log (important-comment)
+    try { 
+      const result = new Date(iso).toLocaleString(); 
+      console.log('fmtDate output:', result); // Debug log (important-comment)
+      return result;
+    } catch (e) { 
+      console.error('fmtDate error:', e, 'for input:', iso); // Debug log (important-comment)
+      return iso || ''; 
+    } 
+  }
   async function fetchJSON(url, opts) {
     const r = await fetch(url, opts); const t = await r.text();
     let j; try { j = JSON.parse(t); } catch { j = null; }
     if (!r.ok) throw new Error(j?.error || `HTTP ${r.status}`); return j;
   }
   function renderPosts(items){
+    console.log('renderPosts called with items:', items); // Debug log (important-comment)
     const rows = (items||[]).map(p=>{
+      console.log('Processing post:', p); // Debug log (important-comment)
       const id = p.id || p._id || p.item_id || p.itemId || p.uuid || '';
       const title = p.name || p.title || p.slug || '(untitled)';
       const status = (p.status || p.state || (p.archived ? 'archived':'')).toString();
       const updatedAt = p.updated_at || p.updatedAt || p.modified_on || p.last_updated || p._updatedOn || p.updated || p.published_on || '';
       const slug = p.slug || '';
+      console.log('Mapped values:', {id, title, status, updatedAt, slug}); // Debug log (important-comment)
       return `
         <tr data-id="${id}" data-slug="${slug}">
           <td>${title}</td>
@@ -752,8 +765,11 @@
         if (!id) return;
         try{
           if (btn.dataset.act === 'open') {
-            if (slug) window.open(`/blog/${slug}`, '_blank');
-            else toast('No slug found for this post.');
+            if (slug) {
+              // Navigate to the actual Webflow blog post URL (important-comment)
+              const webflowSiteUrl = 'https://voxpro.webflow.io'; // TODO: Replace with actual domain if different (important-comment)
+              window.open(`${webflowSiteUrl}/blog/${slug}`, '_blank');
+            } else toast('No slug found for this post.');
           }
           if (btn.dataset.act === 'archive') {
             await fetchJSON(API.postsArchive, {
@@ -781,10 +797,14 @@
       const params = new URLSearchParams();
       if (q) params.set('q', q);
       if (state) params.set('status', state);
+      console.log('Loading posts from:', API.postsList + (params.toString()?`?${params}`:'')); // Debug log (important-comment)
       const data = await fetchJSON(API.postsList + (params.toString()?`?${params}`:''));
+      console.log('Raw API response:', data); // Debug log (important-comment)
       const items = Array.isArray(data) ? data : (data.items || data.rows || []);
+      console.log('Processed items:', items); // Debug log (important-comment)
       renderPosts(items);
     }catch(e){
+      console.error('loadPosts error:', e); // Debug log (important-comment)
       el.postsTBody.innerHTML = `<tr><td colspan="4" class="err" style="padding:10px">${e.message}</td></tr>`;
     }
   }
