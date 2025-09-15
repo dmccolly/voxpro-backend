@@ -1,9 +1,11 @@
 // /.netlify/functions/search-media.js
 // Unified search function for Webflow CMS + Xano database
 
+const { makeJsonRequest } = require('./_http-utils');
+
 const WEBFLOW_API_TOKEN = process.env.WEBFLOW_API_TOKEN;
 const WEBFLOW_COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
-const XANO_API_BASE = process.env.XANO_API_BASE || 'https://your-workspace.xano.io/api:version';
+const XANO_API_BASE = process.env.XANO_API_BASE || 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -30,15 +32,15 @@ exports.handler = async (event, context) => {
     if (WEBFLOW_API_TOKEN && WEBFLOW_COLLECTION_ID) {
       try {
         const webflowUrl = `https://api.webflow.com/collections/${WEBFLOW_COLLECTION_ID}/items?limit=${limit}`;
-        const webflowResponse = await fetch(webflowUrl, {
+        const webflowResponse = await makeJsonRequest('GET', webflowUrl, {
           headers: {
             'Authorization': `Bearer ${WEBFLOW_API_TOKEN}`,
             'Accept-Version': '1.0.0'
           }
         });
 
-        if (webflowResponse.ok) {
-          const webflowData = await webflowResponse.json();
+        if (webflowResponse.status === 200) {
+          const webflowData = webflowResponse.data;
           const webflowResults = (webflowData.items || [])
             .filter(item => {
               if (!searchTerm) return true;
@@ -79,14 +81,14 @@ exports.handler = async (event, context) => {
         ? `${XANO_API_BASE}/asset?search=${encodeURIComponent(searchTerm)}`
         : `${XANO_API_BASE}/asset?limit=${limit}`;
       
-      const xanoResponse = await fetch(xanoUrl, {
+      const xanoResponse = await makeJsonRequest('GET', xanoUrl, {
         headers: {
           'Content-Type': 'application/json'
         }
       });
 
-      if (xanoResponse.ok) {
-        const xanoData = await xanoResponse.json();
+      if (xanoResponse.status === 200) {
+        const xanoData = xanoResponse.data;
         const xanoResults = (Array.isArray(xanoData) ? xanoData : [xanoData])
           .filter(item => {
             if (!searchTerm) return true;

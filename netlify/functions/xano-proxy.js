@@ -1,8 +1,10 @@
 // /.netlify/functions/xano-proxy.js
 // CORS proxy for Xano API calls
 
+const { makeJsonRequest } = require('./_http-utils');
+
 const XANO_API_BASE = process.env.XANO_API_BASE || 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
-const XANO_API_KEY = process.env.XANO_API_KEY; // if you're using API key authentication
+const XANO_API_KEY = process.env.XANO_API_KEY;
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -24,23 +26,18 @@ exports.handler = async (event, context) => {
     
     console.log(`Proxying ${event.httpMethod} to: ${xanoUrl}`);
 
-    // Prepare fetch options
-    const fetchOptions = {
-      method: event.httpMethod,
+    const requestOptions = {
       headers: {
         'Content-Type': 'application/json'
       }
     };
 
-    // Add API key if available
     if (XANO_API_KEY) {
-      fetchOptions.headers['Authorization'] = `Bearer ${XANO_API_KEY}`;
+      requestOptions.headers['Authorization'] = `Bearer ${XANO_API_KEY}`;
     }
 
-    // Add body for POST/PATCH requests
     if (event.body && (event.httpMethod === 'POST' || event.httpMethod === 'PATCH')) {
-      fetchOptions.body = event.body;
-      console.log(`Request body: ${event.body}`);
+      requestOptions.body = event.body;
     }
 
     // Make the request to Xano
@@ -48,41 +45,12 @@ exports.handler = async (event, context) => {
       ? `${xanoUrl}?${new URLSearchParams(event.queryStringParameters).toString()}`
       : xanoUrl;
     
-    console.log(`Making request to: ${finalUrl}`);
-    console.log(`Method: ${fetchOptions.method}`);
-    console.log(`Body: ${fetchOptions.body || 'none'}`);
+    const response = await makeJsonRequest(event.httpMethod, finalUrl, requestOptions);
     
-    const response = await fetch(finalUrl, fetchOptions);
-
-    const data = await response.text();
-    let jsonData;
-    
-    try {
-      jsonData = JSON.parse(data);
-    } catch (e) {
-      // If response isn't JSON, return as text
-      jsonData = { data: data };
-    }
-
-    console.log(`Response status: ${response.status}`);
-    console.log(`Response data:`, jsonData);
-
-    if (!response.ok) {
-      console.error(`Xano API error: ${response.status} ${response.statusText}`, jsonData);
-      return {
-        statusCode: response.status,
-        headers,
-        body: JSON.stringify({
-          error: `Xano API error: ${response.status} ${response.statusText}`,
-          details: jsonData
-        })
-      };
-    }
-
     return {
-      statusCode: 200,
+      statusCode: response.status,
       headers,
-      body: JSON.stringify(jsonData)
+      body: JSON.stringify(response.data)
     };
 
   } catch (error) {
