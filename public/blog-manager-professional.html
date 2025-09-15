@@ -759,7 +759,7 @@
         try{
           if (btn.dataset.act === 'open') {
             if (slug) {
-              window.open(`https://app.streamofdan.com/blog/${slug}`, '_blank');
+              toast(`Post slug: ${slug}. Please check your Webflow site for the published blog post.`);
             } else toast('No slug found for this post.');
           }
           if (btn.dataset.act === 'archive') {
