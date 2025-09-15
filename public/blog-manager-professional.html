@@ -93,10 +93,6 @@
             <label for="slug">Slug (URL)</label>
             <input id="slug" name="slug" type="text" placeholder="my-post-title" autocomplete="off" />
           </div>
-          <div class="field">
-            <label for="author">Author</label>
-            <input id="author" name="author" type="text" placeholder="Jane Doe" autocomplete="off" />
-          </div>
         </div>
 
         <div class="field">
@@ -113,20 +109,11 @@
             <label for="publishAt">Publish Date/Time (for scheduled posts)</label>
             <input id="publishAt" name="publishAt" type="datetime-local" />
           </div>
-          <div class="field">
-            <label for="tags">Tags</label>
-            <input id="tags" name="tags" type="text" placeholder="news, updates" />
-          </div>
         </div>
 
         <div class="field">
           <label for="summary">Summary</label>
           <textarea id="summary" name="summary" placeholder="One or two compelling sentences..."></textarea>
-        </div>
-
-        <div class="field">
-          <label for="mediaUrl">Media URL</label>
-          <input id="mediaUrl" name="mediaUrl" type="url" placeholder="Canonical media link (optional)" />
         </div>
       </section>
 
@@ -312,9 +299,9 @@
   };
 
   const el = {
-    title: $('#title'), slug: $('#slug'), author: $('#author'),
-    summary: $('#summary'), tags: $('#tags'),
-    heroUrl: $('#heroUrl'), heroAlt: $('#heroAlt'), mediaUrl: $('#mediaUrl'),
+    title: $('#title'), slug: $('#slug'),
+    summary: $('#summary'), 
+    heroUrl: $('#heroUrl'), heroAlt: $('#heroAlt'), 
     file: $('#heroFile'),
     heroAside: $('#heroPreviewAside'), heroMain: $('#heroPreviewMain'),
 
@@ -408,12 +395,6 @@
   };
   const updatePreview = () => {
     if (el.previewTitle) el.previewTitle.textContent = $val(el.title) || '(Untitled)';
-    if (el.previewMeta) {
-      const pieces = [];
-      if ($val(el.author)) pieces.push($val(el.author));
-      if ($val(el.tags)) pieces.push($val(el.tags));
-      el.previewMeta.textContent = pieces.join(' • ');
-    }
     if (el.previewSummary) el.previewSummary.textContent = $val($('#summary'));
     if (el.previewBody) el.previewBody.innerHTML = getBodyHtml();
 
@@ -424,7 +405,7 @@
     }
   };
   ['input','change','keyup','paste'].forEach(evt => {
-    [el.title, el.author, el.summary, el.tags, el.heroUrl, el.heroAlt]
+    [el.title, el.summary, el.heroUrl, el.heroAlt]
       .forEach(node => node?.addEventListener(evt, updatePreview));
   });
 
@@ -456,15 +437,11 @@
   // ========== Build payload ==========
   function buildPayload(){
     const status = (document.querySelector('input[name="status"]:checked')?.value) || 'draft';
-    const tags = (el.tags?.value||'').split(',').map(s=>s.trim()).filter(Boolean);
     return {
-      title: $val(el.title),
+      name: $val(el.title),
       slug: $val(el.slug),
-      author: $val(el.author),
       summary: $val($('#summary')),
       content: getBodyHtml(),
-      tags: tags,
-      mediaUrl: $val(el.mediaUrl),
       heroUrl: $val(el.heroUrl),
       heroAlt: $val(el.heroAlt),
       status: status,
@@ -484,10 +461,7 @@
 
     el.title.value = '';
     el.slug.value = '';
-    el.author.value = '';
     el.summary.value = '';
-    el.tags.value = '';
-    el.mediaUrl.value = '';
     el.heroUrl.value = '';
     el.heroAlt.value = '';
     el.publishAt.value = '';
@@ -500,12 +474,9 @@
     const saved = localStorage.getItem('bm_draft');
     if (saved){
       const d = JSON.parse(saved);
-      if (el.title) el.title.value = d.title||'';
+      if (el.title) el.title.value = d.name||'';
       if (el.slug) el.slug.value = d.slug||'';
-      if (el.author) el.author.value = d.author||'';
       if (el.summary) el.summary.value = d.summary||'';
-      if (el.tags) el.tags.value = Array.isArray(d.tags)? d.tags.join(', ') : (d.tags||'');
-      if (el.mediaUrl) el.mediaUrl.value = d.mediaUrl||'';
       if (el.heroUrl) el.heroUrl.value = d.heroUrl||'';
       if (el.heroAlt) el.heroAlt.value = d.heroAlt||'';
       if (el.publishAt && d.scheduleAt) el.publishAt.value = d.scheduleAt;
@@ -521,7 +492,7 @@
     actMsg('Saving draft…');
     const payload = buildPayload();
     
-    if (!payload.title) {
+    if (!payload.name) {
       actMsg('Error: Title is required.', false);
       toast('Title is required', false);
       return;
@@ -543,10 +514,15 @@
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          ...payload,
-          status: 'draft',
+          name: payload.name,
+          slug: payload.slug,
+          summary: payload.summary,
+          body: payload.content,
           'feature-image-url': payload.heroUrl,
-          'feature-image-alt': payload.heroAlt
+          'feature-image-alt': payload.heroAlt,
+          status: 'draft',
+          scheduleAt: payload.scheduleAt,
+          updated_at: new Date().toISOString()
         })
       });
       const text = await res.text();
@@ -575,7 +551,7 @@
     actMsg('Publishing…');
     const payload = buildPayload();
     
-    if (!payload.title) {
+    if (!payload.name) {
       actMsg('Error: Title is required.', false);
       toast('Title is required', false);
       return;
@@ -597,10 +573,15 @@
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          ...payload,
-          status: 'published',
+          name: payload.name,
+          slug: payload.slug,
+          summary: payload.summary,
+          body: payload.content,
           'feature-image-url': payload.heroUrl,
-          'feature-image-alt': payload.heroAlt
+          'feature-image-alt': payload.heroAlt,
+          status: 'published',
+          scheduleAt: payload.scheduleAt,
+          updated_at: new Date().toISOString()
         })
       });
       const text = await res.text();
@@ -629,7 +610,7 @@
     actMsg('Scheduling…');
     const payload = buildPayload();
     
-    if (!payload.title) {
+    if (!payload.name) {
       actMsg('Error: Title is required.', false);
       toast('Title is required', false);
       return;
@@ -651,10 +632,15 @@
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          ...payload,
-          status: 'scheduled',
+          name: payload.name,
+          slug: payload.slug,
+          summary: payload.summary,
+          body: payload.content,
           'feature-image-url': payload.heroUrl,
-          'feature-image-alt': payload.heroAlt
+          'feature-image-alt': payload.heroAlt,
+          status: 'scheduled',
+          scheduleAt: payload.scheduleAt,
+          updated_at: new Date().toISOString()
         })
       });
       const text = await res.text();
@@ -739,7 +725,7 @@
   function renderPosts(items){
     const rows = (items||[]).map(p=>{
       const id = p.id || p._id || p.item_id || p.itemId || p.uuid || '';
-      const title = p.title || p.name || p.slug || '(untitled)';
+      const title = p.name || p.title || p.slug || '(untitled)';
       const status = (p.status || p.state || (p.archived ? 'archived':'')).toString();
       const updatedAt = p.updated_at || p.updatedAt || p.modified_on || p.last_updated || p._updatedOn || p.updated || p.published_on || '';
       const slug = p.slug || '';
@@ -757,6 +743,7 @@
     }).join('');
     el.postsTBody.innerHTML = rows || `<tr><td colspan="4" class="muted" style="padding:10px">No posts found.</td></tr>`;
 
+    // actions
     el.postsTBody.querySelectorAll('button[data-act]').forEach(btn=>{
       btn.addEventListener('click', async () => {
         const tr = btn.closest('tr');
