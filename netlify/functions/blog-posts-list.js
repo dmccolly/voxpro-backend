@@ -40,8 +40,8 @@ export const handler = async (event) => {
 
         const items = data.items || [];
         const filteredItems = showArchived 
-            ? items.filter(item => item.fieldData?.status === 'archived')
-            : items.filter(item => item.fieldData?.status !== 'archived');
+            ? items.filter(item => item.fieldData?.status === 'draft')
+            : items.filter(item => item.fieldData?.status === 'published');
             
         const mappedItems = filteredItems.map(item => ({
             id: item.id,

@@ -36,7 +36,7 @@ export const handler = async (event) => {
             },
             body: JSON.stringify({
                 fieldData: {
-                    status: 'archived'
+                    status: 'draft'
                 }
             })
         });
