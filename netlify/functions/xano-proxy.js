@@ -1,7 +1,7 @@
 // /.netlify/functions/xano-proxy.js
 // CORS proxy for Xano API calls
 
-const { makeJsonRequest } = require('./_http-utils');
+import { makeJsonRequest } from './_http-utils.js';
 
 const XANO_API_BASE = process.env.XANO_API_BASE || 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
 const XANO_API_KEY = process.env.XANO_API_KEY;

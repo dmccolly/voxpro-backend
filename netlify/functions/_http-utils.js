@@ -1,5 +1,5 @@
-const https = require('https');
-const http = require('http');
+import https from 'https';
+import http from 'http';
 
 const httpsAgent = new https.Agent({
   keepAlive: true,
@@ -78,7 +78,4 @@ async function makeJsonRequest(method, url, options = {}) {
   }
 }
 
-module.exports = {
-  makeRequest,
-  makeJsonRequest
-};
+export { makeRequest, makeJsonRequest };

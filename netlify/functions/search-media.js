@@ -1,7 +1,7 @@
 // /.netlify/functions/search-media.js
 // Unified search function for Webflow CMS + Xano database
 
-const { makeJsonRequest } = require('./_http-utils');
+import { makeJsonRequest } from './_http-utils.js';
 
 const WEBFLOW_API_TOKEN = process.env.WEBFLOW_API_TOKEN;
 const WEBFLOW_COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
