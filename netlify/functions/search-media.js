@@ -1,149 +1,117 @@
-// /.netlify/functions/search-media.js
-// Unified search function for Webflow CMS + Xano database
+// netlify/functions/search-media.js
+const https = require('https');
+const http = require('http');
 
-const WEBFLOW_API_TOKEN = process.env.WEBFLOW_API_TOKEN;
-const WEBFLOW_COLLECTION_ID = process.env.WEBFLOW_COLLECTION_ID;
-const XANO_API_BASE = process.env.XANO_API_BASE || 'https://your-workspace.xano.io/api:version';
+const makeRequest = (url, options = {}) => {
+  return new Promise((resolve, reject) => {
+    const cacheBuster = `?_t=${Date.now()}&_r=${Math.random()}`;
+    const fullUrl = url + cacheBuster;
+    const protocol = fullUrl.startsWith('https:') ? https : http;
+    
+    const requestOptions = {
+      ...options,
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        ...options.headers
+      }
+    };
+    
+    const req = protocol.get(fullUrl, requestOptions, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          resolve(data);
+        }
+      });
+    });
+    
+    req.on('error', reject);
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+  });
+};
 
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Content-Type': 'application/json'
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
   };
 
-  // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
 
   try {
-    const { q = '', limit = 100 } = event.queryStringParameters || {};
-    const searchTerm = q.toLowerCase().trim();
+    const query = event.queryStringParameters?.q || '';
+    // FIXED URL
+    const XANO_API_BASE = process.env.XANO_API_BASE || 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
+    const searchUrl = `${XANO_API_BASE}/user_submission`;
     
-    console.log(`Searching for: "${searchTerm}"`);
+    console.log(`FRESH SEARCH: ${searchUrl} for query: "${query}"`);
     
-    let allResults = [];
-
-    // 1. Search Webflow CMS (if configured)
-    if (WEBFLOW_API_TOKEN && WEBFLOW_COLLECTION_ID) {
-      try {
-        const webflowUrl = `https://api.webflow.com/collections/${WEBFLOW_COLLECTION_ID}/items?limit=${limit}`;
-        const webflowResponse = await fetch(webflowUrl, {
-          headers: {
-            'Authorization': `Bearer ${WEBFLOW_API_TOKEN}`,
-            'Accept-Version': '1.0.0'
-          }
-        });
-
-        if (webflowResponse.ok) {
-          const webflowData = await webflowResponse.json();
-          const webflowResults = (webflowData.items || [])
-            .filter(item => {
-              if (!searchTerm) return true;
-              const searchableText = [
-                item.name || item.title,
-                item.description,
-                item.station,
-                item.tags,
-                item['submitted-by'] || item.submittedBy
-              ].join(' ').toLowerCase();
-              return searchableText.includes(searchTerm);
-            })
-            .map(item => ({
-              id: `webflow:${item._id}`,
-              source: 'webflow',
-              title: item.name || item.title || 'Untitled',
-              description: item.description || '',
-              station: item.station || '',
-              tags: item.tags || '',
-              thumbnail: item.thumbnail?.url || '',
-              media_url: item['media-file']?.url || item.mediaFile?.url || item.url || '',
-              file_type: item['file-type'] || item.fileType || '',
-              submitted_by: item['submitted-by'] || item.submittedBy || '',
-              created_at: item['_archived'] === false ? item['_draft'] === false ? item.updatedOn : item.createdOn : item.createdOn
-            }));
-          
-          allResults.push(...webflowResults);
-          console.log(`Found ${webflowResults.length} Webflow results`);
-        }
-      } catch (error) {
-        console.warn('Webflow search failed:', error.message);
-      }
+    const data = await makeRequest(searchUrl);
+    
+    if (!Array.isArray(data)) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ results: [], total: 0, query })
+      };
     }
-
-    // 2. Search Xano database
-    try {
-      const xanoUrl = searchTerm 
-        ? `${XANO_API_BASE}/asset?search=${encodeURIComponent(searchTerm)}`
-        : `${XANO_API_BASE}/asset?limit=${limit}`;
-      
-      const xanoResponse = await fetch(xanoUrl, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
+    
+    console.log(`FRESH DATA: Found ${data.length} total records`);
+    
+    let results = data;
+    if (query.trim()) {
+      results = data.filter(item => {
+        const searchText = [
+          item.title || '',
+          item.description || '',
+          item.station || '',
+          item.tags || '',
+          item.submitted_by || ''
+        ].join(' ').toLowerCase();
+        
+        return searchText.includes(query.toLowerCase());
       });
-
-      if (xanoResponse.ok) {
-        const xanoData = await xanoResponse.json();
-        const xanoResults = (Array.isArray(xanoData) ? xanoData : [xanoData])
-          .filter(item => {
-            if (!searchTerm) return true;
-            const searchableText = [
-              item.title,
-              item.description,
-              item.station,
-              item.tags,
-              item.submitted_by
-            ].join(' ').toLowerCase();
-            return searchableText.includes(searchTerm);
-          })
-          .map(item => ({
-            id: `xano:${item.id}`,
-            source: 'xano',
-            title: item.title || 'Untitled',
-            description: item.description || '',
-            station: item.station || '',
-            tags: item.tags || '',
-            thumbnail: item.thumbnail || '',
-            media_url: item.database_url || item.file_url || item.url || '',
-            file_type: item.file_type || '',
-            submitted_by: item.submitted_by || '',
-            created_at: item.created_at || ''
-          }));
-
-        allResults.push(...xanoResults);
-        console.log(`Found ${xanoResults.length} Xano results`);
-      }
-    } catch (error) {
-      console.warn('Xano search failed:', error.message);
     }
-
-    // Sort by created_at (most recent first) and limit results
-    const sortedResults = allResults
-      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0))
-      .slice(0, parseInt(limit));
-
+    
+    results.sort((a, b) => {
+      const dateA = a.created_at || 0;
+      const dateB = b.created_at || 0;
+      return dateB - dateA;
+    });
+    
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        results: sortedResults,
-        total: sortedResults.length,
-        query: searchTerm
+        results: results,
+        total: results.length,
+        query: query
       })
     };
-
+    
   } catch (error) {
-    console.error('Search function error:', error);
+    console.error('SEARCH ERROR:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({
-        error: 'Search failed',
-        message: error.message,
-        results: []
+      body: JSON.stringify({ 
+        error: 'Search failed', 
+        message: error.message
       })
     };
   }

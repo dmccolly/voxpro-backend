@@ -1,4 +1,4 @@
-// Working Netlify File Manager Page Function
+// netlify/functions/file-manager-page.js
 exports.handler = async (event, context) => {
   const headers = {
     'Content-Type': 'text/html',
@@ -54,6 +54,11 @@ exports.handler = async (event, context) => {
             font-weight: 300;
         }
         
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
         .form-container {
             padding: 40px;
         }
@@ -62,107 +67,101 @@ exports.handler = async (event, context) => {
             margin-bottom: 25px;
         }
         
-        label {
+        .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
             color: #333;
-            font-size: 14px;
+            font-size: 0.95em;
         }
         
-        input[type="text"], 
-        input[type="file"], 
-        textarea, 
-        select {
+        .form-group label.required::after {
+            content: ' *';
+            color: #e74c3c;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
             width: 100%;
             padding: 12px 15px;
-            border: 2px solid #e1e5e9;
+            border: 2px solid #e1e8ed;
             border-radius: 8px;
-            font-size: 16px;
+            font-size: 1em;
             transition: all 0.3s ease;
-            background: #f8f9fa;
+            background-color: #fafbfc;
         }
         
-        input[type="text"]:focus, 
-        textarea:focus, 
-        select:focus {
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
             outline: none;
             border-color: #667eea;
-            background: white;
+            background-color: white;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
-        input[type="file"] {
-            background: white;
-            cursor: pointer;
-        }
-        
-        textarea {
+        .form-group textarea {
             resize: vertical;
             min-height: 100px;
+        }
+        
+        .form-group input[type="file"] {
+            padding: 10px;
+            background-color: white;
+            cursor: pointer;
         }
         
         .upload-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 15px 40px;
+            padding: 15px 30px;
             border: none;
             border-radius: 8px;
-            font-size: 18px;
+            font-size: 1.1em;
             font-weight: 600;
             cursor: pointer;
-            width: 100%;
             transition: all 0.3s ease;
+            width: 100%;
             margin-top: 20px;
         }
         
         .upload-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
         }
         
         .upload-btn:disabled {
-            background: #ccc;
+            background: #bdc3c7;
             cursor: not-allowed;
             transform: none;
+            box-shadow: none;
         }
         
-        .success-message {
-            background: #d4edda;
-            color: #155724;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #c3e6cb;
-            display: none;
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
         }
         
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            border: 1px solid #f5c6cb;
-            display: none;
+        .back-link:hover {
+            color: #764ba2;
         }
         
-        .file-info {
-            background: #e3f2fd;
-            padding: 15px;
-            border-radius: 8px;
-            margin-top: 10px;
+        .progress-container {
+            margin-top: 20px;
             display: none;
         }
         
         .progress-bar {
             width: 100%;
-            height: 6px;
-            background: #e1e5e9;
-            border-radius: 3px;
-            margin-top: 15px;
+            height: 20px;
+            background-color: #e1e8ed;
+            border-radius: 10px;
             overflow: hidden;
-            display: none;
         }
         
         .progress-fill {
@@ -172,20 +171,63 @@ exports.handler = async (event, context) => {
             transition: width 0.3s ease;
         }
         
-        .back-link {
-            display: inline-block;
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .message {
+            padding: 15px;
+            border-radius: 8px;
             margin-top: 20px;
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
+            display: none;
         }
         
-        .back-link:hover {
-            text-decoration: underline;
+        .success-message {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
         }
         
-        .required {
-            color: #e74c3c;
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+            
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            
+            .form-container {
+                padding: 20px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
         }
     </style>
 </head>
@@ -197,20 +239,15 @@ exports.handler = async (event, context) => {
         </div>
         
         <div class="form-container">
-            <div id="successMessage" class="success-message"></div>
-            <div id="errorMessage" class="error-message"></div>
-            
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="form-group">
-                    <label for="file">Select Media File: <span class="required">*</span></label>
-                    <input type="file" id="file" name="file" required 
-                           accept=".mp4,.mov,.avi,.mkv,.wmv,.flv,.mp3,.wav,.aac,.m4a,.jpg,.jpeg,.png,.gif,.pdf,.doc,.docx">
-                    <div id="fileInfo" class="file-info"></div>
+                    <label for="mediaFile" class="required">Select Media File:</label>
+                    <input type="file" id="mediaFile" name="mediaFile" accept="audio/*,video/*,image/*,.pdf,.doc,.docx" required>
                 </div>
                 
                 <div class="form-group">
-                    <label for="title">Title: <span class="required">*</span></label>
-                    <input type="text" id="title" name="title" required placeholder="Enter media title">
+                    <label for="title" class="required">Title:</label>
+                    <input type="text" id="title" name="title" placeholder="Enter media title" required>
                 </div>
                 
                 <div class="form-group">
@@ -218,32 +255,45 @@ exports.handler = async (event, context) => {
                     <textarea id="description" name="description" placeholder="Enter media description"></textarea>
                 </div>
                 
-                <div class="form-group">
-                    <label for="category">Category:</label>
-                    <select id="category" name="category">
-                        <option value="">Select category</option>
-                        <option value="Audio">Audio</option>
-                        <option value="Video">Video</option>
-                        <option value="Photo">Photo</option>
-                        <option value="Document">Document</option>
-                        <option value="Other">Other</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="category">Category:</label>
+                        <select id="category" name="category">
+                            <option value="">Select category</option>
+                            <option value="Audio">Audio</option>
+                            <option value="Video">Video</option>
+                            <option value="Photo">Photo</option>
+                            <option value="Document">Document</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="priority">Priority:</label>
+                        <select id="priority" name="priority">
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Low">Low</option>
+                        </select>
+                    </div>
                 </div>
                 
-                <div class="form-group">
-                    <label for="submittedBy">Submitted By:</label>
-                    <input type="text" id="submittedBy" name="submittedBy" placeholder="Your name">
-                </div>
-                
-                <div class="form-group">
-                    <label for="station">Station:</label>
-                    <select id="station" name="station">
-                        <option value="">Select station</option>
-                        <option value="KIVI">KIVI</option>
-                        <option value="KNIN">KNIN</option>
-                        <option value="KGEM">KGEM</option>
-                        <option value="Other">Other</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="submittedBy">Submitted By:</label>
+                        <input type="text" id="submittedBy" name="submittedBy" placeholder="Your name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="station">Station:</label>
+                        <select id="station" name="station">
+                            <option value="">Select station</option>
+                            <option value="KIVI">KIVI</option>
+                            <option value="KNIN">KNIN</option>
+                            <option value="KGEM">KGEM</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div class="form-group">
@@ -252,122 +302,110 @@ exports.handler = async (event, context) => {
                 </div>
                 
                 <div class="form-group">
-                    <label for="priority">Priority:</label>
-                    <select id="priority" name="priority">
-                        <option value="Normal">Normal</option>
-                        <option value="High">High</option>
-                        <option value="Low">Low</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
                     <label for="notes">Notes:</label>
                     <textarea id="notes" name="notes" placeholder="Additional notes or comments"></textarea>
                 </div>
                 
-                <div class="progress-bar" id="progressBar">
-                    <div class="progress-fill" id="progressFill"></div>
+                <button type="submit" class="upload-btn" id="uploadBtn">Upload Media</button>
+                
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Uploading... 0%</div>
                 </div>
                 
-                <button type="submit" class="upload-btn" id="uploadBtn">Upload Media</button>
+                <div class="message success-message" id="successMessage"></div>
+                <div class="message error-message" id="errorMessage"></div>
+                
+                <a href="/" class="back-link">← Back to VoxPro Manager</a>
             </form>
-            
-            <a href="/voxpro-manager" class="back-link">← Back to VoxPro Manager</a>
         </div>
     </div>
-    
+
     <script>
-        const form = document.getElementById('uploadForm');
-        const fileInput = document.getElementById('file');
-        const fileInfo = document.getElementById('fileInfo');
+        const uploadForm = document.getElementById('uploadForm');
         const uploadBtn = document.getElementById('uploadBtn');
-        const progressBar = document.getElementById('progressBar');
+        const progressContainer = document.getElementById('progressContainer');
         const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
         const successMessage = document.getElementById('successMessage');
         const errorMessage = document.getElementById('errorMessage');
-        
-        // File size limit: 250MB
-        const MAX_FILE_SIZE = 250 * 1024 * 1024;
-        
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                if (file.size > MAX_FILE_SIZE) {
-                    showError('File size exceeds 250MB limit. Please choose a smaller file.');
-                    fileInput.value = '';
-                    fileInfo.style.display = 'none';
-                    return;
-                }
-                
-                fileInfo.innerHTML = \`
-                    <strong>Selected file:</strong> \${file.name}<br>
-                    <strong>Size:</strong> \${(file.size / (1024 * 1024)).toFixed(2)} MB<br>
-                    <strong>Type:</strong> \${file.type || 'Unknown'}
-                \`;
-                fileInfo.style.display = 'block';
-            }
-        });
-        
-        form.addEventListener('submit', async function(e) {
+
+        uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const file = fileInput.files[0];
-            if (!file) {
+            const formData = new FormData(uploadForm);
+            const fileInput = document.getElementById('mediaFile');
+            
+            if (!fileInput.files[0]) {
                 showError('Please select a file to upload.');
                 return;
             }
             
-            if (file.size > MAX_FILE_SIZE) {
-                showError('File size exceeds 250MB limit.');
+            if (!formData.get('title').trim()) {
+                showError('Please enter a title for the media.');
                 return;
             }
             
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('title', document.getElementById('title').value);
-            formData.append('description', document.getElementById('description').value);
-            formData.append('category', document.getElementById('category').value);
-            formData.append('submittedBy', document.getElementById('submittedBy').value);
-            formData.append('station', document.getElementById('station').value);
-            formData.append('tags', document.getElementById('tags').value);
-            formData.append('priority', document.getElementById('priority').value);
-            formData.append('notes', document.getElementById('notes').value);
-            
             uploadBtn.disabled = true;
             uploadBtn.textContent = 'Uploading...';
-            progressBar.style.display = 'block';
+            progressContainer.style.display = 'block';
             hideMessages();
             
             try {
-                const response = await fetch('/.netlify/functions/file-manager-upload', {
-                    method: 'POST',
-                    body: formData
+                const xhr = new XMLHttpRequest();
+                
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        progressFill.style.width = percentComplete + '%';
+                        progressText.textContent = \`Uploading... \${percentComplete}%\`;
+                    }
                 });
                 
-                const result = await response.json();
+                xhr.addEventListener('load', () => {
+                    if (xhr.status === 200) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.success) {
+                                showSuccess('File uploaded successfully!');
+                                uploadForm.reset();
+                            } else {
+                                showError(response.error || 'Upload failed. Please try again.');
+                            }
+                        } catch (e) {
+                            showError('Upload completed but response was invalid. Please check if the file was uploaded.');
+                        }
+                    } else {
+                        showError(\`Upload failed with status: \${xhr.status}\`);
+                    }
+                    
+                    resetUploadState();
+                });
                 
-                if (response.ok && result.success) {
-                    showSuccess('File uploaded successfully! You can now find it in VoxPro Manager.');
-                    form.reset();
-                    fileInfo.style.display = 'none';
-                    progressFill.style.width = '100%';
-                } else {
-                    showError(result.error || 'Upload failed. Please try again.');
-                    progressFill.style.width = '0%';
-                }
+                xhr.addEventListener('error', () => {
+                    showError('Network error occurred during upload.');
+                    resetUploadState();
+                });
+                
+                xhr.open('POST', '/.netlify/functions/file-manager-upload');
+                xhr.send(formData);
+                
             } catch (error) {
                 console.error('Upload error:', error);
-                showError('Upload failed. Please check your connection and try again.');
-                progressFill.style.width = '0%';
+                showError('An error occurred during upload: ' + error.message);
+                resetUploadState();
             }
-            
+        });
+        
+        function resetUploadState() {
             uploadBtn.disabled = false;
             uploadBtn.textContent = 'Upload Media';
-            setTimeout(() => {
-                progressBar.style.display = 'none';
-                progressFill.style.width = '0%';
-            }, 2000);
-        });
+            progressContainer.style.display = 'none';
+            progressFill.style.width = '0%';
+            progressText.textContent = 'Uploading... 0%';
+        }
         
         function showSuccess(message) {
             successMessage.textContent = message;
@@ -395,3 +433,4 @@ exports.handler = async (event, context) => {
     body: html
   };
 };
+

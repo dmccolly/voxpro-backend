@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Blog Manager</title>
+  <!-- Tailwind CSS compiled stylesheet. Using a static stylesheet avoids issues with dynamic injection. -->
+  <link rel="stylesheet" href="css/tailwind.min.css">
+  <script>
+    // Enable dark mode via a class on the html element. When `dark` class is present on html element,
+    // dark variant classes will be applied. Users can toggle this class via the theme toggle button.
+    // Tailwind's dark mode works automatically with the compiled CSS when the `dark` class is set on the root.
+  </script>
+  <!-- Marked library for Markdown parsing -->
+  <script src="js/marked.min.js"></script>
+  <!-- Quill rich text editor -->
+  <link href="css/quill.snow.css" rel="stylesheet">
+  <script src="js/quill.min.js"></script>
+
+  <!-- Custom styles for dark mode inputs and editor -->
+  <style>
+    /* Dark mode form elements */
+    .dark input,
+    .dark select,
+    .dark textarea {
+      background-color: #1f2937; /* gray-800 */
+      color: #f9fafb;            /* near white */
+      border-color: #374151;     /* gray-700 */
+    }
+    .dark .ql-toolbar,
+    .dark .ql-container {
+      background-color: #1f2937; /* match form background */
+      border-color: #374151;
+    }
+    .dark .ql-editor {
+      color: #f9fafb;
+    }
+    /* Dark mode Quill icons and pickers */
+    .dark .ql-toolbar button svg {
+      /* use near-white color for high contrast on dark background */
+      stroke: #f3f4f6;
+      fill: #f3f4f6;
+    }
+    .dark .ql-toolbar button:hover svg {
+      stroke: #ffffff;
+      fill: #ffffff;
+    }
+    .dark .ql-toolbar .ql-picker,
+    .dark .ql-picker-label,
+    .dark .ql-picker-item {
+      color: #e5e7eb !important;
+    }
+    .dark .ql-picker-options {
+      background-color: #1f2937 !important;
+    }
+  </style>
+</head>
+<body class="text-gray-900 dark:text-gray-100 p-6">
+  <div class="max-w-3xl mx-auto">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-3xl font-bold">Blog Manager</h1>
+      <button id="themeToggle" class="px-3 py-1 rounded border dark:border-gray-600 text-sm">Toggle Theme</button>
+    </div>
+    <form id="blogForm" class="space-y-4 p-4 bg-white dark:bg-gray-700 rounded shadow border border-gray-200 dark:border-gray-500">
+      <div>
+        <label class="block font-medium">Title</label>
+        <input id="title" type="text" class="w-full border p-2 rounded" required>
+      </div>
+      <div>
+        <label class="block font-medium">Slug (optional)</label>
+        <input id="slug" type="text" class="w-full border p-2 rounded">
+      </div>
+      <div>
+        <label class="block font-medium">Author</label>
+        <!-- datalist for past authors -->
+        <input id="author" list="authors" type="text" class="w-full border p-2 rounded" required>
+        <datalist id="authors"></datalist>
+      </div>
+      <div>
+        <label class="block font-medium">Status</label>
+        <select id="status" class="w-full border p-2 rounded">
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+          <option value="scheduled">Scheduled</option>
+        </select>
+      </div>
+      <div id="scheduleField" class="hidden">
+        <label class="block font-medium">Publish At (ISO date/time)</label>
+        <input id="scheduleAt" type="datetime-local" class="w-full border p-2 rounded">
+      </div>
+      <div>
+        <label class="block font-medium">Tags (comma separated)</label>
+        <!-- Tags input uses datalist for suggestions -->
+        <input id="tags" type="text" list="tagsList" class="w-full border p-2 rounded">
+        <datalist id="tagsList"></datalist>
+      </div>
+      <div>
+        <label class="block font-medium">Summary</label>
+        <textarea id="summary" class="w-full border p-2 rounded" rows="3"></textarea>
+      </div>
+      <div>
+        <label class="block font-medium">Hero Image URL</label>
+        <input id="heroUrl" type="text" class="w-full border p-2 rounded">
+      </div>
+      <div>
+        <label class="block font-medium">Hero Image Alt</label>
+        <input id="heroAlt" type="text" class="w-full border p-2 rounded">
+      </div>
+      <!-- Hero image upload -->
+      <div>
+        <label class="block font-medium">Upload Hero Image</label>
+        <div id="heroDropZone" class="mt-1 border-2 border-dashed border-gray-400 dark:border-gray-600 p-4 rounded text-center cursor-pointer">
+          <span>Drag and drop hero image here or click to select</span>
+          <input type="file" id="heroInput" accept="image/*" class="hidden">
+        </div>
+        <div id="heroPreview" class="mt-2 text-sm"></div>
+      </div>
+      <!-- Hidden body format field (always HTML rich text) -->
+      <input type="hidden" id="bodyFormat" value="html">
+      <div>
+        <label class="block font-medium">Body</label>
+        <!-- Rich text editor container for HTML format -->
+        <div id="editor" class="w-full border p-2 rounded h-64"></div>
+        <!-- Fallback textarea for Markdown format -->
+        <textarea id="body" class="w-full border p-2 rounded h-64" hidden></textarea>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button type="button" id="saveBtn" class="bg-blue-500 dark:bg-blue-600 text-white px-4 py-2 rounded">Save</button>
+        <button type="button" id="updateBtn" class="bg-green-500 dark:bg-green-600 text-white px-4 py-2 rounded" disabled>Update</button>
+        <button type="button" id="previewBtn" class="bg-purple-500 dark:bg-purple-600 text-white px-4 py-2 rounded">Preview</button>
+      </div>
+      <input type="hidden" id="postId">
+    </form>
+
+    <section id="settingsSection" class="mt-10 p-4 bg-white dark:bg-gray-700 rounded shadow border border-gray-200 dark:border-gray-500">
+      <h2 class="text-xl font-bold mb-2">Comments Settings</h2>
+      <label class="flex items-center space-x-2">
+        <input type="checkbox" id="requireApproval">
+        <span>Require approval for new comments</span>
+      </label>
+      <div id="settingsStatus" class="text-sm text-gray-600 mt-2"></div>
+    </section>
+
+    <section id="moderationSection" class="mt-10 p-4 bg-white dark:bg-gray-700 rounded shadow border border-gray-200 dark:border-gray-500">
+      <h2 class="text-xl font-bold mb-2">Comments Moderation</h2>
+      <div class="flex flex-wrap gap-2 mb-4 items-center">
+        <label class="font-medium">State:</label>
+        <select id="commentState" class="border p-2 rounded">
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="all">All</option>
+        </select>
+        <label class="font-medium">Post ID:</label>
+        <input id="filterPostId" type="text" class="border p-2 rounded" placeholder="Optional">
+        <input id="commentSearch" type="text" class="border p-2 rounded flex-grow" placeholder="Search comments...">
+        <button type="button" id="refreshComments" class="bg-gray-200 px-3 py-2 rounded">Refresh</button>
+      </div>
+      <div id="commentsList" class="space-y-2"></div>
+    </section>
+
+    <!-- Preview modal overlay -->
+    <div id="previewOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+      <div class="bg-white dark:bg-gray-700 rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-auto p-6 relative">
+        <button id="closePreview" class="absolute top-2 right-2 text-gray-600 dark:text-gray-300">✕</button>
+        <div id="previewContent" class="space-y-4"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Configuration for Netlify functions
+    // Configuration object. Netlify functions are referenced using
+    // relative paths (/.netlify/functions/...) so they resolve against
+    // whatever domain the admin page is served from. This avoids
+    // cross-origin issues. All post operations (create, update, schedule)
+    // use the single posts-create function since no separate update
+    // or schedule functions exist.
+    const CFG = {
+      fns: {
+        /**
+         * REST endpoints for interacting with your Netlify functions.  These
+         * paths mirror the function file names in your `netlify/functions`
+         * directory.  Do not collapse create/update/schedule into a single
+         * endpoint – each has its own handler:
+         *   blog-create.js    – creates new posts
+         *   blog-update.js    – updates existing posts
+         *   blog-schedule.js  – schedules a post for future publication
+         *   comments-list.js  – lists comments (pending/approved/rejected)
+         *   comment-moderate.js – approves or rejects a single comment
+         *   comments-settings-get.js – reads comment settings
+         *   comments-settings-set.js – updates comment settings
+         *   file-manager-upload.js – uploads hero images or other assets
+         *
+         * Paths are relative so they resolve correctly when the admin page is
+         * served from your Netlify domain (e.g. app.streamofdan.com).  If you
+         * embed this page on a different domain, replace these with fully-
+         * qualified URLs pointing back to your Netlify site.
+         */
+        create: '/.netlify/functions/posts-create',
+        update: '/.netlify/functions/posts-create',
+        schedule: '/.netlify/functions/posts-create',
+        listComments: '/.netlify/functions/comments-list',
+        moderateComment: '/.netlify/functions/comments-moderate',
+        getSettings: '/.netlify/functions/comments-settings-get',
+        setSettings: '/.netlify/functions/comments-settings-set',
+        upload: '/.netlify/functions/file-manager-upload'
+      },
+      // Cloudinary configuration for direct client-side uploads. Ensure
+      // these values reflect your Cloudinary account and unsigned upload preset.
+      cloudinary: {
+        uploadUrl: 'https://api.cloudinary.com/v1_1/dzrw8nopf/auto/upload',
+        uploadPreset: 'blogHeroUnsigned'
+      }
+    };
+
+    // Global storage for comments (attachments removed)
+    let commentsData = [];
+
+    // Quill instance for rich text editing
+    let quill;
+
+    // Utility: slugify a string to make a URL-friendly slug
+    function slugify(str) {
+      return str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    }
+
+    // Tags suggestions handling
+    function loadTags() {
+      const tagsHist = JSON.parse(localStorage.getItem('tags') || '[]');
+      const list = document.getElementById('tagsList');
+      if (!list) return;
+      list.innerHTML = '';
+      tagsHist.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        list.appendChild(option);
+      });
+    }
+    function saveTags(tags) {
+      let tagsHist = JSON.parse(localStorage.getItem('tags') || '[]');
+      tags.forEach(tag => {
+        if (tag && !tagsHist.includes(tag)) tagsHist.push(tag);
+      });
+      localStorage.setItem('tags', JSON.stringify(tagsHist));
+    }
+    loadTags();
+
+    // Autosave draft to localStorage
+    function saveDraft() {
+      const id = document.getElementById('postId').value;
+      // Only autosave when creating a new post
+      if (id) return;
+      const data = collectForm();
+      localStorage.setItem('blogDraft', JSON.stringify(data));
+    }
+    function loadDraft() {
+      const id = document.getElementById('postId').value;
+      if (id) return;
+      const saved = localStorage.getItem('blogDraft');
+      if (!saved) return;
+      try {
+        const data = JSON.parse(saved);
+        document.getElementById('title').value = data.title || '';
+        document.getElementById('slug').value = data.slug || '';
+        document.getElementById('author').value = data.author || '';
+        document.getElementById('status').value = data.status || 'draft';
+        if (data.status === 'scheduled' && data.scheduleAt) {
+          const dt = new Date(data.scheduleAt);
+          const iso = dt.toISOString().slice(0, 16);
+          document.getElementById('scheduleAt').value = iso;
+          document.getElementById('scheduleField').classList.remove('hidden');
+        }
+        document.getElementById('tags').value = (data.tags || []).join(', ');
+        document.getElementById('summary').value = data.summary || '';
+        document.getElementById('heroUrl').value = data.heroUrl || '';
+        document.getElementById('heroAlt').value = data.heroAlt || '';
+        document.getElementById('bodyFormat').value = data.bodyFormat || 'html';
+        // Populate body content based on format
+        const format = document.getElementById('bodyFormat').value;
+        if (format === 'html') {
+          if (quill) {
+            quill.root.innerHTML = data.body || '';
+          }
+        } else {
+          document.getElementById('body').value = data.body || '';
+        }
+        // Generate preview from loaded data
+        updatePreview();
+      } catch (e) {
+        console.error('Failed to load draft', e);
+      }
+    }
+    // Load draft and initialize editor on page initialization
+    document.addEventListener('DOMContentLoaded', () => {
+      initQuill();
+      // Hide markdown textarea; show editor by default
+      const textarea = document.getElementById('body');
+      if (textarea) textarea.hidden = true;
+      loadDraft();
+    });
+
+    // Save draft on any input/change in the form
+    document.getElementById('blogForm').addEventListener('input', saveDraft);
+    document.getElementById('blogForm').addEventListener('change', saveDraft);
+
+    // Slug suggestion from title
+    const titleInput = document.getElementById('title');
+    const slugInput = document.getElementById('slug');
+    titleInput.addEventListener('input', function() {
+      if (!slugInput.value || slugInput.dataset.auto === 'true') {
+        slugInput.value = slugify(this.value);
+        slugInput.dataset.auto = 'true';
+      }
+    });
+    slugInput.addEventListener('input', function() {
+      if (this.value !== slugify(titleInput.value)) {
+        this.dataset.auto = 'false';
+      }
+    });
+
+    // Ensure slug auto-populates on blur if empty
+    slugInput.addEventListener('blur', function() {
+      if (!this.value) {
+        this.value = slugify(titleInput.value);
+        this.dataset.auto = 'true';
+      }
+    });
+
+    // Update preview when any relevant field changes
+    document.getElementById('blogForm').addEventListener('input', updatePreview);
+
+    // Restore author history from localStorage into datalist
+    function loadAuthors() {
+      const authors = JSON.parse(localStorage.getItem('authors') || '[]');
+      const list = document.getElementById('authors');
+      list.innerHTML = '';
+      authors.forEach(a => {
+        const option = document.createElement('option');
+        option.value = a;
+        list.appendChild(option);
+      });
+    }
+    loadAuthors();
+
+    // Save author to localStorage if new
+    function saveAuthor(author) {
+      const authors = JSON.parse(localStorage.getItem('authors') || '[]');
+      if (!authors.includes(author)) {
+        authors.push(author);
+        localStorage.setItem('authors', JSON.stringify(authors));
+      }
+    }
+
+    // Show/hide schedule field
+    document.getElementById('status').addEventListener('change', function() {
+      document.getElementById('scheduleField').classList.toggle('hidden', this.value !== 'scheduled');
+    });
+
+    // Save handler for create or update
+    document.getElementById('saveBtn').addEventListener('click', async function() {
+      const id = document.getElementById('postId').value;
+      // Auto-populate slug if empty before collecting form data
+      (function ensureSlug() {
+        const slugField = document.getElementById('slug');
+        const titleVal = document.getElementById('title').value.trim();
+        if (slugField && !slugField.value.trim() && titleVal) {
+          slugField.value = slugify(titleVal);
+          slugField.dataset.auto = 'true';
+        }
+      })();
+      const payload = collectForm();
+      try {
+        const url = id ? CFG.fns.update : CFG.fns.create;
+        // Netlify functions (including posts-create) only accept POST requests.
+        // Using PATCH here triggers a 405 Not Allowed response. Always send
+        // POST, even when updating an existing post.
+        const method = 'POST';
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(id ? { id, ...payload } : payload)
+        });
+        // Read response body once and attempt to parse JSON.
+        const text = await res.text();
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (parseErr) {
+          throw new Error('Server returned invalid JSON for save. Response preview: ' + text.slice(0, 100));
+        }
+        if (!res.ok) throw new Error(json.error || 'Unknown error');
+        // Save author history
+        saveAuthor(payload.author);
+        // Save tag history
+        saveTags(payload.tags);
+        // If scheduled, call schedule endpoint
+        if (payload.status === 'scheduled' && payload.scheduleAt) {
+          const scheduleRes = await fetch(CFG.fns.schedule, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: (json.id || json._id || json.itemId || json.item_id), scheduleAt: payload.scheduleAt })
+          });
+          // Parse schedule response safely
+          const schedText = await scheduleRes.text();
+          let schedJson;
+          try {
+            schedJson = JSON.parse(schedText);
+          } catch (schedParseErr) {
+            throw new Error('Schedule function returned invalid JSON. Response preview: ' + schedText.slice(0, 100));
+          }
+          if (!scheduleRes.ok) throw new Error(schedJson.error || 'Schedule error');
+        }
+        alert('Post saved successfully!');
+        // Reload tag suggestions after saving
+        loadTags();
+        // If new post, set id so next save is update
+        if (!id) {
+          document.getElementById('postId').value = json.id || json._id || json.itemId || json.item_id || '';
+          document.getElementById('updateBtn').disabled = false;
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    });
+
+    // Update button triggers same save logic but ensures id exists
+    document.getElementById('updateBtn').addEventListener('click', function() {
+      document.getElementById('saveBtn').click();
+    });
+
+    function collectForm() {
+      const status = document.getElementById('status').value;
+      const scheduleAt = document.getElementById('scheduleAt').value;
+      return {
+        title: document.getElementById('title').value.trim(),
+        slug: document.getElementById('slug').value.trim() || undefined,
+        author: document.getElementById('author').value.trim(),
+        status: status,
+        scheduleAt: status === 'scheduled' && scheduleAt ? new Date(scheduleAt).toISOString() : undefined,
+        tags: document.getElementById('tags').value.split(',').map(t => t.trim()).filter(t => t),
+        summary: document.getElementById('summary').value,
+        heroUrl: document.getElementById('heroUrl').value.trim() || undefined,
+        heroAlt: document.getElementById('heroAlt').value.trim() || undefined,
+        bodyFormat: document.getElementById('bodyFormat').value,
+        body: (function() {
+          const fmt = document.getElementById('bodyFormat').value;
+          if (fmt === 'html') {
+            return quill ? quill.root.innerHTML : document.getElementById('body').value;
+          }
+          return document.getElementById('body').value;
+        })()
+      };
+    }
+
+    // Comments settings: fetch and display requireApproval
+    async function loadSettings() {
+      try {
+        const res = await fetch(CFG.fns.getSettings);
+        const text = await res.text();
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (parseErr) {
+          // Could not parse JSON; treat as error
+          throw new Error('Server returned invalid JSON for settings. Response preview: ' + text.slice(0, 100));
+        }
+        if (res.ok) {
+          document.getElementById('requireApproval').checked = !!json.requireApproval;
+          document.getElementById('settingsStatus').textContent = '';
+        } else {
+          document.getElementById('settingsStatus').textContent = 'Error loading settings: ' + (json.error || res.status);
+        }
+      } catch (err) {
+        document.getElementById('settingsStatus').textContent = 'Error loading settings: ' + err.message;
+      }
+    }
+    loadSettings();
+    // Save settings on toggle
+    document.getElementById('requireApproval').addEventListener('change', async function() {
+      try {
+        const res = await fetch(CFG.fns.setSettings, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requireApproval: this.checked })
+        });
+        const text = await res.text();
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (parseErr) {
+          throw new Error('Server returned invalid JSON when saving settings. Response preview: ' + text.slice(0, 100));
+        }
+        if (!res.ok) throw new Error(json.error || 'Unknown error');
+        document.getElementById('settingsStatus').textContent = 'Settings saved';
+      } catch (err) {
+        document.getElementById('settingsStatus').textContent = 'Error saving settings: ' + err.message;
+      }
+    });
+
+    // Comments moderation: load comments
+    async function loadComments() {
+      const state = document.getElementById('commentState').value;
+      const postId = document.getElementById('filterPostId').value.trim();
+      const params = new URLSearchParams();
+      if (state) params.set('state', state);
+      if (postId) params.set('postId', postId);
+      try {
+        const res = await fetch(CFG.fns.listComments + '?' + params.toString());
+        const text = await res.text();
+        let list;
+        try {
+          list = JSON.parse(text);
+        } catch (parseErr) {
+          throw new Error('Server returned invalid JSON when loading comments. Response preview: ' + text.slice(0, 100));
+        }
+        // Store full list for client-side search
+        commentsData = Array.isArray(list) ? list : [];
+        filterComments();
+      } catch (err) {
+        document.getElementById('commentsList').innerHTML = '<div class="text-red-600">' + err.message + '</div>';
+      }
+    }
+    document.getElementById('refreshComments').addEventListener('click', loadComments);
+    document.getElementById('commentState').addEventListener('change', loadComments);
+
+    function renderComments(list) {
+      const container = document.getElementById('commentsList');
+      container.innerHTML = '';
+      if (!Array.isArray(list) || list.length === 0) {
+        container.textContent = 'No comments found.';
+        return;
+      }
+      list.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'p-3 border rounded bg-gray-50';
+        const meta = document.createElement('div');
+        meta.className = 'text-sm text-gray-500 mb-1';
+        meta.textContent = 'ID: ' + item.id + ' • Post: ' + (item.postId || item.slug || '') + ' • ' + new Date(item.createdAt || item.created_at || Date.now()).toLocaleString();
+        const author = document.createElement('div');
+        author.className = 'font-semibold';
+        author.textContent = item.author;
+        const body = document.createElement('div');
+        body.className = 'my-1';
+        body.textContent = item.body;
+        card.appendChild(meta);
+        card.appendChild(author);
+        card.appendChild(body);
+        if (item.state === 'pending') {
+          const actions = document.createElement('div');
+          actions.className = 'flex space-x-2';
+          const approveBtn = document.createElement('button');
+          approveBtn.className = 'px-3 py-1 bg-green-500 text-white rounded';
+          approveBtn.textContent = 'Approve';
+          approveBtn.addEventListener('click', () => moderateComment(item.id, 'approve'));
+          const rejectBtn = document.createElement('button');
+          rejectBtn.className = 'px-3 py-1 bg-red-500 text-white rounded';
+          rejectBtn.textContent = 'Reject';
+          rejectBtn.addEventListener('click', () => moderateComment(item.id, 'reject'));
+          actions.appendChild(approveBtn);
+          actions.appendChild(rejectBtn);
+          card.appendChild(actions);
+        } else {
+          const stateLabel = document.createElement('div');
+          stateLabel.className = 'italic text-gray-600';
+          stateLabel.textContent = 'State: ' + item.state;
+          card.appendChild(stateLabel);
+        }
+        container.appendChild(card);
+      });
+    }
+
+    async function moderateComment(id, action) {
+      try {
+        const res = await fetch(CFG.fns.moderateComment, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, action })
+        });
+        const text = await res.text();
+        let json;
+        try {
+          json = JSON.parse(text);
+        } catch (parseErr) {
+          throw new Error('Server returned invalid JSON when moderating comment. Response preview: ' + text.slice(0, 100));
+        }
+        if (!res.ok) throw new Error(json.error || 'Unknown error');
+        loadComments();
+      } catch (err) {
+        alert('Error moderating comment: ' + err.message);
+      }
+    }
+
+    // Initial load of comments
+    loadComments();
+
+    // Filter comments based on search query
+    function filterComments() {
+      const query = (document.getElementById('commentSearch')?.value || '').trim().toLowerCase();
+      if (!query) {
+        renderComments(commentsData);
+        return;
+      }
+      const filtered = commentsData.filter(item => {
+        const author = (item.author || '').toLowerCase();
+        const body = (item.body || '').toLowerCase();
+        return author.includes(query) || body.includes(query);
+      });
+      renderComments(filtered);
+    }
+    // Trigger search filtering on input
+    const searchInput = document.getElementById('commentSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', filterComments);
+    }
+
+    // Preview functions
+    function updatePreview() {
+      // Build a preview of the blog post based on current form values
+      const data = collectForm();
+      let html = '';
+      // Hero image
+      if (data.heroUrl) {
+        const alt = data.heroAlt || '';
+        html += `<img class="w-full mb-4 rounded" src="${data.heroUrl}" alt="${alt}">`;
+      }
+      // Title
+      html += `<h1 class="text-3xl font-bold mb-2">${data.title || ''}</h1>`;
+      // Meta: author and tags
+      const metaParts = [];
+      if (data.author) metaParts.push(`By ${data.author}`);
+      if (Array.isArray(data.tags) && data.tags.length) metaParts.push(data.tags.join(', '));
+      if (metaParts.length) {
+        html += `<p class="text-sm text-gray-600 dark:text-gray-400 mb-2">${metaParts.join(' • ')}</p>`;
+      }
+      // Summary
+      if (data.summary) {
+        html += `<p class="mb-4">${data.summary}</p>`;
+      }
+      // Body
+      let bodyHtml = data.body || '';
+      if (data.bodyFormat === 'markdown') {
+        try {
+          bodyHtml = marked.parse(bodyHtml);
+        } catch (e) {}
+      } else if (data.bodyFormat === 'html') {
+        // use Quill content if available
+        bodyHtml = quill ? quill.root.innerHTML : bodyHtml;
+      }
+      html += `<div class="prose dark:prose-invert">${bodyHtml}</div>`;
+      document.getElementById('previewContent').innerHTML = html;
+    }
+
+    // Show preview modal
+    const overlay = document.getElementById('previewOverlay');
+    document.getElementById('previewBtn').addEventListener('click', () => {
+      updatePreview();
+      overlay.classList.remove('hidden');
+    });
+    // Close preview modal
+    document.getElementById('closePreview').addEventListener('click', () => {
+      overlay.classList.add('hidden');
+    });
+    // Close preview when clicking outside content
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) overlay.classList.add('hidden');
+    });
+
+    // Theme toggle handling
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', () => {
+      const html = document.documentElement;
+      if (html.classList.contains('dark')) {
+        html.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      } else {
+        html.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      }
+    });
+    // Restore saved theme preference
+    (function() {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+
+    // Hero image upload handlers
+    const heroDropZone = document.getElementById('heroDropZone');
+    const heroInput = document.getElementById('heroInput');
+    function clearHeroPreview() {
+      const preview = document.getElementById('heroPreview');
+      if (preview) preview.innerHTML = '';
+    }
+    async function uploadHeroFile(file) {
+      // Maximum file size accepted for hero images (50MB). Larger files will be rejected immediately.
+      const MAX_MB = 50;
+      const maxBytes = MAX_MB * 1024 * 1024;
+
+      if (file.size > maxBytes) {
+        alert('The selected file is larger than 50MB. Please choose a smaller file or compress it before uploading.');
+        return;
+      }
+
+      // If Cloudinary configuration is present, prefer uploading directly to Cloudinary.
+      if (CFG.cloudinary && CFG.cloudinary.uploadUrl && CFG.cloudinary.uploadPreset) {
+        let fileForUpload = file;
+        // Attempt client-side compression for very large files (> 10MB) to reduce upload time and storage.
+        const TEN_MB = 10 * 1024 * 1024;
+        if (file.size > TEN_MB) {
+          try {
+            fileForUpload = await compressImage(file);
+          } catch (compErr) {
+            console.warn('Compression failed, uploading original file to Cloudinary:', compErr);
+            fileForUpload = file;
+          }
+        }
+        try {
+          const cForm = new FormData();
+          cForm.append('file', fileForUpload);
+          cForm.append('upload_preset', CFG.cloudinary.uploadPreset);
+          const cResp = await fetch(CFG.cloudinary.uploadUrl, { method: 'POST', body: cForm });
+          const cText = await cResp.text();
+          let cJson;
+          try {
+            cJson = JSON.parse(cText);
+          } catch (err) {
+            throw new Error('Cloudinary returned invalid JSON. Response preview: ' + cText.slice(0, 100));
+          }
+          if (!cResp.ok) {
+            throw new Error(cJson.error && cJson.error.message ? cJson.error.message : 'Cloudinary upload error');
+          }
+          const cUrl = cJson.secure_url || cJson.url;
+          if (cUrl) {
+            document.getElementById('heroUrl').value = cUrl;
+            updateHeroPreview(cUrl, fileForUpload.name);
+            updatePreview();
+          }
+          return;
+        } catch (cloudErr) {
+          alert('Direct upload to Cloudinary failed: ' + cloudErr.message + '. Please choose a smaller file or try again later.');
+          return;
+        }
+      }
+
+      // If Cloudinary is not configured, fallback to using the Netlify upload function for files <= 10MB.
+      const NETLIFY_LIMIT = 10 * 1024 * 1024;
+      if (file.size > NETLIFY_LIMIT) {
+        alert('The selected file is larger than the server upload limit (~10MB) and no Cloudinary configuration is available. Please choose a smaller file.');
+        return;
+      }
+      try {
+        const formData = new FormData();
+        formData.append('attachment', file);
+        const res = await fetch(CFG.fns.upload, {
+          method: 'POST',
+          body: formData
+        });
+        const text = await res.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (parseErr) {
+          throw new Error('Server returned invalid JSON. Please ensure your upload function returns a JSON object. Response preview: ' + text.slice(0, 100));
+        }
+        if (!res.ok) throw new Error(data.error || 'Upload error');
+        const url = data.url || data.secure_url || '';
+        if (url) {
+          document.getElementById('heroUrl').value = url;
+          updateHeroPreview(url, file.name);
+          updatePreview();
+        }
+      } catch (err) {
+        console.error('Hero upload failed:', err);
+        try {
+          const dataUrl = await fileToDataURL(file);
+          document.getElementById('heroUrl').value = dataUrl;
+          updateHeroPreview(dataUrl, file.name);
+          updatePreview();
+          alert('Upload failed; using local image. Please check your upload function. ' + err.message);
+        } catch (readErr) {
+          alert('Error uploading hero image: ' + err.message);
+        }
+      }
+    }
+
+    // Convert a file to a Data URI for fallback usage
+    function fileToDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Load an image from a Data URI or URL, returning an Image element once loaded
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    // Compress an image file to JPEG under a target size (in MB). Returns a new File object.
+    async function compressImage(file, targetMB = 10) {
+      // Only process image files
+      if (!file.type.startsWith('image/')) return file;
+      const maxBytes = targetMB * 1024 * 1024;
+      const dataUrl = await fileToDataURL(file);
+      const img = await loadImage(dataUrl);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      let quality = 0.8;
+      let blob;
+      do {
+        blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+        // If the blob is still too large and quality is not too low, reduce quality and try again
+        if (blob.size > maxBytes && quality > 0.4) {
+          quality -= 0.1;
+        } else {
+          break;
+        }
+      } while (true);
+      // Create a new File with a .jpg extension
+      const newName = file.name.replace(/\.[^.]+$/, '.jpg');
+      return new File([blob], newName, { type: 'image/jpeg' });
+    }
+    function updateHeroPreview(url, name) {
+      clearHeroPreview();
+      const preview = document.getElementById('heroPreview');
+      if (!preview) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'flex items-center space-x-3 p-2 border rounded mb-2 bg-gray-50 dark:bg-gray-800';
+      const img = document.createElement('img');
+      img.src = url;
+      img.className = 'h-12 w-12 object-cover rounded';
+      const nameEl = document.createElement('span');
+      nameEl.className = 'flex-1 truncate';
+      nameEl.textContent = name || url;
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = '✕';
+      removeBtn.className = 'px-2 py-1 border rounded text-red-600';
+      removeBtn.addEventListener('click', () => {
+        document.getElementById('heroUrl').value = '';
+        clearHeroPreview();
+        updatePreview();
+      });
+      wrapper.appendChild(img);
+      wrapper.appendChild(nameEl);
+      wrapper.appendChild(removeBtn);
+      preview.appendChild(wrapper);
+    }
+    function handleHeroFiles(files) {
+      const file = files && files[0];
+      if (!file) return;
+      updateHeroPreview(URL.createObjectURL(file), file.name);
+      uploadHeroFile(file);
+    }
+    if (heroDropZone) {
+      heroDropZone.addEventListener('click', () => heroInput && heroInput.click());
+      heroDropZone.addEventListener('dragover', e => {
+        e.preventDefault();
+        heroDropZone.classList.add('bg-gray-100', 'dark:bg-gray-700');
+      });
+      heroDropZone.addEventListener('dragleave', e => {
+        e.preventDefault();
+        heroDropZone.classList.remove('bg-gray-100', 'dark:bg-gray-700');
+      });
+      heroDropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        heroDropZone.classList.remove('bg-gray-100', 'dark:bg-gray-700');
+        handleHeroFiles(e.dataTransfer.files);
+      });
+    }
+    if (heroInput) {
+      heroInput.addEventListener('change', () => handleHeroFiles(heroInput.files));
+    }
+
+    // Initialize Quill rich text editor
+    function initQuill() {
+      const editorEl = document.getElementById('editor');
+      if (!editorEl) return;
+      quill = new Quill(editorEl, {
+        theme: 'snow',
+        modules: {
+          toolbar: [
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ header: [1, 2, 3, false] }],
+            ['blockquote', 'code-block'],
+            [{ list: 'ordered' }, { list: 'bullet' }],
+            ['link', 'image'],
+            ['clean']
+          ]
+        }
+      });
+      // Update preview and autosave when content changes
+      quill.on('text-change', function() {
+        updatePreview();
+        saveDraft();
+      });
+    }
+
+    // Toggle between rich text editor and markdown textarea
+    function toggleEditor() {
+      const format = document.getElementById('bodyFormat').value;
+      const editor = document.getElementById('editor');
+      const textarea = document.getElementById('body');
+      if (format === 'html') {
+        // Show editor, hide textarea
+        if (editor) editor.hidden = false;
+        if (textarea) textarea.hidden = true;
+      } else {
+        // Show textarea, hide editor
+        if (editor) editor.hidden = true;
+        if (textarea) textarea.hidden = false;
+      }
+    }
+
+  </script>
+</body>
+</html>
