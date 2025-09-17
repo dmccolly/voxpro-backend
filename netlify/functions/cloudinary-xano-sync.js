@@ -80,6 +80,11 @@ exports.handler = async (event) => {
                 if (existingAsset && existingAsset.media_url && existingAsset.media_url.trim()) {
                     return { type: 'skipped' };
                 }
+                
+                if (!existingAsset) {
+                } else {
+                    console.log(`Updating existing asset ${asset.public_id} with empty media_url`);
+                }
 
                 try {
                     const xanoData = {
