@@ -63,14 +63,17 @@ exports.handler = async (event) => {
         
         const existingAssetsMap = new Map();
         existingAssets.forEach(asset => {
-            if (asset.media_url && asset.media_url.trim() && asset.attachment && asset.attachment.trim()) {
+            if (asset.media_url && asset.media_url.trim()) {
                 existingAssetsMap.set(asset.media_url, asset);
-                existingAssetsMap.set(asset.attachment, asset);
                 
                 const normalizedMediaUrl = asset.media_url.replace(/^http:/, 'https:').split('?')[0];
-                const normalizedAttachment = asset.attachment.replace(/^http:/, 'https:').split('?')[0];
                 existingAssetsMap.set(normalizedMediaUrl, asset);
-                existingAssetsMap.set(normalizedAttachment, asset);
+                
+                if (asset.attachment && asset.attachment.trim()) {
+                    existingAssetsMap.set(asset.attachment, asset);
+                    const normalizedAttachment = asset.attachment.replace(/^http:/, 'https:').split('?')[0];
+                    existingAssetsMap.set(normalizedAttachment, asset);
+                }
             }
         });
         
@@ -137,17 +140,29 @@ exports.handler = async (event) => {
                         created_at: asset.created_at
                     };
 
+                    const normalizedCloudinaryUrl = asset.secure_url.replace(/^http:/, 'https:').split('?')[0];
+                    const normalizedCloudinaryUrlAlt = asset.url?.replace(/^http:/, 'https:').split('?')[0];
+                    
                     let existingAsset = existingAssetsMap.get(asset.secure_url) ||
                                        existingAssetsMap.get(asset.url) ||
-                                       existingAssetsMap.get(asset.secure_url.split('?')[0]) ||
-                                       existingAssetsMap.get(asset.url?.split('?')[0]);
+                                       existingAssetsMap.get(normalizedCloudinaryUrl) ||
+                                       existingAssetsMap.get(normalizedCloudinaryUrlAlt);
                     
                     if (!existingAsset) {
+                        const expectedFilename = asset.filename || (asset.public_id.split('/').pop() + '.' + asset.format);
+                        const expectedTitle = asset.display_name || asset.filename || asset.public_id.split('/').pop();
+                        
                         existingAsset = existingAssets.find(existing => 
+                            existing.title === expectedTitle ||
                             existing.title === asset.public_id ||
                             existing.title === asset.public_id.split('/').pop() ||
+                            existing.filename === expectedFilename ||
                             existing.filename === asset.filename ||
-                            existing.filename === (asset.public_id.split('/').pop() + '.' + asset.format)
+                            (existing.media_url && (
+                                existing.media_url.includes(asset.public_id) ||
+                                normalizedCloudinaryUrl.includes(existing.media_url.split('?')[0]) ||
+                                existing.media_url.split('?')[0].includes(normalizedCloudinaryUrl)
+                            ))
                         );
                     }
                     
