@@ -40,7 +40,7 @@ exports.handler = async (event) => {
                     expression: 'resource_type:image OR resource_type:video OR resource_type:raw',
                     with_field: ['context', 'tags'],
                     sort_by: [{ 'created_at': 'desc' }],
-                    max_results: 20
+                    max_results: 50
                 })
             }
         );
@@ -86,8 +86,8 @@ exports.handler = async (event) => {
         let skipped = 0;
         const errors = [];
 
-        const batchSize = 1; // Process one asset at a time to avoid timeout
-        const maxProcessTime = 10000; // 10 seconds to leave more buffer for Netlify timeout
+        const batchSize = 3; // Process 3 assets at a time for better efficiency
+        const maxProcessTime = 20000; // 20 seconds processing time
         const startTime = Date.now();
 
         for (let i = 0; i < assets.length; i += batchSize) {
