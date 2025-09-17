@@ -241,9 +241,9 @@ exports.handler = async (event) => {
 };
 
 function getFileType(resourceType, format) {
-    if (resourceType === 'image') return 'image';
-    
     if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac', 'wma'].includes(format?.toLowerCase())) return 'audio';
+    
+    if (resourceType === 'image') return 'image';
     
     if (resourceType === 'video') return 'video';
     
