@@ -45,6 +45,56 @@
             height: 100vh;
         }
 
+        /* Enhanced animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .upload-btn:hover {
+            animation: pulse 0.3s ease-in-out;
+        }
+
+        /* Responsive design improvements */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                left: -280px;
+                transition: left 0.3s ease;
+                z-index: 1000;
+            }
+            
+            .sidebar.open {
+                left: 0;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .header-actions {
+                flex-direction: column;
+                gap: 8px;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            .file-list {
+                font-size: 14px;
+            }
+            
+            .file-item {
+                padding: 8px 12px;
+            }
+        }
+
         /* Sidebar */
         .sidebar {
             width: var(--sidebar-width);
@@ -448,8 +498,18 @@
         }
 
         .file-icon {
-            font-size: 20px;
+            width: 20px;
+            height: 20px;
             margin-right: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .file-icon svg {
+            width: 100%;
+            height: 100%;
+            fill: currentColor;
         }
 
         .file-title {
@@ -1029,7 +1089,7 @@
                         ⬆️ Upload
                     </button>
                     <!-- Link to VoxPro manager -->
-                    <a href="/public/voxpro" class="upload-btn" style="margin-left: 8px; text-decoration: none; display: inline-flex; align-items: center;">🔁 VoxPro</a>
+                    <a href="/voxpro.html" class="upload-btn" style="margin-left: 8px; text-decoration: none; display: inline-flex; align-items: center;">🔁 VoxPro</a>
                 </div>
             </div>
 
@@ -1214,6 +1274,7 @@
             loadFiles();
             setupEventListeners();
             initInfiniteScroll();
+            setupKeyboardShortcuts();
             // Initialize view buttons state
             setViewMode(currentViewMode);
         });
@@ -1699,29 +1760,70 @@
             const progressContainer = document.getElementById('progressContainer');
             const progressFill = document.getElementById('progressFill');
             const progressText = document.getElementById('progressText');
-            // Show the progress bar
+            
+            // Enhanced upload feedback
             progressContainer.style.display = 'block';
+            progressContainer.style.animation = 'fadeIn 0.3s ease-in';
+            
             let successCount = 0;
+            const startTime = Date.now();
+            
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
                 const percent = Math.round(((i + 1) / files.length) * 100);
                 progressFill.style.width = percent + '%';
-                progressText.textContent = `Uploading ${file.name} (${i + 1}/${files.length})…`;
+                progressFill.style.transition = 'width 0.3s ease';
+                
+                // Enhanced progress text with file size and estimated time
+                const fileSize = formatFileSize(file.size);
+                const elapsed = Math.round((Date.now() - startTime) / 1000);
+                const estimatedTotal = files.length > 1 ? Math.round((elapsed / (i + 1)) * files.length) : elapsed;
+                const remaining = Math.max(0, estimatedTotal - elapsed);
+                
+                progressText.innerHTML = `
+                    <div>Uploading ${file.name} (${fileSize})</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                        ${i + 1} of ${files.length} files • ${remaining}s remaining
+                    </div>
+                `;
+                
                 try {
                     await uploadSingleFile(file);
                     successCount++;
+                    // Brief success animation
+                    progressFill.style.background = 'var(--success)';
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    progressFill.style.background = 'var(--accent)';
                 } catch (error) {
                     console.error(`Failed to upload ${file.name}:`, error);
-                    showMessage(`Failed to upload ${file.name}`, 'error');
+                    showMessage(`Failed to upload ${file.name}: ${error.message}`, 'error');
+                    // Brief error animation
+                    progressFill.style.background = 'var(--error)';
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    progressFill.style.background = 'var(--accent)';
                 }
             }
-            // hide upload modal and reset progress bar after all uploads are done
-            closeUploadModal();
-            // Reload file list to show new uploads
-            refreshFiles();
-            // Show a final summary message
-            showMessage(`Upload completed: ${successCount} of ${files.length} file${files.length !== 1 ? 's' : ''} uploaded`,
-                        successCount === files.length ? 'success' : 'warning');
+            
+            // Enhanced completion feedback
+            progressText.innerHTML = `
+                <div>Upload Complete!</div>
+                <div style="font-size: 12px; color: var(--text-secondary);">
+                    ${successCount} of ${files.length} files uploaded successfully
+                </div>
+            `;
+            
+            // Auto-hide after 2 seconds
+            setTimeout(() => {
+                closeUploadModal();
+                refreshFiles();
+            }, 2000);
+            
+            // Show enhanced summary message
+            const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+            showMessage(
+                `Upload completed: ${successCount} of ${files.length} file${files.length !== 1 ? 's' : ''} uploaded (${formatFileSize(totalSize)})`,
+                successCount === files.length ? 'success' : 'warning'
+            );
         }
 
         async function uploadSingleFile(file) {
@@ -1782,13 +1884,13 @@
         }
 
         function getFileIcon(type) {
-            switch (type) {
-                case 'audio': return '🎵';
-                case 'video': return '🎬';
-                case 'image': return '🖼️';
-                case 'document': return '📄';
-                default: return '📄';
-            }
+            const icons = {
+                audio: `<svg viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>`,
+                video: `<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>`,
+                image: `<svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>`,
+                document: `<svg viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>`
+            };
+            return icons[type] || icons.document;
         }
 
         /**
@@ -1822,7 +1924,7 @@
                 const thumbUrl = primaryUrl.replace('/upload/', '/upload/so_0,c_thumb,w_60,h_60/');
                 return `<img class="thumbnail-icon" src="${thumbUrl}" alt="${file.title || ''}">`;
             }
-            // Fallback: return the text icon
+            // Fallback: return the SVG icon
             return `<span class="file-icon">${getFileIcon(file.file_type)}</span>`;
         }
 
@@ -2165,6 +2267,53 @@
 
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('open');
+        }
+
+        // Keyboard shortcuts
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', function(event) {
+                // Only handle shortcuts when not typing in input fields
+                if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+                    return;
+                }
+
+                switch(event.key) {
+                    case 'Delete':
+                    case 'Backspace':
+                        if (selectedFiles.size > 0) {
+                            event.preventDefault();
+                            deleteSelected();
+                        } else if (selectedFile) {
+                            event.preventDefault();
+                            deleteFile();
+                        }
+                        break;
+                    case 'a':
+                    case 'A':
+                        if (event.ctrlKey || event.metaKey) {
+                            event.preventDefault();
+                            selectAll();
+                        }
+                        break;
+                    case 'u':
+                    case 'U':
+                        if (event.ctrlKey || event.metaKey) {
+                            event.preventDefault();
+                            openUploadModal();
+                        }
+                        break;
+                    case 'r':
+                    case 'R':
+                        if (event.ctrlKey || event.metaKey) {
+                            event.preventDefault();
+                            refreshFiles();
+                        }
+                        break;
+                    case 'Escape':
+                        closeUploadModal();
+                        break;
+                }
+            });
         }
     </script>
 </body>
