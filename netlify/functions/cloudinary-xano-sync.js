@@ -75,7 +75,7 @@ exports.handler = async (event) => {
             const batchPromises = batch.map(async (asset) => {
                 const existingAsset = existingAssetsMap.get(asset.public_id);
                 
-                if (existingAsset && existingAsset.media_url) {
+                if (existingAsset && existingAsset.media_url && existingAsset.media_url.trim()) {
                     return { type: 'skipped' };
                 }
 
