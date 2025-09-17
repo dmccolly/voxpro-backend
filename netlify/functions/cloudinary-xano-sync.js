@@ -61,10 +61,7 @@ exports.handler = async (event) => {
             if (asset.media_url && asset.media_url.trim()) {
                 existingAssetsMap.set(asset.media_url, asset);
             }
-            if (asset.id) {
-                existingAssetsMap.set(`id_${asset.id}`, asset);
-            }
-            if (asset.title && asset.title.trim()) {
+            if (asset.title && asset.title.includes('/')) {
                 existingAssetsMap.set(asset.title, asset);
             }
         });
@@ -94,7 +91,7 @@ exports.handler = async (event) => {
                     console.log(`Existing asset ID: ${existingAsset.id}, title: "${existingAsset.title}", media_url: "${existingAsset.media_url}"`);
                 }
                 
-                if (existingAsset && existingAsset.media_url === asset.secure_url) {
+                if (existingAsset && existingAsset.media_url && existingAsset.media_url.trim() && existingAsset.media_url === asset.secure_url) {
                     console.log(`SKIPPING: ${asset.public_id} - already has correct media_url`);
                     return { type: 'skipped' };
                 }
@@ -109,7 +106,7 @@ exports.handler = async (event) => {
                     const properTitle = asset.display_name || 
                                       asset.filename || 
                                       asset.context?.custom?.title || 
-                                      asset.public_id.split('/').pop(); // Get filename part only
+                                      asset.public_id.split('/').pop();
                     
                     const xanoData = {
                         title: properTitle,
