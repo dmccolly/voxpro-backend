@@ -101,6 +101,10 @@ exports.handler = async (event) => {
                     return { type: 'skipped' };
                 }
                 
+                if (existingAsset && (!existingAsset.media_url || !existingAsset.media_url.trim())) {
+                    console.log(`FORCE UPDATE: ${asset.public_id} - existing asset has empty media_url`);
+                }
+                
                 if (existingAsset) {
                     console.log(`UPDATING: ${asset.public_id} - existing asset needs media_url populated`);
                 } else {
