@@ -66,13 +66,17 @@ exports.handler = async (event) => {
             if (asset.media_url && asset.media_url.trim()) {
                 existingAssetsMap.set(asset.media_url, asset);
                 
-                const normalizedMediaUrl = asset.media_url.replace(/^http:/, 'https:').split('?')[0];
+                const normalizedMediaUrl = asset.media_url.replace(/^http:/, 'https:').split('?')[0].toLowerCase();
                 existingAssetsMap.set(normalizedMediaUrl, asset);
                 
                 if (asset.attachment && asset.attachment.trim()) {
                     existingAssetsMap.set(asset.attachment, asset);
-                    const normalizedAttachment = asset.attachment.replace(/^http:/, 'https:').split('?')[0];
+                    const normalizedAttachment = asset.attachment.replace(/^http:/, 'https:').split('?')[0].toLowerCase();
                     existingAssetsMap.set(normalizedAttachment, asset);
+                }
+                
+                if (asset.title && asset.title.trim()) {
+                    existingAssetsMap.set(asset.title.toLowerCase(), asset);
                 }
             }
         });
@@ -153,7 +157,8 @@ exports.handler = async (event) => {
                     let existingAsset = existingAssetsMap.get(asset.secure_url) ||
                                        existingAssetsMap.get(asset.url) ||
                                        existingAssetsMap.get(cloudinaryUrl) ||
-                                       existingAssetsMap.get(cloudinaryUrlAlt);
+                                       existingAssetsMap.get(cloudinaryUrlAlt) ||
+                                       existingAssetsMap.get(properTitle.toLowerCase());
                     
                     if (!existingAsset) {
                         const expectedFilename = asset.filename || (asset.public_id.split('/').pop() + '.' + asset.format);
