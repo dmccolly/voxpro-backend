@@ -162,12 +162,16 @@ exports.handler = async (event) => {
                             if (!existing.media_url || !existing.media_url.trim()) return false;
                             
                             const existingUrl = normalizeUrl(existing.media_url);
-                            const existingAttachment = normalizeUrl(existing.attachment);
+                            const existingAttachment = normalizeUrl(existing.attachment || '');
+                            
+                            if (existingUrl === cloudinaryUrl || existingAttachment === cloudinaryUrl) {
+                                return true;
+                            }
                             
                             if (existingUrl.includes(publicIdPart.toLowerCase()) || 
                                 existingAttachment.includes(publicIdPart.toLowerCase()) ||
-                                cloudinaryUrl.includes(existingUrl) ||
-                                cloudinaryUrl.includes(existingAttachment)) {
+                                cloudinaryUrl.includes(existingUrl.split('/').pop()) ||
+                                cloudinaryUrl.includes(existingAttachment.split('/').pop())) {
                                 return true;
                             }
                             
