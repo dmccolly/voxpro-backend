@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cloudinary to Xano Sync</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        button { background: #007cba; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>Cloudinary to Xano Asset Sync</h1>
+    <p>This will import all Cloudinary assets into the Xano database for the file manager.</p>
+    
+    <button id="syncBtn" onclick="runSync()">Start Sync</button>
+    
+    <div id="result"></div>
+
+    <script>
+        async function runSync() {
+            const btn = document.getElementById('syncBtn');
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Syncing...';
+            result.innerHTML = '';
+            
+            try {
+                const response = await fetch('/.netlify/functions/cloudinary-xano-sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h3>Sync Complete!</h3>
+                        <p>Total Cloudinary assets: ${data.total_cloudinary_assets}</p>
+                        <p>Imported: ${data.imported}</p>
+                        <p>Skipped (already exist): ${data.skipped}</p>
+                        ${data.errors.length > 0 ? `<p>Errors: ${data.errors.length}</p>` : ''}
+                    `;
+                } else {
+                    throw new Error(data.error || 'Sync failed');
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `<h3>Sync Failed</h3><p>${error.message}</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Start Sync';
+            }
+        }
+    </script>
+</body>
+</html>

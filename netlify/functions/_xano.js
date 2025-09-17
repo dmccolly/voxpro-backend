@@ -38,4 +38,15 @@ return out;
 
 export function buildXanoPayload({ public_id, resource_type, title, description, station, tags, xanoExtra }){
 const f = fields;
+const payload = {
+  [f.public_id]: public_id,
+  [f.resource_type]: resource_type,
+  [f.title]: title || public_id,
+  [f.description]: description || '',
+  [f.station]: station || '',
+  [f.tags]: TAGS_TYPE === 'array' ? (Array.isArray(tags) ? tags : []) : (Array.isArray(tags) ? tags.join(',') : tags || ''),
+  [f.collection_id]: xanoExtra?.collection_id || null,
+  [f.categories]: xanoExtra?.categories || null
+};
+return payload;
 }
