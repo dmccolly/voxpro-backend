@@ -40,7 +40,7 @@ exports.handler = async (event) => {
                     expression: 'resource_type:image OR resource_type:video OR resource_type:raw',
                     with_field: ['context', 'tags'],
                     sort_by: [{ 'created_at': 'desc' }],
-                    max_results: 20
+                    max_results: 5
                 })
             }
         );
@@ -64,7 +64,7 @@ exports.handler = async (event) => {
         console.log(`Cleaning up ${recordsToDelete.length} records with empty media_url/attachment fields`);
         
         let deleted = 0;
-        for (const record of recordsToDelete.slice(0, 10)) { // Limit to 10 to avoid timeout
+        for (const record of recordsToDelete.slice(0, 5)) { // Limit to 5 to avoid timeout
             try {
                 const deleteResponse = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission/${record.id}`, {
                     method: 'DELETE',
@@ -86,8 +86,8 @@ exports.handler = async (event) => {
         let skipped = 0;
         const errors = [];
 
-        const batchSize = 3; // Very small batch size to avoid timeout
-        const maxProcessTime = 15000; // 15 seconds to leave more buffer for Netlify timeout
+        const batchSize = 1; // Process one asset at a time to avoid timeout
+        const maxProcessTime = 10000; // 10 seconds to leave more buffer for Netlify timeout
         const startTime = Date.now();
 
         for (let i = 0; i < assets.length; i += batchSize) {
