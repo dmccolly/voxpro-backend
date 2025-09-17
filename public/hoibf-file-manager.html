@@ -1249,19 +1249,29 @@
     </div>
 
     <script>
-        // Global variables
-        let allFiles = [];
-        let allCategories = [];
-        let selectedFiles = new Set();
-        let currentFilter = { type: 'all' };
-        let selectedFile = null;
+        // Global variables - explicitly attach to window for debugging
+        window.allFiles = [];
+        window.allCategories = [];
+        window.selectedFiles = new Set();
+        window.currentFilter = { type: 'all' };
+        window.selectedFile = null;
         // Infinite scroll state
         // currentPage controls how many pages of results are shown. Each page
         // displays `itemsPerPage` items. filteredFilesCache stores the
         // last filtered list so we can append pages without recomputing.
-        let currentPage = 1;
-        let itemsPerPage = 50;
-        let filteredFilesCache = [];
+        window.currentPage = 1;
+        window.itemsPerPage = 50;
+        window.filteredFilesCache = [];
+        
+        // Create aliases for easier access
+        let allFiles = window.allFiles;
+        let allCategories = window.allCategories;
+        let selectedFiles = window.selectedFiles;
+        let currentFilter = window.currentFilter;
+        let selectedFile = window.selectedFile;
+        let currentPage = window.currentPage;
+        let itemsPerPage = window.itemsPerPage;
+        let filteredFilesCache = window.filteredFilesCache;
 
         // View mode state. 'details' shows a list with columns; 'small' shows
         // a grid of small thumbnails; 'medium' shows a grid of medium thumbnails.
@@ -1331,17 +1341,35 @@
                 }
                 
                 const data = await response.json();
-                allFiles = Array.isArray(data) ? data : [];
+                window.allFiles = Array.isArray(data) ? data : [];
+                allFiles = window.allFiles; // Update local reference
                 
-                console.log('Loaded files:', allFiles.length);
+                console.log('Loaded files:', window.allFiles.length);
                 
                 updateFileList();
                 updateCounts();
+                checkPaginationHealth();
                 
             } catch (error) {
                 console.error('Load files error:', error);
                 document.getElementById('fileListContent').innerHTML = 
                     '<div class="error-message">Failed to load files. Please try refreshing.</div>';
+            }
+        }
+
+        // Add after the loadFiles function
+        function checkPaginationHealth() {
+            if (window.allFiles.length > window.itemsPerPage && window.filteredFilesCache.length > window.itemsPerPage) {
+                const displayedFiles = document.querySelectorAll('.file-item').length;
+                if (displayedFiles <= window.itemsPerPage && window.currentPage > 1) {
+                    console.warn('Pagination may not be working correctly', {
+                        totalFiles: window.allFiles.length,
+                        filteredFiles: window.filteredFilesCache.length,
+                        displayedFiles: displayedFiles,
+                        currentPage: window.currentPage
+                    });
+                    showMessage('Pagination issue detected. Try refreshing the page.', 'warning');
+                }
             }
         }
 
@@ -1370,9 +1398,17 @@
             });
 
             // Store the filtered results so we can implement infinite scroll
-            filteredFilesCache = filteredFiles;
+            window.filteredFilesCache = filteredFiles;
             // Determine how many items to display based on current page
-            const displayFiles = filteredFilesCache.slice(0, currentPage * itemsPerPage);
+            const displayFiles = window.filteredFilesCache.slice(0, window.currentPage * window.itemsPerPage);
+            
+            console.log('UpdateFileList debug:', {
+                totalFiles: window.allFiles.length,
+                filteredFiles: window.filteredFilesCache.length,
+                currentPage: window.currentPage,
+                itemsPerPage: window.itemsPerPage,
+                displayingFiles: displayFiles.length
+            });
 
             let html = '';
             if (currentViewMode === 'details') {
@@ -1466,16 +1502,17 @@
                 item.classList.remove('active');
             });
             
-            if (currentFilter.type === 'all') {
+            if (window.currentFilter.type === 'all') {
                 document.querySelector('.nav-item[onclick="showAllFiles()"]').classList.add('active');
-            } else if (currentFilter.type === 'category') {
-                document.querySelector(`[data-category="${currentFilter.value}"]`)?.classList.add('active');
+            } else if (window.currentFilter.type === 'category') {
+                document.querySelector(`[data-category="${window.currentFilter.value}"]`)?.classList.add('active');
             }
         }
 
         // File selection
         function selectFile(id) {
-            selectedFile = allFiles.find(f => f.id === id);
+            window.selectedFile = window.allFiles.find(f => f.id === id);
+            selectedFile = window.selectedFile; // Update local reference
             if (selectedFile) {
                 // Ensure the details panel is visible when a file is selected.  It may
                 // have been hidden by previous operations (e.g. after bulk
@@ -1504,7 +1541,7 @@
         }
 
         function selectAll() {
-            const filteredFiles = allFiles.filter(file => {
+            const filteredFiles = window.allFiles.filter(file => {
                 const searchTerm = document.getElementById('searchInput').value.toLowerCase();
                 if (searchTerm && !file.title.toLowerCase().includes(searchTerm)) return false;
                 if (currentFilter.type === 'type') return file.file_type === currentFilter.value;
@@ -1569,14 +1606,9 @@
 
                 // Persist updates back to the same endpoint used to fetch user submissions.
                 // Use the user_submission endpoint for consistency with other actions (e.g. delete).
-                // We support updating via multiple possible endpoints.  Try
-                // user_submission first (preferred) and fall back to asset if
-                // user_submission is not available on the backend.  Collect
-                // any error messages for debugging.
-                // Attempt to save using multiple endpoints and HTTP methods to maximise compatibility.
+                // Only use the user_submission endpoint as it's the only one that exists.
                 const endpoints = [
-                    `/.netlify/functions/xano-proxy/user_submission/${selectedFile.id}`,
-                    `/.netlify/functions/xano-proxy/asset/${selectedFile.id}`
+                    `/.netlify/functions/xano-proxy/user_submission/${selectedFile.id}`
                 ];
                 const methods = ['PATCH', 'PUT'];
                 let lastError = null;
@@ -1590,7 +1622,14 @@
                                 body: JSON.stringify(updateData)
                             });
                             if (response.ok) {
-                                Object.assign(selectedFile, updateData);
+                                const updatedData = await response.json();
+                                // Update the selectedFile with the response data to ensure consistency
+                                Object.assign(selectedFile, updatedData);
+                                // Also update the file in the allFiles array
+                                const fileIndex = allFiles.findIndex(f => f.id === selectedFile.id);
+                                if (fileIndex !== -1) {
+                                    Object.assign(allFiles[fileIndex], updatedData);
+                                }
                                 updateFileList();
                                 updateCounts();
                                 showMessage('File updated successfully', 'success');
@@ -1652,18 +1691,45 @@
          * `currentPage` and triggers `updateFileList()` to append more items.
          */
         function initInfiniteScroll() {
-            const container = document.getElementById('fileListContent');
-            if (!container) return;
-            container.addEventListener('scroll', () => {
+            // The scrollable container is the .file-list div, not the fileListContent div
+            const container = document.querySelector('.file-list');
+            if (!container) {
+                console.error('File list container (.file-list) not found for infinite scroll');
+                return;
+            }
+            
+            console.log('Initializing infinite scroll on container:', container);
+            
+            const scrollHandler = () => {
                 const threshold = 50; // px from bottom to trigger load
-                if (container.scrollTop + container.clientHeight >= container.scrollHeight - threshold) {
+                const scrollPosition = container.scrollTop + container.clientHeight;
+                const scrollHeight = container.scrollHeight;
+                
+                console.log('Scroll debug:', {
+                    scrollTop: container.scrollTop,
+                    clientHeight: container.clientHeight,
+                    scrollHeight: container.scrollHeight,
+                    threshold: threshold,
+                    currentPage: window.currentPage,
+                    itemsPerPage: window.itemsPerPage,
+                    filteredFilesLength: window.filteredFilesCache.length,
+                    shouldLoadMore: window.currentPage * window.itemsPerPage < window.filteredFilesCache.length
+                });
+                
+                if (scrollPosition >= scrollHeight - threshold) {
                     // Only load more if there are more items to show
-                    if (currentPage * itemsPerPage < filteredFilesCache.length) {
-                        currentPage++;
+                    if (window.currentPage * window.itemsPerPage < window.filteredFilesCache.length) {
+                        console.log('Loading more files, incrementing page from', window.currentPage, 'to', window.currentPage + 1);
+                        window.currentPage++;
                         updateFileList();
+                    } else {
+                        console.log('No more files to load');
                     }
                 }
-            });
+            };
+            
+            container.addEventListener('scroll', scrollHandler);
+            console.log('Scroll event listener attached successfully to .file-list container');
         }
 
         /**
@@ -1813,9 +1879,14 @@
             `;
             
             // Auto-hide after 2 seconds
-            setTimeout(() => {
+            setTimeout(async () => {
                 closeUploadModal();
-                refreshFiles();
+                // Reload file list to show new uploads and reset pagination
+                currentPage = 1; // Reset pagination to show new uploads at the top
+                await refreshFiles();
+                // Show a final summary message
+                showMessage(`Upload completed: ${successCount} of ${files.length} file${files.length !== 1 ? 's' : ''} uploaded`,
+                            successCount === files.length ? 'success' : 'warning');
             }, 2000);
             
             // Show enhanced summary message
