@@ -56,6 +56,13 @@ exports.handler = async (event) => {
         const existingAssets = existingResponse.ok ? await existingResponse.json() : [];
         console.log(`Found ${existingAssets.length} existing records in Xano`);
         
+        const existingAssetsMap = new Map();
+        existingAssets.forEach(asset => {
+            if (asset.media_url) {
+                existingAssetsMap.set(asset.media_url, asset);
+            }
+        });
+        
         const recordsToDelete = existingAssets.filter(asset => 
             !asset.media_url || !asset.media_url.trim() || 
             !asset.attachment || !asset.attachment.trim()
@@ -98,9 +105,8 @@ exports.handler = async (event) => {
 
             const batch = assets.slice(i, i + batchSize);
             const batchPromises = batch.map(async (asset) => {
-                console.log(`\n=== Importing Asset ${asset.public_id} ===`);
+                console.log(`\n=== Processing Asset ${asset.public_id} ===`);
                 console.log(`Cloudinary URL: ${asset.secure_url}`);
-                console.log(`IMPORTING: ${asset.public_id} - fresh import after cleanup`);
 
                 try {
                     const properTitle = asset.display_name || 
@@ -108,33 +114,54 @@ exports.handler = async (event) => {
                                       asset.context?.custom?.title || 
                                       asset.public_id.split('/').pop();
                     
+                    const correctedFileType = getFileType(asset.resource_type, asset.format);
+                    
                     const xanoData = {
                         title: properTitle,
                         description: asset.context?.custom?.description || '',
                         station: asset.context?.custom?.station || '',
-                        file_type: getFileType(asset.resource_type, asset.format),
+                        file_type: correctedFileType,
                         file_size: asset.bytes || 0,
                         media_url: asset.secure_url,
-                        attachment: asset.secure_url, // Also populate attachment field
+                        attachment: asset.secure_url,
                         filename: asset.filename || (asset.public_id.split('/').pop() + '.' + asset.format),
                         tags: asset.tags ? asset.tags.join(',') : '',
                         created_at: asset.created_at
                     };
 
-                    const response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(xanoData)
-                    });
-                    const operationType = 'imported';
-
-                    if (response.ok) {
-                        return { type: operationType };
+                    const existingAsset = existingAssetsMap.get(asset.secure_url);
+                    
+                    if (existingAsset) {
+                        console.log(`UPDATING: ${asset.public_id} - correcting file_type from "${existingAsset.file_type}" to "${correctedFileType}"`);
+                        
+                        const response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission/${existingAsset.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(xanoData)
+                        });
+                        
+                        if (response.ok) {
+                            return { type: 'updated' };
+                        } else {
+                            return { type: 'error', message: `Failed to update ${asset.public_id}: ${response.status}` };
+                        }
                     } else {
-                        return { type: 'error', message: `Failed to ${operationType} ${asset.public_id}: ${response.status}` };
+                        console.log(`IMPORTING: ${asset.public_id} - new asset`);
+                        
+                        const response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(xanoData)
+                        });
+                        
+                        if (response.ok) {
+                            return { type: 'imported' };
+                        } else {
+                            return { type: 'error', message: `Failed to import ${asset.public_id}: ${response.status}` };
+                        }
                     }
                 } catch (error) {
-                    return { type: 'error', message: `Error importing ${asset.public_id}: ${error.message}` };
+                    return { type: 'error', message: `Error processing ${asset.public_id}: ${error.message}` };
                 }
             });
 
