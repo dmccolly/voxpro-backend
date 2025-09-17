@@ -55,7 +55,16 @@ exports.handler = async (event) => {
         const existingResponse = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`);
         const existingAssets = existingResponse.ok ? await existingResponse.json() : [];
         console.log('Sample existing assets:', existingAssets.slice(0, 3).map(a => ({ title: a.title, media_url: a.media_url })));
-        const existingAssetsMap = new Map(existingAssets.map(asset => [asset.title, asset]));
+        
+        const existingAssetsMap = new Map();
+        existingAssets.forEach(asset => {
+            if (asset.media_url) {
+                existingAssetsMap.set(asset.media_url, asset);
+            }
+            if (asset.title && asset.title.includes('/')) {
+                existingAssetsMap.set(asset.title, asset);
+            }
+        });
 
         let imported = 0;
         let updated = 0;
@@ -74,10 +83,10 @@ exports.handler = async (event) => {
 
             const batch = assets.slice(i, i + batchSize);
             const batchPromises = batch.map(async (asset) => {
-                const existingAsset = existingAssetsMap.get(asset.public_id);
+                let existingAsset = existingAssetsMap.get(asset.secure_url) || existingAssetsMap.get(asset.public_id);
                 console.log(`Asset ${asset.public_id}: existingAsset=${!!existingAsset}, media_url="${existingAsset?.media_url}"`);
                 
-                if (existingAsset && existingAsset.media_url && existingAsset.media_url.trim()) {
+                if (existingAsset && existingAsset.media_url && existingAsset.media_url.trim() && existingAsset.media_url === asset.secure_url) {
                     return { type: 'skipped' };
                 }
                 
@@ -87,23 +96,22 @@ exports.handler = async (event) => {
                 }
 
                 try {
+                    const properTitle = asset.display_name || 
+                                      asset.filename || 
+                                      asset.context?.custom?.title || 
+                                      asset.public_id.split('/').pop(); // Get filename part only
+                    
                     const xanoData = {
-                        public_id: asset.public_id,
-                        title: asset.context?.custom?.title || asset.public_id,
+                        title: properTitle,
                         description: asset.context?.custom?.description || '',
                         station: asset.context?.custom?.station || '',
                         file_type: getFileType(asset.resource_type, asset.format),
                         file_size: asset.bytes || 0,
                         media_url: asset.secure_url,
-                        cloudinary_url: asset.secure_url,
-                        resource_type: asset.resource_type,
-                        format: asset.format,
-                        width: asset.width || null,
-                        height: asset.height || null,
-                        duration: asset.duration || null,
+                        attachment: asset.secure_url, // Also populate attachment field
+                        filename: asset.filename || (asset.public_id.split('/').pop() + '.' + asset.format),
                         tags: asset.tags ? asset.tags.join(',') : '',
-                        created_at: asset.created_at,
-                        filename: asset.public_id + '.' + asset.format
+                        created_at: asset.created_at
                     };
 
                     let response;
