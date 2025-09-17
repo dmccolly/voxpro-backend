@@ -61,8 +61,11 @@ exports.handler = async (event) => {
             if (asset.media_url && asset.media_url.trim()) {
                 existingAssetsMap.set(asset.media_url, asset);
             }
-            if (asset.title && asset.title.includes('/')) {
+            if (asset.title && asset.title.trim()) {
                 existingAssetsMap.set(asset.title, asset);
+            }
+            if (asset.id) {
+                existingAssetsMap.set(`id_${asset.id}`, asset);
             }
         });
 
@@ -83,7 +86,9 @@ exports.handler = async (event) => {
 
             const batch = assets.slice(i, i + batchSize);
             const batchPromises = batch.map(async (asset) => {
-                let existingAsset = existingAssetsMap.get(asset.secure_url) || existingAssetsMap.get(asset.public_id);
+                let existingAsset = existingAssetsMap.get(asset.secure_url) || 
+                                   existingAssetsMap.get(asset.public_id) ||
+                                   existingAssetsMap.get(asset.public_id.split('/').pop());
                 console.log(`\n=== Processing Asset ${asset.public_id} ===`);
                 console.log(`Cloudinary URL: ${asset.secure_url}`);
                 console.log(`Existing asset found: ${!!existingAsset}`);
