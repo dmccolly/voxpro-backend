@@ -54,9 +54,10 @@ exports.handler = async (event) => {
 
         const existingResponse = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`);
         const existingAssets = existingResponse.ok ? await existingResponse.json() : [];
-        const existingPublicIds = new Set(existingAssets.map(asset => asset.public_id));
+        const existingAssetsMap = new Map(existingAssets.map(asset => [asset.public_id, asset]));
 
         let imported = 0;
+        let updated = 0;
         let skipped = 0;
         const errors = [];
 
@@ -72,7 +73,9 @@ exports.handler = async (event) => {
 
             const batch = assets.slice(i, i + batchSize);
             const batchPromises = batch.map(async (asset) => {
-                if (existingPublicIds.has(asset.public_id)) {
+                const existingAsset = existingAssetsMap.get(asset.public_id);
+                
+                if (existingAsset && existingAsset.media_url) {
                     return { type: 'skipped' };
                 }
 
@@ -96,16 +99,29 @@ exports.handler = async (event) => {
                         filename: asset.public_id + '.' + asset.format
                     };
 
-                    const response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(xanoData)
-                    });
+                    let response;
+                    let operationType;
+                    
+                    if (existingAsset) {
+                        response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission/${existingAsset.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(xanoData)
+                        });
+                        operationType = 'updated';
+                    } else {
+                        response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(xanoData)
+                        });
+                        operationType = 'imported';
+                    }
 
                     if (response.ok) {
-                        return { type: 'success' };
+                        return { type: operationType };
                     } else {
-                        return { type: 'error', message: `Failed to import ${asset.public_id}: ${response.status}` };
+                        return { type: 'error', message: `Failed to ${operationType} ${asset.public_id}: ${response.status}` };
                     }
                 } catch (error) {
                     return { type: 'error', message: `Error importing ${asset.public_id}: ${error.message}` };
@@ -116,8 +132,11 @@ exports.handler = async (event) => {
             
             batchResults.forEach(result => {
                 switch (result.type) {
-                    case 'success':
+                    case 'imported':
                         imported++;
+                        break;
+                    case 'updated':
+                        updated++;
                         break;
                     case 'skipped':
                         skipped++;
@@ -136,6 +155,7 @@ exports.handler = async (event) => {
                 success: true,
                 total_cloudinary_assets: assets.length,
                 imported: imported,
+                updated: updated,
                 skipped: skipped,
                 errors: errors.slice(0, 10)
             })
