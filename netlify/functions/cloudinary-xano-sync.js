@@ -140,30 +140,47 @@ exports.handler = async (event) => {
                         created_at: asset.created_at
                     };
 
-                    const normalizedCloudinaryUrl = asset.secure_url.replace(/^http:/, 'https:').split('?')[0];
-                    const normalizedCloudinaryUrlAlt = asset.url?.replace(/^http:/, 'https:').split('?')[0];
+                    const normalizeUrl = (url) => {
+                        if (!url) return '';
+                        return url.replace(/^http:/, 'https:').split('?')[0].toLowerCase();
+                    };
+                    
+                    const cloudinaryUrl = normalizeUrl(asset.secure_url);
+                    const cloudinaryUrlAlt = normalizeUrl(asset.url);
                     
                     let existingAsset = existingAssetsMap.get(asset.secure_url) ||
                                        existingAssetsMap.get(asset.url) ||
-                                       existingAssetsMap.get(normalizedCloudinaryUrl) ||
-                                       existingAssetsMap.get(normalizedCloudinaryUrlAlt);
+                                       existingAssetsMap.get(cloudinaryUrl) ||
+                                       existingAssetsMap.get(cloudinaryUrlAlt);
                     
                     if (!existingAsset) {
                         const expectedFilename = asset.filename || (asset.public_id.split('/').pop() + '.' + asset.format);
                         const expectedTitle = asset.display_name || asset.filename || asset.public_id.split('/').pop();
+                        const publicIdPart = asset.public_id.split('/').pop();
                         
-                        existingAsset = existingAssets.find(existing => 
-                            existing.title === expectedTitle ||
-                            existing.title === asset.public_id ||
-                            existing.title === asset.public_id.split('/').pop() ||
-                            existing.filename === expectedFilename ||
-                            existing.filename === asset.filename ||
-                            (existing.media_url && (
-                                existing.media_url.includes(asset.public_id) ||
-                                normalizedCloudinaryUrl.includes(existing.media_url.split('?')[0]) ||
-                                existing.media_url.split('?')[0].includes(normalizedCloudinaryUrl)
-                            ))
-                        );
+                        existingAsset = existingAssets.find(existing => {
+                            if (!existing.media_url || !existing.media_url.trim()) return false;
+                            
+                            const existingUrl = normalizeUrl(existing.media_url);
+                            const existingAttachment = normalizeUrl(existing.attachment);
+                            
+                            if (existingUrl.includes(publicIdPart.toLowerCase()) || 
+                                existingAttachment.includes(publicIdPart.toLowerCase()) ||
+                                cloudinaryUrl.includes(existingUrl) ||
+                                cloudinaryUrl.includes(existingAttachment)) {
+                                return true;
+                            }
+                            
+                            if (existing.title === expectedTitle ||
+                                existing.title === asset.public_id ||
+                                existing.title === publicIdPart ||
+                                existing.filename === expectedFilename ||
+                                existing.filename === asset.filename) {
+                                return true;
+                            }
+                            
+                            return false;
+                        });
                     }
                     
                     console.log(`Match found: ${existingAsset ? 'YES' : 'NO'}`);
