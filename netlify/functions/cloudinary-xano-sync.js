@@ -54,20 +54,32 @@ exports.handler = async (event) => {
 
         const existingResponse = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`);
         const existingAssets = existingResponse.ok ? await existingResponse.json() : [];
-        console.log('Sample existing assets:', existingAssets.slice(0, 3).map(a => ({ title: a.title, media_url: a.media_url })));
+        console.log(`Found ${existingAssets.length} existing records in Xano`);
         
-        const existingAssetsMap = new Map();
-        existingAssets.forEach(asset => {
-            if (asset.media_url && asset.media_url.trim()) {
-                existingAssetsMap.set(asset.media_url, asset);
+        const recordsToDelete = existingAssets.filter(asset => 
+            !asset.media_url || !asset.media_url.trim() || 
+            !asset.attachment || !asset.attachment.trim()
+        );
+        
+        console.log(`Cleaning up ${recordsToDelete.length} records with empty media_url/attachment fields`);
+        
+        let deleted = 0;
+        for (const record of recordsToDelete.slice(0, 100)) { // Limit to 100 to avoid timeout
+            try {
+                const deleteResponse = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission/${record.id}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (deleteResponse.ok) {
+                    deleted++;
+                    console.log(`Deleted record ${record.id}: "${record.title}"`);
+                }
+            } catch (error) {
+                console.error(`Failed to delete record ${record.id}:`, error.message);
             }
-            if (asset.title && asset.title.trim()) {
-                existingAssetsMap.set(asset.title, asset);
-            }
-            if (asset.id) {
-                existingAssetsMap.set(`id_${asset.id}`, asset);
-            }
-        });
+        }
+        
+        console.log(`Cleanup complete: deleted ${deleted} records. Now importing fresh Cloudinary assets...`);
 
         let imported = 0;
         let updated = 0;
@@ -86,30 +98,9 @@ exports.handler = async (event) => {
 
             const batch = assets.slice(i, i + batchSize);
             const batchPromises = batch.map(async (asset) => {
-                let existingAsset = existingAssetsMap.get(asset.secure_url) || 
-                                   existingAssetsMap.get(asset.public_id) ||
-                                   existingAssetsMap.get(asset.public_id.split('/').pop());
-                console.log(`\n=== Processing Asset ${asset.public_id} ===`);
+                console.log(`\n=== Importing Asset ${asset.public_id} ===`);
                 console.log(`Cloudinary URL: ${asset.secure_url}`);
-                console.log(`Existing asset found: ${!!existingAsset}`);
-                if (existingAsset) {
-                    console.log(`Existing asset ID: ${existingAsset.id}, title: "${existingAsset.title}", media_url: "${existingAsset.media_url}"`);
-                }
-                
-                if (existingAsset && existingAsset.media_url && existingAsset.media_url.trim() && existingAsset.media_url === asset.secure_url) {
-                    console.log(`SKIPPING: ${asset.public_id} - already has correct media_url`);
-                    return { type: 'skipped' };
-                }
-                
-                if (existingAsset && (!existingAsset.media_url || !existingAsset.media_url.trim())) {
-                    console.log(`FORCE UPDATE: ${asset.public_id} - existing asset has empty media_url`);
-                }
-                
-                if (existingAsset) {
-                    console.log(`UPDATING: ${asset.public_id} - existing asset needs media_url populated`);
-                } else {
-                    console.log(`IMPORTING: ${asset.public_id} - new asset`);
-                }
+                console.log(`IMPORTING: ${asset.public_id} - fresh import after cleanup`);
 
                 try {
                     const properTitle = asset.display_name || 
@@ -130,24 +121,12 @@ exports.handler = async (event) => {
                         created_at: asset.created_at
                     };
 
-                    let response;
-                    let operationType;
-                    
-                    if (existingAsset) {
-                        response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission/${existingAsset.id}`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(xanoData)
-                        });
-                        operationType = 'updated';
-                    } else {
-                        response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(xanoData)
-                        });
-                        operationType = 'imported';
-                    }
+                    const response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(xanoData)
+                    });
+                    const operationType = 'imported';
 
                     if (response.ok) {
                         return { type: operationType };
@@ -185,6 +164,7 @@ exports.handler = async (event) => {
             body: JSON.stringify({
                 success: true,
                 total_cloudinary_assets: assets.length,
+                cleanup_deleted: deleted,
                 imported: imported,
                 updated: updated,
                 skipped: skipped,
