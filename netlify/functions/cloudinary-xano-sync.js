@@ -56,17 +56,17 @@ exports.handler = async (event) => {
         const existingAssets = existingResponse.ok ? await existingResponse.json() : [];
         console.log(`Found ${existingAssets.length} existing records in Xano`);
         
-        const existingAssetsMap = new Map();
-        existingAssets.forEach(asset => {
-            if (asset.media_url) {
-                existingAssetsMap.set(asset.media_url, asset);
-            }
-        });
-        
         const recordsToDelete = existingAssets.filter(asset => 
             !asset.media_url || !asset.media_url.trim() || 
             !asset.attachment || !asset.attachment.trim()
         );
+        
+        const existingAssetsMap = new Map();
+        existingAssets.forEach(asset => {
+            if (asset.media_url && asset.media_url.trim() && asset.attachment && asset.attachment.trim()) {
+                existingAssetsMap.set(asset.media_url, asset);
+            }
+        });
         
         console.log(`Cleaning up ${recordsToDelete.length} records with empty media_url/attachment fields`);
         
