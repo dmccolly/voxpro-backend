@@ -40,7 +40,7 @@ exports.handler = async (event) => {
                     expression: 'resource_type:image OR resource_type:video OR resource_type:raw',
                     with_field: ['context', 'tags'],
                     sort_by: [{ 'created_at': 'desc' }],
-                    max_results: 50
+                    max_results: 100
                 })
             }
         );
@@ -86,8 +86,8 @@ exports.handler = async (event) => {
         let skipped = 0;
         const errors = [];
 
-        const batchSize = 3; // Process 3 assets at a time for better efficiency
-        const maxProcessTime = 20000; // 20 seconds processing time
+        const batchSize = 5; // Process 5 assets at a time for better efficiency
+        const maxProcessTime = 25000; // 25 seconds processing time
         const startTime = Date.now();
 
         for (let i = 0; i < assets.length; i += batchSize) {
