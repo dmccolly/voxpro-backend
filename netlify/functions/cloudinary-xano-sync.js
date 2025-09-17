@@ -60,45 +60,72 @@ exports.handler = async (event) => {
         let skipped = 0;
         const errors = [];
 
-        for (const asset of assets) {
-            if (existingPublicIds.has(asset.public_id)) {
-                skipped++;
-                continue;
+        const batchSize = 10;
+        const maxProcessTime = 25000; // 25 seconds to leave buffer for Netlify timeout
+        const startTime = Date.now();
+
+        for (let i = 0; i < assets.length; i += batchSize) {
+            if (Date.now() - startTime > maxProcessTime) {
+                errors.push(`Timeout reached. Processed ${i} of ${assets.length} assets.`);
+                break;
             }
 
-            try {
-                const xanoData = {
-                    public_id: asset.public_id,
-                    title: asset.context?.custom?.title || asset.public_id,
-                    description: asset.context?.custom?.description || '',
-                    station: asset.context?.custom?.station || '',
-                    file_type: getFileType(asset.resource_type, asset.format),
-                    file_size: asset.bytes || 0,
-                    cloudinary_url: asset.secure_url,
-                    resource_type: asset.resource_type,
-                    format: asset.format,
-                    width: asset.width || null,
-                    height: asset.height || null,
-                    duration: asset.duration || null,
-                    tags: asset.tags ? asset.tags.join(',') : '',
-                    created_at: asset.created_at,
-                    filename: asset.public_id + '.' + asset.format
-                };
-
-                const response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(xanoData)
-                });
-
-                if (response.ok) {
-                    imported++;
-                } else {
-                    errors.push(`Failed to import ${asset.public_id}: ${response.status}`);
+            const batch = assets.slice(i, i + batchSize);
+            const batchPromises = batch.map(async (asset) => {
+                if (existingPublicIds.has(asset.public_id)) {
+                    return { type: 'skipped' };
                 }
-            } catch (error) {
-                errors.push(`Error importing ${asset.public_id}: ${error.message}`);
-            }
+
+                try {
+                    const xanoData = {
+                        public_id: asset.public_id,
+                        title: asset.context?.custom?.title || asset.public_id,
+                        description: asset.context?.custom?.description || '',
+                        station: asset.context?.custom?.station || '',
+                        file_type: getFileType(asset.resource_type, asset.format),
+                        file_size: asset.bytes || 0,
+                        cloudinary_url: asset.secure_url,
+                        resource_type: asset.resource_type,
+                        format: asset.format,
+                        width: asset.width || null,
+                        height: asset.height || null,
+                        duration: asset.duration || null,
+                        tags: asset.tags ? asset.tags.join(',') : '',
+                        created_at: asset.created_at,
+                        filename: asset.public_id + '.' + asset.format
+                    };
+
+                    const response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(xanoData)
+                    });
+
+                    if (response.ok) {
+                        return { type: 'success' };
+                    } else {
+                        return { type: 'error', message: `Failed to import ${asset.public_id}: ${response.status}` };
+                    }
+                } catch (error) {
+                    return { type: 'error', message: `Error importing ${asset.public_id}: ${error.message}` };
+                }
+            });
+
+            const batchResults = await Promise.all(batchPromises);
+            
+            batchResults.forEach(result => {
+                switch (result.type) {
+                    case 'success':
+                        imported++;
+                        break;
+                    case 'skipped':
+                        skipped++;
+                        break;
+                    case 'error':
+                        errors.push(result.message);
+                        break;
+                }
+            });
         }
 
         return {
@@ -118,7 +145,11 @@ exports.handler = async (event) => {
         return {
             statusCode: 500,
             headers: CORS_HEADERS,
-            body: JSON.stringify({ error: error.message })
+            body: JSON.stringify({ 
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            })
         };
     }
 };
