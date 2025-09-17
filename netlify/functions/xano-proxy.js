@@ -14,17 +14,36 @@ exports.handler = async (event) => {
   try {
     const endpoint = event.path.replace('/.netlify/functions/xano-proxy', '');
     const XANO_URL = 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX' + endpoint;
+    const XANO_API_KEY = process.env.XANO_API_KEY;
     
     console.log('Request:', event.httpMethod, XANO_URL);
     
     if (event.httpMethod === 'GET') {
-      // GET request
+      // GET request with authentication
+      const urlObj = new URL(XANO_URL);
+      const options = {
+        hostname: urlObj.hostname,
+        path: urlObj.pathname + urlObj.search,
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      };
+      
+      // Add API key if provided
+      if (XANO_API_KEY) {
+        options.headers['Authorization'] = `Bearer ${XANO_API_KEY}`;
+      }
+      
       const response = await new Promise((resolve, reject) => {
-        https.get(XANO_URL, (res) => {
+        const req = https.request(options, (res) => {
           let data = '';
           res.on('data', chunk => data += chunk);
           res.on('end', () => resolve({ status: res.statusCode, data }));
-        }).on('error', reject);
+        });
+        req.on('error', reject);
+        req.end();
       });
       
       return {
@@ -34,7 +53,7 @@ exports.handler = async (event) => {
       };
       
     } else {
-      // POST, PATCH, DELETE requests
+      // POST, PATCH, PUT, DELETE requests with authentication
       const options = {
         hostname: 'xajo-bs7d-cagt.n7e.xano.io',
         path: '/api:pYeQctVX' + endpoint,
@@ -44,6 +63,11 @@ exports.handler = async (event) => {
           'Content-Length': event.body ? Buffer.byteLength(event.body) : 0
         }
       };
+      
+      // Add API key if provided
+      if (XANO_API_KEY) {
+        options.headers['Authorization'] = `Bearer ${XANO_API_KEY}`;
+      }
       
       const response = await new Promise((resolve, reject) => {
         const req = https.request(options, (res) => {

@@ -1567,48 +1567,27 @@
                     updateData[key] = value;
                 });
 
-                // Persist updates back to the same endpoint used to fetch user submissions.
-                // Use the user_submission endpoint for consistency with other actions (e.g. delete).
-                // We support updating via multiple possible endpoints.  Try
-                // user_submission first (preferred) and fall back to asset if
-                // user_submission is not available on the backend.  Collect
-                // any error messages for debugging.
-                // Attempt to save using multiple endpoints and HTTP methods to maximise compatibility.
-                const endpoints = [
-                    `/.netlify/functions/xano-proxy/user_submission/${selectedFile.id}`,
-                    `/.netlify/functions/xano-proxy/asset/${selectedFile.id}`
-                ];
-                const methods = ['PATCH', 'PUT'];
-                let lastError = null;
-                let success = false;
-                for (const endpoint of endpoints) {
-                    for (const method of methods) {
-                        try {
-                            const response = await fetch(endpoint, {
-                                method,
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(updateData)
-                            });
-                            if (response.ok) {
-                                Object.assign(selectedFile, updateData);
-                                updateFileList();
-                                updateCounts();
-                                showMessage('File updated successfully', 'success');
-                                success = true;
-                                break;
-                            } else {
-                                const text = await response.text();
-                                lastError = `Endpoint ${endpoint} [${method}] returned ${response.status}: ${text}`;
-                            }
-                        } catch (err) {
-                            lastError = `Error calling ${endpoint} [${method}]: ${err.message}`;
-                        }
+                // Use dedicated update endpoint for user submissions
+                try {
+                    const response = await fetch(`/.netlify/functions/update-user-submission/${selectedFile.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (response.ok) {
+                        Object.assign(selectedFile, updateData);
+                        updateFileList();
+                        updateCounts();
+                        showMessage('File updated successfully', 'success');
+                    } else {
+                        const errorData = await response.json();
+                        console.error('Save error:', errorData);
+                        showMessage(`Failed to save changes: ${errorData.error || 'Unknown error'}`, 'error');
                     }
-                    if (success) break;
-                }
-                if (!success) {
-                    console.error('Save error:', lastError);
-                    showMessage('Failed to save changes', 'error');
+                } catch (err) {
+                    console.error('Save error:', err);
+                    showMessage(`Failed to save changes: ${err.message}`, 'error');
                 }
             } catch (error) {
                 console.error('Save error:', error);
