@@ -65,6 +65,12 @@ exports.handler = async (event) => {
         existingAssets.forEach(asset => {
             if (asset.media_url && asset.media_url.trim() && asset.attachment && asset.attachment.trim()) {
                 existingAssetsMap.set(asset.media_url, asset);
+                existingAssetsMap.set(asset.attachment, asset);
+                
+                const normalizedMediaUrl = asset.media_url.replace(/^http:/, 'https:').split('?')[0];
+                const normalizedAttachment = asset.attachment.replace(/^http:/, 'https:').split('?')[0];
+                existingAssetsMap.set(normalizedMediaUrl, asset);
+                existingAssetsMap.set(normalizedAttachment, asset);
             }
         });
         
@@ -131,7 +137,20 @@ exports.handler = async (event) => {
                         created_at: asset.created_at
                     };
 
-                    const existingAsset = existingAssetsMap.get(asset.secure_url);
+                    let existingAsset = existingAssetsMap.get(asset.secure_url) ||
+                                       existingAssetsMap.get(asset.url) ||
+                                       existingAssetsMap.get(asset.secure_url.split('?')[0]) ||
+                                       existingAssetsMap.get(asset.url?.split('?')[0]);
+                    
+                    if (!existingAsset) {
+                        existingAsset = existingAssets.find(existing => 
+                            existing.title === asset.public_id ||
+                            existing.title === asset.public_id.split('/').pop() ||
+                            existing.filename === asset.filename ||
+                            existing.filename === (asset.public_id.split('/').pop() + '.' + asset.format)
+                        );
+                    }
+                    
                     console.log(`Match found: ${existingAsset ? 'YES' : 'NO'}`);
                     if (!existingAsset) {
                         console.log(`No match for URL: ${asset.secure_url}`);
