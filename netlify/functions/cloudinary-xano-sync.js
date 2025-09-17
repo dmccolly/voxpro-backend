@@ -148,6 +148,8 @@ exports.handler = async (event) => {
                     const cloudinaryUrl = normalizeUrl(asset.secure_url);
                     const cloudinaryUrlAlt = normalizeUrl(asset.url);
                     
+                    console.log(`Cloudinary URLs to match: ${asset.secure_url}, ${cloudinaryUrl}`);
+                    
                     let existingAsset = existingAssetsMap.get(asset.secure_url) ||
                                        existingAssetsMap.get(asset.url) ||
                                        existingAssetsMap.get(cloudinaryUrl) ||
@@ -165,13 +167,15 @@ exports.handler = async (event) => {
                             const existingAttachment = normalizeUrl(existing.attachment || '');
                             
                             if (existingUrl === cloudinaryUrl || existingAttachment === cloudinaryUrl) {
+                                console.log(`Exact URL match found: ${existingUrl} === ${cloudinaryUrl}`);
                                 return true;
                             }
                             
-                            if (existingUrl.includes(publicIdPart.toLowerCase()) || 
-                                existingAttachment.includes(publicIdPart.toLowerCase()) ||
-                                cloudinaryUrl.includes(existingUrl.split('/').pop()) ||
-                                cloudinaryUrl.includes(existingAttachment.split('/').pop())) {
+                            const publicIdInUrl = cloudinaryUrl.includes(publicIdPart.toLowerCase());
+                            const publicIdInExisting = existingUrl.includes(publicIdPart.toLowerCase()) || existingAttachment.includes(publicIdPart.toLowerCase());
+                            
+                            if (publicIdInUrl && publicIdInExisting) {
+                                console.log(`Public ID match found: ${publicIdPart} in both URLs`);
                                 return true;
                             }
                             
