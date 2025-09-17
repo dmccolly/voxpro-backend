@@ -107,6 +107,8 @@ exports.handler = async (event) => {
             const batchPromises = batch.map(async (asset) => {
                 console.log(`\n=== Processing Asset ${asset.public_id} ===`);
                 console.log(`Cloudinary URL: ${asset.secure_url}`);
+                console.log(`Existing assets map size: ${existingAssetsMap.size}`);
+                console.log(`Looking for match in existing assets...`);
 
                 try {
                     const properTitle = asset.display_name || 
@@ -130,6 +132,11 @@ exports.handler = async (event) => {
                     };
 
                     const existingAsset = existingAssetsMap.get(asset.secure_url);
+                    console.log(`Match found: ${existingAsset ? 'YES' : 'NO'}`);
+                    if (!existingAsset) {
+                        console.log(`No match for URL: ${asset.secure_url}`);
+                        console.log(`Available URLs in map: ${Array.from(existingAssetsMap.keys()).slice(0, 3).join(', ')}...`);
+                    }
                     
                     if (existingAsset) {
                         console.log(`UPDATING: ${asset.public_id} - correcting file_type from "${existingAsset.file_type}" to "${correctedFileType}"`);
