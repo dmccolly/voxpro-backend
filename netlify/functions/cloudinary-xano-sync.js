@@ -94,7 +94,7 @@ exports.handler = async (event) => {
                     console.log(`Existing asset ID: ${existingAsset.id}, title: "${existingAsset.title}", media_url: "${existingAsset.media_url}"`);
                 }
                 
-                if (existingAsset && existingAsset.media_url && existingAsset.media_url.trim() && existingAsset.media_url === asset.secure_url) {
+                if (existingAsset && existingAsset.media_url === asset.secure_url) {
                     console.log(`SKIPPING: ${asset.public_id} - already has correct media_url`);
                     return { type: 'skipped' };
                 }
