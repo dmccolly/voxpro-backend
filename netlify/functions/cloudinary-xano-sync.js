@@ -84,6 +84,7 @@ exports.handler = async (event) => {
                         station: asset.context?.custom?.station || '',
                         file_type: getFileType(asset.resource_type, asset.format),
                         file_size: asset.bytes || 0,
+                        media_url: asset.secure_url,
                         cloudinary_url: asset.secure_url,
                         resource_type: asset.resource_type,
                         format: asset.format,
