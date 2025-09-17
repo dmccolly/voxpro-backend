@@ -58,11 +58,14 @@ exports.handler = async (event) => {
         
         const existingAssetsMap = new Map();
         existingAssets.forEach(asset => {
-            if (asset.media_url) {
+            if (asset.media_url && asset.media_url.trim()) {
                 existingAssetsMap.set(asset.media_url, asset);
             }
             if (asset.title && asset.title.includes('/')) {
                 existingAssetsMap.set(asset.title, asset);
+            }
+            if (asset.id) {
+                existingAssetsMap.set(`id_${asset.id}`, asset);
             }
         });
 
