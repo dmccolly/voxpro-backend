@@ -40,7 +40,7 @@ exports.handler = async (event) => {
                     expression: 'resource_type:image OR resource_type:video OR resource_type:raw',
                     with_field: ['context', 'tags'],
                     sort_by: [{ 'created_at': 'desc' }],
-                    max_results: 5
+                    max_results: 20
                 })
             }
         );
