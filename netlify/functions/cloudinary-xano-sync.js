@@ -54,6 +54,7 @@ exports.handler = async (event) => {
 
         const existingResponse = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`);
         const existingAssets = existingResponse.ok ? await existingResponse.json() : [];
+        console.log('Sample existing assets:', existingAssets.slice(0, 3).map(a => ({ title: a.title, media_url: a.media_url })));
         const existingAssetsMap = new Map(existingAssets.map(asset => [asset.title, asset]));
 
         let imported = 0;
