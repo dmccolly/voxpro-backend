@@ -87,11 +87,22 @@ exports.handler = async (event) => {
             const batch = assets.slice(i, i + batchSize);
             const batchPromises = batch.map(async (asset) => {
                 let existingAsset = existingAssetsMap.get(asset.secure_url) || existingAssetsMap.get(asset.public_id);
-                console.log(`Asset ${asset.public_id}: existingAsset=${!!existingAsset}, media_url="${existingAsset?.media_url}"`);
+                console.log(`\n=== Processing Asset ${asset.public_id} ===`);
+                console.log(`Cloudinary URL: ${asset.secure_url}`);
+                console.log(`Existing asset found: ${!!existingAsset}`);
+                if (existingAsset) {
+                    console.log(`Existing asset ID: ${existingAsset.id}, title: "${existingAsset.title}", media_url: "${existingAsset.media_url}"`);
+                }
                 
                 if (existingAsset && existingAsset.media_url && existingAsset.media_url.trim() && existingAsset.media_url === asset.secure_url) {
-                    console.log(`Skipping ${asset.public_id} - already has correct media_url`);
+                    console.log(`SKIPPING: ${asset.public_id} - already has correct media_url`);
                     return { type: 'skipped' };
+                }
+                
+                if (existingAsset) {
+                    console.log(`UPDATING: ${asset.public_id} - existing asset needs media_url populated`);
+                } else {
+                    console.log(`IMPORTING: ${asset.public_id} - new asset`);
                 }
 
                 try {
