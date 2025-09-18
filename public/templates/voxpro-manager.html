@@ -395,13 +395,57 @@
             
             <div class="message" id="messageBox"></div>
 
+            <div class="upload-section" style="margin-bottom: 25px;">
+                <label class="form-label">Upload Media</label>
+                <div class="upload-area" id="uploadArea" style="border: 2px dashed var(--bg-tertiary); border-radius: 8px; padding: 30px; text-align: center; background: var(--bg-secondary); cursor: pointer; transition: all 0.3s ease;">
+                    <div class="upload-content">
+                        <div style="font-size: 48px; margin-bottom: 15px;">📁</div>
+                        <div style="font-size: 18px; margin-bottom: 10px; color: var(--text-primary);">Drop files here or click to browse</div>
+                        <div style="font-size: 14px; color: var(--text-secondary);">Supports images, videos, audio, and documents</div>
+                        <input type="file" id="fileInput" multiple accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt" style="display: none;">
+                    </div>
+                </div>
+                <div class="upload-progress" id="uploadProgress" style="margin-top: 15px; display: none;">
+                    <div class="progress-bar" style="width: 100%; height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden;">
+                        <div class="progress-fill" id="progressFill" style="height: 100%; background: var(--accent); width: 0%; transition: width 0.3s ease;"></div>
+                    </div>
+                    <div class="progress-text" id="progressText" style="margin-top: 8px; font-size: 14px; color: var(--text-secondary);">Uploading...</div>
+                </div>
+            </div>
+
             <div class="search-section">
                 <label class="form-label">Search Media (title, description, station, tags)</label>
-                <input type="text" class="search-input" id="searchInput" placeholder="Type to search... or leave empty for recent">
+                <div class="picker-controls" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search all media (Cloudinary + Xano)..." style="flex: 1;">
+                    <select class="form-select" id="mediaTypeFilter" style="width: 150px;">
+                        <option value="">All Types</option>
+                        <option value="image">Images</option>
+                        <option value="video">Videos</option>
+                        <option value="audio">Audio</option>
+                        <option value="raw">Documents</option>
+                    </select>
+                </div>
             </div>
 
             <div class="media-browser" id="mediaBrowser">
                 <div class="empty-state">Loading media...</div>
+            </div>
+
+            <div class="preview-section" id="previewSection" style="margin: 25px 0; display: none;">
+                <label class="form-label">Media Preview</label>
+                <div class="preview-container" id="previewContainer" style="background: var(--bg-primary); border: 1px solid var(--bg-tertiary); border-radius: 8px; padding: 15px; min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                    <div id="previewContent" style="width: 100%; text-align: center;">
+                        <div class="preview-placeholder">
+                            <div style="font-size: 48px; margin-bottom: 10px;">🎵</div>
+                            <div style="color: var(--text-secondary);">Select media to preview</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="preview-controls" style="margin-top: 10px; text-align: center;">
+                    <button class="preview-button" id="playButton" onclick="playSelectedMedia()" style="background: var(--success); color: white; border: none; padding: 8px 16px; border-radius: 4px; margin: 0 5px; cursor: pointer;">▶️ Play</button>
+                    <button class="preview-button" id="stopButton" onclick="stopPreview()" style="background: var(--error); color: white; border: none; padding: 8px 16px; border-radius: 4px; margin: 0 5px; cursor: pointer;">⏹️ Stop</button>
+                    <button class="preview-button" id="fullscreenButton" onclick="openFullPreview()" style="background: var(--accent); color: white; border: none; padding: 8px 16px; border-radius: 4px; margin: 0 5px; cursor: pointer;">🔍 Fullscreen</button>
+                </div>
             </div>
 
             <div class="form-section">

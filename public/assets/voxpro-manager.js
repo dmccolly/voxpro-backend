@@ -87,7 +87,27 @@
     }
 
     // Media functions
-    async function loadMedia(query = '') {
+    async function loadAllMedia(query = '', type = '') {
+        try {
+            const xanoMedia = await loadXanoMedia(query);
+            const cloudinaryAssets = await loadCloudinaryAssets(query, type);
+            
+            const allMedia = [...xanoMedia, ...cloudinaryAssets];
+            state.mediaList = allMedia;
+            
+            renderMediaBrowser();
+            setConnectionStatus(true);
+            
+            return allMedia;
+        } catch (error) {
+            console.error('Error loading all media:', error);
+            showMessage('error', 'Error loading media: ' + error.message);
+            setConnectionStatus(false);
+            return [];
+        }
+    }
+
+    async function loadXanoMedia(query = '') {
         try {
             let endpoint = CONFIG.LIST_MEDIA_ENDPOINT;
             if (query) {
@@ -99,27 +119,62 @@
             
             let data = await response.json();
             
-            // Handle search results format
+            let mediaList = [];
             if (data.results) {
-                state.mediaList = data.results;
+                mediaList = data.results;
             } else {
-                state.mediaList = Array.isArray(data) ? data : [];
+                mediaList = Array.isArray(data) ? data : [];
             }
             
-            // Filter out test/invalid data
-            state.mediaList = state.mediaList.filter(item => {
+            return mediaList.filter(item => {
                 return item.file_size && item.file_size > 100 && 
                        (item.cloudinary_url || item.file_url || item.database_url);
-            });
-            
-            renderMediaBrowser();
-            setConnectionStatus(true);
+            }).map(item => ({
+                ...item,
+                source: 'xano'
+            }));
             
         } catch (error) {
-            console.error('Load media error:', error);
-            showMessage('error', 'Failed to load media');
-            setConnectionStatus(false);
+            console.error('Load Xano media error:', error);
+            return [];
         }
+    }
+
+    async function loadCloudinaryAssets(query = '', type = '') {
+        try {
+            let endpoint = '/.netlify/functions/LIst-assets';
+            const params = new URLSearchParams();
+            if (query) params.append('expression', `filename:*${query}*`);
+            if (type) params.append('type', type);
+            params.append('max', '50');
+            
+            if (params.toString()) {
+                endpoint += '?' + params.toString();
+            }
+            
+            const response = await fetch(endpoint);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const data = await response.json();
+            return (data.resources || []).map(asset => ({
+                id: asset.public_id,
+                title: asset.display_name || asset.filename || asset.public_id,
+                media_url: asset.secure_url,
+                attachment: asset.secure_url,
+                source: 'cloudinary',
+                file_type: asset.resource_type,
+                file_size: asset.bytes,
+                cloudinary_data: asset
+            }));
+            
+        } catch (error) {
+            console.error('Load Cloudinary assets error:', error);
+            return [];
+        }
+    }
+
+    async function loadMedia(query = '') {
+        return await loadAllMedia(query);
     }
 
     function renderMediaBrowser() {
@@ -132,14 +187,19 @@
         }
 
         browser.innerHTML = state.mediaList.map(item => {
-            const icon = getMediaIcon(item.file_type || item.category || '');
+            const thumbnail = getMediaThumbnail(item);
+            const title = item.title || item.filename || item.display_name || 'Untitled';
+            const itemId = item.source === 'cloudinary' ? item.id : item.id;
+            
             return `
-                <div class="media-item" data-id="${item.id}">
-                    <div class="media-icon">${icon}</div>
+                <div class="media-item" data-id="${itemId}" data-source="${item.source}">
+                    <div class="media-thumbnail" style="width: 60px; height: 60px; margin-right: 12px; border-radius: 4px; overflow: hidden; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center;">
+                        ${thumbnail}
+                    </div>
                     <div class="media-info">
-                        <div class="media-title">${item.title || 'Untitled'}</div>
+                        <div class="media-title">${title}</div>
                         <div class="media-meta">
-                            ${item.station || 'Unknown'} • ${item.category || 'Media'}
+                            ${item.station || item.source || 'Unknown'} • ${item.file_type || 'Media'}
                             ${item.file_size ? ` • ${formatFileSize(item.file_size)}` : ''}
                         </div>
                     </div>
@@ -149,7 +209,15 @@
         
         // Add click handlers
         browser.querySelectorAll('.media-item').forEach(item => {
-            item.addEventListener('click', () => selectMedia(parseInt(item.dataset.id)));
+            item.addEventListener('click', () => {
+                const source = item.dataset.source;
+                const id = item.dataset.id;
+                if (source === 'cloudinary') {
+                    selectCloudinaryAsset(id);
+                } else {
+                    selectMedia(parseInt(id));
+                }
+            });
         });
     }
 
@@ -161,6 +229,30 @@
         if (type.includes('photo')) return '📷';
         if (type.includes('document')) return '📄';
         return '📁';
+    }
+
+    function getMediaThumbnail(item) {
+        const mediaUrl = item.cloudinary_url || item.media_url || item.attachment;
+        const fileType = (item.file_type || '').toLowerCase();
+        
+        if (fileType === 'image' && mediaUrl) {
+            const thumbnailUrl = mediaUrl.includes('cloudinary.com') 
+                ? mediaUrl.replace('/upload/', '/upload/w_60,h_60,c_fill,f_auto,q_auto/')
+                : mediaUrl;
+            return `<img src="${thumbnailUrl}" alt="${item.title || 'Image'}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 1.2rem;">🖼️</div>`;
+        } else if (fileType === 'video' && mediaUrl) {
+            const thumbnailUrl = mediaUrl.includes('cloudinary.com') 
+                ? mediaUrl.replace('/upload/', '/upload/w_60,h_60,c_fill,f_auto,q_auto/').replace(/\.(mp4|mov|avi|webm)$/, '.jpg')
+                : null;
+            return thumbnailUrl 
+                ? `<img src="${thumbnailUrl}" alt="${item.title || 'Video'}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                   <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 1.2rem;">🎬</div>`
+                : `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">🎬</div>`;
+        } else {
+            const icon = getMediaIcon(fileType);
+            return `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">${icon}</div>`;
+        }
     }
 
     function formatFileSize(bytes) {
@@ -190,6 +282,218 @@
         if (elements.stationInput) elements.stationInput.value = state.selectedMedia.station || '';
         if (elements.tagsInput) elements.tagsInput.value = state.selectedMedia.tags || '';
         if (elements.submittedByInput) elements.submittedByInput.value = state.selectedMedia.submitted_by || '';
+        
+        showMediaPreview(state.selectedMedia);
+    }
+
+    function showMediaPreview(media) {
+        const previewSection = document.getElementById('previewSection');
+        const previewContent = document.getElementById('previewContent');
+        
+        if (!previewSection || !previewContent) return;
+        
+        previewSection.style.display = 'block';
+        
+        const mediaUrl = media.cloudinary_url || media.media_url || media.attachment;
+        const title = media.title || media.filename || 'Untitled';
+        
+        if (!mediaUrl) {
+            previewContent.innerHTML = `
+                <div class="preview-placeholder">
+                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                    <div style="color: var(--text-secondary);">No media URL available</div>
+                </div>
+            `;
+            return;
+        }
+        
+        let mediaElement;
+        previewContent.innerHTML = '';
+        
+        if (media.file_type === 'audio') {
+            mediaElement = document.createElement('audio');
+            mediaElement.controls = true;
+            mediaElement.src = mediaUrl;
+            mediaElement.style.width = '100%';
+            
+        } else if (media.file_type === 'video') {
+            mediaElement = document.createElement('video');
+            mediaElement.controls = true;
+            mediaElement.src = mediaUrl;
+            mediaElement.style.width = '100%';
+            mediaElement.style.maxHeight = '300px';
+            
+        } else if (media.file_type === 'image') {
+            mediaElement = document.createElement('img');
+            mediaElement.src = mediaUrl;
+            mediaElement.alt = title;
+            mediaElement.style.maxWidth = '100%';
+            mediaElement.style.maxHeight = '300px';
+            mediaElement.style.objectFit = 'contain';
+            
+        } else {
+            previewContent.innerHTML = `
+                <div class="preview-placeholder">
+                    <div style="font-size: 48px; margin-bottom: 10px;">📄</div>
+                    <div style="color: var(--text-secondary);">${title}</div>
+                    <button onclick="window.open('${mediaUrl}', '_blank')" style="margin-top: 12px; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        📥 Open File
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        if (mediaElement) {
+            mediaElement.onerror = function() {
+                previewContent.innerHTML = `
+                    <div class="preview-placeholder">
+                        <div style="font-size: 48px; margin-bottom: 10px;">⚠️</div>
+                        <div style="color: var(--text-secondary);">Error loading media</div>
+                        <button onclick="window.open('${mediaUrl}', '_blank')" style="margin-top: 12px; padding: 8px 16px; background: var(--error); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📥 Open Instead
+                        </button>
+                    </div>
+                `;
+            };
+            
+            previewContent.appendChild(mediaElement);
+        }
+    }
+
+    function selectCloudinaryAsset(publicId) {
+        const asset = state.mediaList.find(m => m.id === publicId && m.source === 'cloudinary');
+        if (!asset) return;
+
+        state.selectedMedia = {
+            id: asset.id,
+            title: asset.title || asset.public_id,
+            description: asset.description || '',
+            station: 'Cloudinary',
+            tags: Array.isArray(asset.tags) ? asset.tags.join(', ') : (asset.tags || ''),
+            submitted_by: 'Cloudinary Import',
+            file_type: asset.file_type,
+            file_size: asset.file_size,
+            cloudinary_url: asset.media_url,
+            media_url: asset.media_url,
+            attachment: asset.media_url
+        };
+
+        document.querySelectorAll('.media-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        
+        const selectedItem = document.querySelector(`[data-id="${publicId}"][data-source="cloudinary"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('selected');
+        }
+
+        if (elements.titleInput) elements.titleInput.value = state.selectedMedia.title || '';
+        if (elements.descriptionInput) elements.descriptionInput.value = state.selectedMedia.description || '';
+        if (elements.stationInput) elements.stationInput.value = state.selectedMedia.station || '';
+        if (elements.tagsInput) elements.tagsInput.value = state.selectedMedia.tags || '';
+        if (elements.submittedByInput) elements.submittedByInput.value = state.selectedMedia.submitted_by || '';
+        
+        showMediaPreview(state.selectedMedia);
+    }
+
+    function setupUploadHandlers() {
+        if (!elements.uploadArea || !elements.fileInput) return;
+
+        elements.uploadArea.addEventListener('click', () => {
+            elements.fileInput.click();
+        });
+
+        elements.fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        elements.uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            elements.uploadArea.style.borderColor = 'var(--accent)';
+            elements.uploadArea.style.background = 'var(--bg-primary)';
+        });
+
+        elements.uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            elements.uploadArea.style.borderColor = 'var(--bg-tertiary)';
+            elements.uploadArea.style.background = 'var(--bg-secondary)';
+        });
+
+        elements.uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            elements.uploadArea.style.borderColor = 'var(--bg-tertiary)';
+            elements.uploadArea.style.background = 'var(--bg-secondary)';
+            
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        });
+    }
+
+    async function handleFiles(files) {
+        if (!files || files.length === 0) return;
+
+        const fileArray = Array.from(files);
+        showMessage('info', `Uploading ${fileArray.length} file(s)...`);
+        
+        elements.uploadProgress.style.display = 'block';
+        elements.progressFill.style.width = '0%';
+        elements.progressText.textContent = 'Preparing upload...';
+
+        let uploadedCount = 0;
+        const totalFiles = fileArray.length;
+
+        for (let i = 0; i < fileArray.length; i++) {
+            const file = fileArray[i];
+            
+            try {
+                elements.progressText.textContent = `Uploading ${file.name} (${i + 1}/${totalFiles})...`;
+                
+                await uploadSingleFile(file);
+                uploadedCount++;
+                
+                const progress = ((i + 1) / totalFiles) * 100;
+                elements.progressFill.style.width = `${progress}%`;
+                
+            } catch (error) {
+                console.error(`Upload failed for ${file.name}:`, error);
+                showMessage('error', `Failed to upload ${file.name}: ${error.message}`);
+            }
+        }
+
+        elements.uploadProgress.style.display = 'none';
+        
+        if (uploadedCount > 0) {
+            showMessage('success', `Successfully uploaded ${uploadedCount} file(s)`);
+            await loadAllMedia();
+        }
+
+        elements.fileInput.value = '';
+    }
+
+    async function uploadSingleFile(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'ml_default');
+        formData.append('folder', 'voxpro-uploads');
+
+        const response = await fetch('/.netlify/functions/file-manager-upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.error || 'Upload failed');
+        }
+
+        return result;
     }
 
     // Assignment functions
@@ -423,7 +727,15 @@
             connectionText: document.getElementById('connectionText'),
             messageBox: document.getElementById('messageBox'),
             searchInput: document.getElementById('searchInput'),
+            mediaTypeFilter: document.getElementById('mediaTypeFilter'),
             mediaBrowser: document.getElementById('mediaBrowser'),
+            previewSection: document.getElementById('previewSection'),
+            previewContent: document.getElementById('previewContent'),
+            uploadArea: document.getElementById('uploadArea'),
+            fileInput: document.getElementById('fileInput'),
+            uploadProgress: document.getElementById('uploadProgress'),
+            progressFill: document.getElementById('progressFill'),
+            progressText: document.getElementById('progressText'),
             keySelect: document.getElementById('keySelect'),
             titleInput: document.getElementById('titleInput'),
             descriptionInput: document.getElementById('descriptionInput'),
@@ -437,10 +749,22 @@
     }
 
     function attachEventListeners() {
-        // Search with debounce
+        // Unified search with debounce
         if (elements.searchInput) {
-            const debouncedSearch = debounce(e => loadMedia(e.target.value.trim()), CONFIG.DEBOUNCE_MS);
+            const debouncedSearch = debounce(e => {
+                const query = e.target.value.trim();
+                const type = elements.mediaTypeFilter?.value || '';
+                loadAllMedia(query, type);
+            }, CONFIG.DEBOUNCE_MS);
             elements.searchInput.addEventListener('input', debouncedSearch);
+        }
+        
+        if (elements.mediaTypeFilter) {
+            elements.mediaTypeFilter.addEventListener('change', e => {
+                const query = elements.searchInput?.value.trim() || '';
+                const type = e.target.value;
+                loadAllMedia(query, type);
+            });
         }
         
         // Key buttons
@@ -484,9 +808,10 @@
         initializeElements();
         setConnectionStatus(false);
         attachEventListeners();
+        setupUploadHandlers();
         
         // Load initial data
-        await loadMedia();
+        await loadAllMedia();
         await loadAssignments();
         
         // Set up periodic refresh
@@ -502,6 +827,42 @@
         initialize();
     }
     
+    // Global functions for preview controls
+    window.playSelectedMedia = function() {
+        const previewContent = document.getElementById('previewContent');
+        if (!previewContent) return;
+        
+        const media = previewContent.querySelector('audio, video');
+        if (media) {
+            media.play().catch(error => {
+                console.log('Autoplay blocked:', error);
+                showMessage('info', 'Click the media player to start playback');
+            });
+        }
+    };
+
+    window.stopPreview = function() {
+        const previewContent = document.getElementById('previewContent');
+        if (!previewContent) return;
+        
+        const media = previewContent.querySelector('audio, video');
+        if (media) {
+            media.pause();
+            media.currentTime = 0;
+        }
+    };
+
+    window.openFullPreview = function() {
+        if (state.selectedMedia) {
+            const mediaUrl = state.selectedMedia.cloudinary_url || state.selectedMedia.media_url || state.selectedMedia.attachment;
+            if (mediaUrl) {
+                window.open(mediaUrl, '_blank');
+            } else {
+                showMessage('error', 'No media URL available');
+            }
+        }
+    };
+
     // Export for debugging
     window.voxProManager = {
         state,
