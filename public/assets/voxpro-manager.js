@@ -17,6 +17,7 @@
     let state = {
         selectedMedia: null,
         mediaList: [],
+        cloudinaryAssets: [],
         assignments: [],
         playing: null,
         connected: false
@@ -109,7 +110,7 @@
             // Filter out test/invalid data
             state.mediaList = state.mediaList.filter(item => {
                 return item.file_size && item.file_size > 100 && 
-                       (item.cloudinary_url || item.file_url || item.database_url);
+                       (item.cloudinary_url || item.file_url || item.database_url || item.media_url || item.attachment);
             });
             
             renderMediaBrowser();
@@ -120,6 +121,98 @@
             showMessage('error', 'Failed to load media');
             setConnectionStatus(false);
         }
+    }
+
+    async function loadCloudinaryAssets(query = '', type = '') {
+        try {
+            let endpoint = '/.netlify/functions/LIst-assets';
+            const params = new URLSearchParams();
+            if (query) params.append('expression', `filename:*${query}*`);
+            if (type) params.append('type', type);
+            params.append('max', '50');
+            
+            if (params.toString()) {
+                endpoint += '?' + params.toString();
+            }
+            
+            const response = await fetch(endpoint);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const data = await response.json();
+            state.cloudinaryAssets = data.resources || [];
+            
+            renderCloudinaryBrowser();
+            setConnectionStatus(true);
+            
+        } catch (error) {
+            console.error('Load Cloudinary assets error:', error);
+            showMessage('error', 'Failed to load Cloudinary assets');
+            setConnectionStatus(false);
+        }
+    }
+
+    function renderCloudinaryBrowser() {
+        const browser = elements.cloudinaryBrowser;
+        if (!browser) return;
+        
+        if (!state.cloudinaryAssets || state.cloudinaryAssets.length === 0) {
+            browser.innerHTML = '<div class="empty-state">No Cloudinary assets found</div>';
+            return;
+        }
+
+        browser.innerHTML = state.cloudinaryAssets.map(item => {
+            const icon = getMediaIcon(item.resource_type || '');
+            return `
+                <div class="media-item" data-cloudinary-id="${item.public_id}">
+                    <div class="media-icon">${icon}</div>
+                    <div class="media-info">
+                        <div class="media-title">${item.title || item.public_id}</div>
+                        <div class="media-meta">
+                            ${item.station || 'Cloudinary'} • ${item.resource_type || 'Asset'}
+                            ${item.bytes ? ` • ${formatFileSize(item.bytes)}` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        browser.querySelectorAll('.media-item').forEach(item => {
+            item.addEventListener('click', () => selectCloudinaryAsset(item.dataset.cloudinaryId));
+        });
+    }
+
+    function selectCloudinaryAsset(publicId) {
+        const asset = state.cloudinaryAssets.find(a => a.public_id === publicId);
+        if (!asset) return;
+
+        state.selectedMedia = {
+            id: asset.public_id,
+            title: asset.title || asset.public_id,
+            description: asset.description || '',
+            station: asset.station || 'Cloudinary',
+            tags: Array.isArray(asset.tags) ? asset.tags.join(', ') : (asset.tags || ''),
+            submitted_by: 'Cloudinary Import',
+            file_type: asset.resource_type,
+            file_size: asset.bytes,
+            cloudinary_url: asset.secure_url,
+            media_url: asset.secure_url,
+            attachment: asset.secure_url
+        };
+
+        document.querySelectorAll('.media-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        
+        const selectedItem = document.querySelector(`[data-cloudinary-id="${publicId}"]`);
+        if (selectedItem) {
+            selectedItem.classList.add('selected');
+        }
+
+        if (elements.titleInput) elements.titleInput.value = state.selectedMedia.title || '';
+        if (elements.descriptionInput) elements.descriptionInput.value = state.selectedMedia.description || '';
+        if (elements.stationInput) elements.stationInput.value = state.selectedMedia.station || '';
+        if (elements.tagsInput) elements.tagsInput.value = state.selectedMedia.tags || '';
+        if (elements.submittedByInput) elements.submittedByInput.value = state.selectedMedia.submitted_by || '';
     }
 
     function renderMediaBrowser() {
@@ -424,6 +517,9 @@
             messageBox: document.getElementById('messageBox'),
             searchInput: document.getElementById('searchInput'),
             mediaBrowser: document.getElementById('mediaBrowser'),
+            cloudinarySearch: document.getElementById('cloudinarySearch'),
+            cloudinaryType: document.getElementById('cloudinaryType'),
+            cloudinaryBrowser: document.getElementById('cloudinaryBrowser'),
             keySelect: document.getElementById('keySelect'),
             titleInput: document.getElementById('titleInput'),
             descriptionInput: document.getElementById('descriptionInput'),
@@ -441,6 +537,23 @@
         if (elements.searchInput) {
             const debouncedSearch = debounce(e => loadMedia(e.target.value.trim()), CONFIG.DEBOUNCE_MS);
             elements.searchInput.addEventListener('input', debouncedSearch);
+        }
+        
+        if (elements.cloudinarySearch) {
+            const debouncedCloudinarySearch = debounce(e => {
+                const query = e.target.value.trim();
+                const type = elements.cloudinaryType?.value || '';
+                loadCloudinaryAssets(query, type);
+            }, CONFIG.DEBOUNCE_MS);
+            elements.cloudinarySearch.addEventListener('input', debouncedCloudinarySearch);
+        }
+        
+        if (elements.cloudinaryType) {
+            elements.cloudinaryType.addEventListener('change', e => {
+                const query = elements.cloudinarySearch?.value.trim() || '';
+                const type = e.target.value;
+                loadCloudinaryAssets(query, type);
+            });
         }
         
         // Key buttons
@@ -487,6 +600,7 @@
         
         // Load initial data
         await loadMedia();
+        await loadCloudinaryAssets();
         await loadAssignments();
         
         // Set up periodic refresh

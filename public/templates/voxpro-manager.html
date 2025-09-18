@@ -395,7 +395,23 @@
             
             <div class="message" id="messageBox"></div>
 
-            <div class="search-section">
+            <div class="cloudinary-picker-section" style="margin-bottom: 25px;">
+                <label class="form-label">Cloudinary Asset Browser</label>
+                <div class="picker-controls" style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <input type="text" class="search-input" id="cloudinarySearch" placeholder="Search Cloudinary assets..." style="flex: 1;">
+                    <select class="form-select" id="cloudinaryType" style="width: 150px;">
+                        <option value="">All Types</option>
+                        <option value="image">Images</option>
+                        <option value="video">Videos</option>
+                        <option value="raw">Documents</option>
+                    </select>
+                </div>
+                <div class="media-browser" id="cloudinaryBrowser" style="max-height: 200px;">
+                    <div class="empty-state">Loading Cloudinary assets...</div>
+                </div>
+            </div>
+
+            <div class="search-section"></div>
                 <label class="form-label">Search Media (title, description, station, tags)</label>
                 <input type="text" class="search-input" id="searchInput" placeholder="Type to search... or leave empty for recent">
             </div>
