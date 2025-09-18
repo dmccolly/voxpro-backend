@@ -1631,7 +1631,7 @@
          * `currentPage` and triggers `updateFileList()` to append more items.
          */
         function initInfiniteScroll() {
-            const container = document.getElementById('fileListContent');
+            const container = document.querySelector('.file-list');
             if (!container) return;
             container.addEventListener('scroll', () => {
                 const threshold = 50; // px from bottom to trigger load
