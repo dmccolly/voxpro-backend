@@ -1374,6 +1374,11 @@
             // Determine how many items to display based on current page
             const displayFiles = filteredFilesCache.slice(0, currentPage * itemsPerPage);
 
+            // Ensure currentViewMode is set to a valid value
+            if (!currentViewMode) {
+                currentViewMode = 'details';
+            }
+
             let html = '';
             if (currentViewMode === 'details') {
                 // Detailed list view
@@ -1418,6 +1423,8 @@
                 }).join('') + '</div>';
                 container.innerHTML = html;
             }
+            
+            console.log(`updateFileList: Displayed ${displayFiles.length} items (page ${currentPage}, ${itemsPerPage} per page)`);
         }
 
         // Update counts
