@@ -40,6 +40,7 @@ exports.handler = async (event) => {
         try {
             responseText = await existingResponse.text();
             console.log(`Raw response length: ${responseText.length}, first 200 chars:`, responseText.substring(0, 200));
+        console.log('Response headers:', existingResponse.headers);
             
             if (!responseText || responseText.trim() === '') {
                 throw new Error('Empty response from Xano API');
