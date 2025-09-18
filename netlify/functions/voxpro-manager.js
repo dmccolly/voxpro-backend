@@ -760,7 +760,7 @@ exports.handler = async (event) => {
             for (let i = 1; i <= 12; i++) {
                 const option = document.createElement('option');
                 option.value = i;
-                option.textContent = `Key ${i}`;
+                option.textContent = 'Key ' + i;
                 keySelect.appendChild(option);
             }
 
