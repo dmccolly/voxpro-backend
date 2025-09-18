@@ -36,11 +36,20 @@ exports.handler = async (event) => {
         }
 
         let existingAssets;
+        let responseText;
         try {
-            const responseText = await existingResponse.text();
+            responseText = await existingResponse.text();
+            console.log(`Raw response length: ${responseText.length}, first 200 chars:`, responseText.substring(0, 200));
+            
+            if (!responseText || responseText.trim() === '') {
+                throw new Error('Empty response from Xano API');
+            }
+            
             existingAssets = JSON.parse(responseText);
         } catch (parseError) {
-            throw new Error(`Failed to parse JSON response: ${parseError.message}. Response: ${responseText.substring(0, 200)}`);
+            console.error('JSON parse error:', parseError);
+            console.error('Response text:', responseText);
+            throw new Error(`Failed to parse JSON response: ${parseError.message}. Response length: ${responseText ? responseText.length : 'null'}, Content: ${responseText ? responseText.substring(0, 200) : 'empty'}`);
         }
 
         if (!Array.isArray(existingAssets)) {
