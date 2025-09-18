@@ -23,7 +23,7 @@ exports.handler = async (event) => {
 
   try {
     // Read the template file
-    const templatePath = path.join(__dirname, '../../templates/voxpro-manager.html');
+    const templatePath = path.join(__dirname, '../../public/templates/voxpro-manager.html');
     const html = fs.readFileSync(templatePath, 'utf8');
     
     return {

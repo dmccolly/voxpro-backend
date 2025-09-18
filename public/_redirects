@@ -1,1 +1,2 @@
+/voxpro-manager /.netlify/functions/voxpro-manager 200
 /api/* /.netlify/functions/:splat 200
