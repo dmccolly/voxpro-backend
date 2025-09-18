@@ -1,4 +1,10 @@
-const { getXanoHeaders } = require('./_xano.js');
+function getXanoHeaders() {
+    const headers = { 'Content-Type': 'application/json' };
+    if (process.env.XANO_API_KEY) {
+        headers['Authorization'] = `Bearer ${process.env.XANO_API_KEY}`;
+    }
+    return headers;
+}
 
 exports.handler = async (event) => {
     const headers = {
