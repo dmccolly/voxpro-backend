@@ -31,11 +31,24 @@ exports.handler = async (event) => {
         const existingResponse = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission`);
         
         if (!existingResponse.ok) {
-            throw new Error(`Failed to fetch existing records: ${existingResponse.status}`);
+            const errorText = await existingResponse.text();
+            throw new Error(`Failed to fetch existing records: ${existingResponse.status} - ${errorText}`);
         }
 
-        const existingAssets = await existingResponse.json();
+        let existingAssets;
+        try {
+            const responseText = await existingResponse.text();
+            existingAssets = JSON.parse(responseText);
+        } catch (parseError) {
+            throw new Error(`Failed to parse JSON response: ${parseError.message}. Response: ${responseText.substring(0, 200)}`);
+        }
+
+        if (!Array.isArray(existingAssets)) {
+            throw new Error(`Expected array response, got: ${typeof existingAssets}`);
+        }
+
         console.log(`Found ${existingAssets.length} total records`);
+        console.log('Sample record:', existingAssets[0] ? JSON.stringify(existingAssets[0], null, 2) : 'No records');
 
         const recordsToValidate = existingAssets.filter(asset => {
             const hasCloudinaryUrl = asset.cloudinary_url && asset.cloudinary_url.includes('cloudinary.com');

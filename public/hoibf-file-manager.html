@@ -436,6 +436,8 @@
             flex: 1;
             overflow-y: auto;
             background: var(--bg-primary);
+            height: 400px;
+            max-height: calc(100vh - 300px);
         }
 
         .file-list-header {
@@ -1133,7 +1135,7 @@
                         <div>Modified</div>
                         <div>Actions</div>
                     </div>
-                    <div id="fileListContent">
+                    <div id="fileListContent" style="overflow-y: auto; height: 400px; max-height: calc(100vh - 300px);">
                         <div class="loading">
                             <div class="spinner"></div>
                             Loading files...
@@ -1658,12 +1660,21 @@
          */
         function initInfiniteScroll() {
             const container = document.getElementById('fileListContent');
-            if (!container) return;
+            if (!container) {
+                console.error('fileListContent container not found for infinite scroll');
+                return;
+            }
             container.addEventListener('scroll', () => {
                 const threshold = 50; // px from bottom to trigger load
-                if (container.scrollTop + container.clientHeight >= container.scrollHeight - threshold) {
+                const scrollPosition = container.scrollTop + container.clientHeight;
+                const scrollHeight = container.scrollHeight;
+                
+                console.log(`Scroll: ${scrollPosition}/${scrollHeight}, threshold: ${threshold}, page: ${currentPage}, total items: ${filteredFilesCache.length}`);
+                
+                if (scrollPosition >= scrollHeight - threshold) {
                     // Only load more if there are more items to show
                     if (currentPage * itemsPerPage < filteredFilesCache.length) {
+                        console.log(`Loading page ${currentPage + 1}`);
                         currentPage++;
                         updateFileList();
                     }
