@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cleanup Orphaned Records</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        button { background: #dc3545; color: white; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; margin: 8px; }
+        button:hover { background: #c82333; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .result { margin-top: 20px; padding: 15px; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>Cleanup Orphaned Records</h1>
+    <p><strong>Warning:</strong> This will permanently delete Xano records that reference Cloudinary files that no longer exist.</p>
+    <p>This validates each Cloudinary URL to ensure the file actually exists before keeping the record.</p>
+    
+    <button id="cleanupBtn" onclick="runCleanup()">Find and Delete Orphaned Records</button>
+    <a href="/hoibf-file-manager.html" style="text-decoration: none;">
+        <button style="background: #007cba;">Back to File Manager</button>
+    </a>
+    
+    <div id="result"></div>
+
+    <script>
+        async function runCleanup() {
+            const btn = document.getElementById('cleanupBtn');
+            const result = document.getElementById('result');
+            
+            btn.disabled = true;
+            btn.textContent = 'Validating files...';
+            result.innerHTML = '';
+            
+            try {
+                const response = await fetch('/.netlify/functions/cleanup-orphaned-records', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    result.className = 'result success';
+                    result.innerHTML = `
+                        <h3>Orphaned Record Cleanup Complete!</h3>
+                        <p>Total records found: ${data.total_records}</p>
+                        <p>Records validated: ${data.records_validated}</p>
+                        <p>Orphaned records found: ${data.orphaned_found}</p>
+                        <p>Successfully deleted: ${data.deleted}</p>
+                        <p>Processing time: ${data.processing_time}</p>
+                        ${data.validation_errors.length > 0 ? `<p>Validation errors: ${data.validation_errors.length}</p>` : ''}
+                        ${data.delete_errors.length > 0 ? `<p>Delete errors: ${data.delete_errors.length}</p>` : ''}
+                        <p><strong>Next step:</strong> <a href="/hoibf-file-manager.html">Return to File Manager</a> to verify cleanup.</p>
+                    `;
+                } else {
+                    throw new Error(data.error || 'Cleanup failed');
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `<h3>Cleanup Failed</h3><p>${error.message}</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Find and Delete Orphaned Records';
+            }
+        }
+    </script>
+</body>
+</html>
