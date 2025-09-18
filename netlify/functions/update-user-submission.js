@@ -36,7 +36,8 @@ exports.handler = async (event) => {
 
         const updateData = JSON.parse(event.body || '{}');
         
-        const existingResponse = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission/${recordId}`, {
+        const baseUrl = event.headers.host ? `https://${event.headers.host}` : 'https://app.streamofdan.com';
+        const existingResponse = await fetch(`${baseUrl}/.netlify/functions/xano-proxy/user_submission/${recordId}`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -63,7 +64,7 @@ exports.handler = async (event) => {
         const completeData = { ...existingRecord, ...processedUpdateData };
         
         
-        const response = await fetch(`${event.headers.origin || 'https://app.streamofdan.com'}/.netlify/functions/xano-proxy/user_submission/${recordId}`, {
+        const response = await fetch(`${baseUrl}/.netlify/functions/xano-proxy/user_submission/${recordId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(completeData)
