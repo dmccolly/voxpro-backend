@@ -475,7 +475,391 @@ exports.handler = async (event) => {
         </div>
     </div>
 
-    <script src="/assets/voxpro-manager.js"></script>
+    <script>
+        const API_BASE = 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
+        const LIST_MEDIA_ENDPOINT = '/.netlify/functions/list-media';
+        const SEARCH_MEDIA_ENDPOINT = '/.netlify/functions/search-media';
+        const CLOUDINARY_LIST_ENDPOINT = '/.netlify/functions/LIst-assets';
+
+        let selectedMedia = null;
+        let currentPage = 1;
+        const itemsPerPage = 50;
+        let isLoading = false;
+        let allMedia = [];
+        let filteredMedia = [];
+        let currentPreviewElement = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeElements();
+            loadAllMedia();
+            checkConnection();
+        });
+
+        function initializeElements() {
+            const searchInput = document.getElementById('searchInput');
+            const mediaTypeFilter = document.getElementById('mediaTypeFilter');
+            
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(handleSearch, 300));
+            }
+            
+            if (mediaTypeFilter) {
+                mediaTypeFilter.addEventListener('change', handleSearch);
+            }
+            
+            populateKeySlots();
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        async function loadAllMedia() {
+            if (isLoading) return;
+            isLoading = true;
+            
+            const mediaBrowser = document.getElementById('mediaBrowser');
+            if (mediaBrowser) {
+                mediaBrowser.innerHTML = '<div class="empty-state">Loading media...</div>';
+            }
+
+            try {
+                const [xanoMedia, cloudinaryMedia] = await Promise.all([
+                    loadXanoMedia(),
+                    loadCloudinaryMedia()
+                ]);
+
+                allMedia = [...xanoMedia, ...cloudinaryMedia];
+                filteredMedia = allMedia;
+                renderMediaBrowser(filteredMedia);
+                
+            } catch (error) {
+                console.error('Error loading media:', error);
+                if (mediaBrowser) {
+                    mediaBrowser.innerHTML = '<div class="empty-state">Error loading media. Please try again.</div>';
+                }
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        async function loadXanoMedia() {
+            try {
+                const response = await fetch(LIST_MEDIA_ENDPOINT);
+                if (!response.ok) throw new Error('Failed to load Xano media');
+                const data = await response.json();
+                return data.map(item => ({
+                    ...item,
+                    source: 'xano',
+                    type: getMediaType(item.media_url || item.attachment),
+                    thumbnail: getFileThumbnail(item.media_url || item.attachment, getMediaType(item.media_url || item.attachment))
+                }));
+            } catch (error) {
+                console.error('Error loading Xano media:', error);
+                return [];
+            }
+        }
+
+        async function loadCloudinaryMedia() {
+            try {
+                const response = await fetch(CLOUDINARY_LIST_ENDPOINT);
+                if (!response.ok) throw new Error('Failed to load Cloudinary media');
+                const data = await response.json();
+                return data.resources.map(item => ({
+                    id: item.public_id,
+                    title: item.display_name || item.public_id,
+                    media_url: item.secure_url,
+                    source: 'cloudinary',
+                    type: item.resource_type,
+                    format: item.format,
+                    size: item.bytes,
+                    thumbnail: getFileThumbnail(item.secure_url, item.resource_type)
+                }));
+            } catch (error) {
+                console.error('Error loading Cloudinary media:', error);
+                return [];
+            }
+        }
+
+        function getMediaType(url) {
+            if (!url) return 'unknown';
+            const extension = url.split('.').pop().toLowerCase();
+            
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension)) return 'image';
+            if (['mp4', 'webm', 'ogg', 'avi', 'mov'].includes(extension)) return 'video';
+            if (['mp3', 'wav', 'ogg', 'aac', 'm4a'].includes(extension)) return 'audio';
+            if (['pdf', 'doc', 'docx', 'txt'].includes(extension)) return 'raw';
+            
+            return 'unknown';
+        }
+
+        function getFileThumbnail(url, type) {
+            if (!url) return '📄';
+            
+            if (type === 'image') {
+                return url.includes('cloudinary.com') ? 
+                    url.replace('/upload/', '/upload/w_40,h_40,c_fill/') : url;
+            }
+            
+            if (type === 'video') {
+                return url.includes('cloudinary.com') ? 
+                    url.replace('/upload/', '/upload/w_40,h_40,c_fill/').replace(/\.[^.]+$/, '.jpg') : '🎬';
+            }
+            
+            const typeIcons = {
+                'audio': '🎵',
+                'raw': '📄',
+                'unknown': '📄'
+            };
+            
+            return typeIcons[type] || '📄';
+        }
+
+        function renderMediaBrowser(media) {
+            const mediaBrowser = document.getElementById('mediaBrowser');
+            if (!mediaBrowser) return;
+
+            if (!media || media.length === 0) {
+                mediaBrowser.innerHTML = '<div class="empty-state">No media found</div>';
+                return;
+            }
+
+            const mediaHTML = media.map(item => {
+                const thumbnail = item.thumbnail;
+                const isImage = typeof thumbnail === 'string' && (thumbnail.startsWith('http') || thumbnail.startsWith('data:'));
+                const itemId = item.id || item.public_id;
+                const itemTitle = item.title || 'Untitled';
+                const itemType = item.type;
+                const itemSize = formatFileSize(item.size || 0);
+                
+                return '<div class="media-item" onclick="selectMedia(\'' + itemId + '\', \'' + item.source + '\')" data-id="' + itemId + '">' +
+                    '<div class="media-thumbnail">' +
+                    (isImage ? '<img src="' + thumbnail + '" alt="' + itemTitle + '" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">' : thumbnail) +
+                    '</div>' +
+                    '<div class="media-info">' +
+                    '<div class="media-title">' + itemTitle + '</div>' +
+                    '<div class="media-meta">' + itemType + ' • ' + itemSize + '</div>' +
+                    '</div>' +
+                    '</div>';
+            }).join('');
+
+            mediaBrowser.innerHTML = mediaHTML;
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function handleSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const mediaTypeFilter = document.getElementById('mediaTypeFilter');
+            
+            const searchTerm = searchInput ? searchInput.value.toLowerCase() : '';
+            const typeFilter = mediaTypeFilter ? mediaTypeFilter.value : '';
+
+            filteredMedia = allMedia.filter(item => {
+                const matchesSearch = !searchTerm || 
+                    (item.title && item.title.toLowerCase().includes(searchTerm)) ||
+                    (item.description && item.description.toLowerCase().includes(searchTerm)) ||
+                    (item.station && item.station.toLowerCase().includes(searchTerm)) ||
+                    (item.tags && item.tags.toLowerCase().includes(searchTerm));
+
+                const matchesType = !typeFilter || item.type === typeFilter;
+
+                return matchesSearch && matchesType;
+            });
+
+            renderMediaBrowser(filteredMedia);
+        }
+
+        window.selectMedia = function(mediaId, source) {
+            const media = allMedia.find(item => 
+                (item.id === mediaId || item.public_id === mediaId) && item.source === source
+            );
+            
+            if (!media) return;
+
+            selectedMedia = media;
+            
+            // Update UI selection
+            document.querySelectorAll('.media-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            
+            const selectedElement = document.querySelector('[data-id="' + mediaId + '"]');
+            if (selectedElement) {
+                selectedElement.classList.add('selected');
+            }
+
+            showMediaPreview(media);
+            
+            populateFormFields(media);
+        };
+
+        function showMediaPreview(media) {
+            const previewSection = document.getElementById('previewSection');
+            const previewContent = document.getElementById('previewContent');
+            
+            if (!previewSection || !previewContent) return;
+
+            previewSection.style.display = 'block';
+            
+            const mediaUrl = media.media_url || media.secure_url;
+            const mediaType = media.type;
+            
+            let previewHTML = '';
+            
+            if (mediaType === 'image') {
+                previewHTML = '<img src="' + mediaUrl + '" alt="' + media.title + '" style="max-width: 100%; max-height: 300px; object-fit: contain;">';
+            } else if (mediaType === 'video') {
+                previewHTML = '<video controls style="max-width: 100%; max-height: 300px;"><source src="' + mediaUrl + '" type="video/mp4">Your browser does not support video playback.</video>';
+            } else if (mediaType === 'audio') {
+                previewHTML = '<audio controls style="width: 100%;"><source src="' + mediaUrl + '" type="audio/mpeg">Your browser does not support audio playback.</audio>';
+            } else {
+                previewHTML = '<div style="text-align: center; padding: 40px;">' +
+                    '<div style="font-size: 48px; margin-bottom: 10px;">📄</div>' +
+                    '<div style="color: #888; margin-bottom: 15px;">' + media.title + '</div>' +
+                    '<a href="' + mediaUrl + '" target="_blank" style="color: #667eea; text-decoration: none;">Open File</a>' +
+                    '</div>';
+            }
+            
+            previewContent.innerHTML = previewHTML;
+            currentPreviewElement = previewContent.querySelector('video, audio');
+        }
+
+        function populateFormFields(media) {
+            const titleInput = document.getElementById('titleInput');
+            const descriptionInput = document.getElementById('descriptionInput');
+            const stationInput = document.getElementById('stationInput');
+            const tagsInput = document.getElementById('tagsInput');
+
+            if (titleInput) titleInput.value = media.title || '';
+            if (descriptionInput) descriptionInput.value = media.description || '';
+            if (stationInput) stationInput.value = media.station || '';
+            if (tagsInput) tagsInput.value = media.tags || '';
+        }
+
+        function populateKeySlots() {
+            const keySelect = document.getElementById('keySelect');
+            const keyAssignments = document.getElementById('keyAssignments');
+            
+            if (!keySelect || !keyAssignments) return;
+
+            for (let i = 1; i <= 12; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `Key ${i}`;
+                keySelect.appendChild(option);
+            }
+
+            let keyHTML = '';
+            for (let i = 1; i <= 12; i++) {
+                keyHTML += '<div class="key-slot" id="key-' + i + '">' +
+                    '<div class="key-number">KEY ' + i + '</div>' +
+                    '<div class="key-title">—</div>' +
+                    '</div>';
+            }
+            keyAssignments.innerHTML = keyHTML;
+        }
+
+        async function checkConnection() {
+            const statusElement = document.getElementById('connectionStatus');
+            if (!statusElement) return;
+
+            try {
+                const response = await fetch(LIST_MEDIA_ENDPOINT);
+                if (response.ok) {
+                    statusElement.innerHTML = '<span class="status-indicator status-connected"></span>Connected';
+                    statusElement.className = 'connection-status connected';
+                } else {
+                    throw new Error('Connection failed');
+                }
+            } catch (error) {
+                statusElement.innerHTML = '<span class="status-indicator status-disconnected"></span>Connection failed';
+                statusElement.className = 'connection-status disconnected';
+            }
+        }
+
+        window.playSelectedMedia = function() {
+            if (currentPreviewElement && typeof currentPreviewElement.play === 'function') {
+                currentPreviewElement.play();
+            }
+        };
+
+        window.stopPreview = function() {
+            if (currentPreviewElement) {
+                if (typeof currentPreviewElement.pause === 'function') {
+                    currentPreviewElement.pause();
+                }
+                if (typeof currentPreviewElement.currentTime !== 'undefined') {
+                    currentPreviewElement.currentTime = 0;
+                }
+            }
+        };
+
+        window.openFullPreview = function() {
+            if (selectedMedia) {
+                const mediaUrl = selectedMedia.media_url || selectedMedia.secure_url;
+                window.open(mediaUrl, '_blank');
+            }
+        };
+
+        window.assignMedia = function() {
+            if (!selectedMedia) {
+                alert('Please select media first');
+                return;
+            }
+
+            const keySelect = document.getElementById('keySelect');
+            const titleInput = document.getElementById('titleInput');
+            
+            if (!keySelect || !keySelect.value) {
+                alert('Please select a key slot');
+                return;
+            }
+
+            const keyNumber = keySelect.value;
+            const title = titleInput ? titleInput.value : selectedMedia.title;
+            
+            const keySlot = document.getElementById('key-' + keyNumber);
+            if (keySlot) {
+                keySlot.classList.add('assigned');
+                const keyTitle = keySlot.querySelector('.key-title');
+                if (keyTitle) {
+                    keyTitle.textContent = title || 'Assigned';
+                }
+            }
+
+            alert('Media assigned to Key ' + keyNumber);
+        };
+
+        window.uploadFile = function() {
+            window.open('/hoibf-file-manager.html', '_blank');
+        };
+
+        window.playAllAssigned = function() {
+            console.log('Playing all assigned media');
+        };
+
+        window.stopAll = function() {
+            if (currentPreviewElement) {
+                stopPreview();
+            }
+            console.log('Stopping all media');
+        };
+    </script>
 </body>
 </html>`;
     
