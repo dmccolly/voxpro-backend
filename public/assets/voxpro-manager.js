@@ -818,12 +818,14 @@
         }
     };
 
-    // Export for debugging
+    // Export for debugging and global access
+    window.selectMedia = selectMedia;
     window.voxProManager = {
         state,
         loadMedia,
         loadAssignments,
         stopPlayback,
-        playForKey
+        playForKey,
+        selectMedia
     };
 })();
