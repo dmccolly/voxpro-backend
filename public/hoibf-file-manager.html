@@ -1374,6 +1374,11 @@
             // Determine how many items to display based on current page
             const displayFiles = filteredFilesCache.slice(0, currentPage * itemsPerPage);
 
+            // Ensure currentViewMode is set to a valid value
+            if (!currentViewMode) {
+                currentViewMode = 'details';
+            }
+
             let html = '';
             if (currentViewMode === 'details') {
                 // Detailed list view
@@ -1418,6 +1423,8 @@
                 }).join('') + '</div>';
                 container.innerHTML = html;
             }
+            
+            console.log(`updateFileList: Displayed ${displayFiles.length} items (page ${currentPage}, ${itemsPerPage} per page)`);
         }
 
         // Update counts
@@ -1567,48 +1574,27 @@
                     updateData[key] = value;
                 });
 
-                // Persist updates back to the same endpoint used to fetch user submissions.
-                // Use the user_submission endpoint for consistency with other actions (e.g. delete).
-                // We support updating via multiple possible endpoints.  Try
-                // user_submission first (preferred) and fall back to asset if
-                // user_submission is not available on the backend.  Collect
-                // any error messages for debugging.
-                // Attempt to save using multiple endpoints and HTTP methods to maximise compatibility.
-                const endpoints = [
-                    `/.netlify/functions/xano-proxy/user_submission/${selectedFile.id}`,
-                    `/.netlify/functions/xano-proxy/asset/${selectedFile.id}`
-                ];
-                const methods = ['PATCH', 'PUT'];
-                let lastError = null;
-                let success = false;
-                for (const endpoint of endpoints) {
-                    for (const method of methods) {
-                        try {
-                            const response = await fetch(endpoint, {
-                                method,
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(updateData)
-                            });
-                            if (response.ok) {
-                                Object.assign(selectedFile, updateData);
-                                updateFileList();
-                                updateCounts();
-                                showMessage('File updated successfully', 'success');
-                                success = true;
-                                break;
-                            } else {
-                                const text = await response.text();
-                                lastError = `Endpoint ${endpoint} [${method}] returned ${response.status}: ${text}`;
-                            }
-                        } catch (err) {
-                            lastError = `Error calling ${endpoint} [${method}]: ${err.message}`;
-                        }
+                // Use dedicated update endpoint for user submissions
+                try {
+                    const response = await fetch(`/.netlify/functions/update-user-submission/${selectedFile.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (response.ok) {
+                        Object.assign(selectedFile, updateData);
+                        updateFileList();
+                        updateCounts();
+                        showMessage('File updated successfully', 'success');
+                    } else {
+                        const errorData = await response.json();
+                        console.error('Save error:', errorData);
+                        showMessage(`Failed to save changes: ${errorData.error || 'Unknown error'}`, 'error');
                     }
-                    if (success) break;
-                }
-                if (!success) {
-                    console.error('Save error:', lastError);
-                    showMessage('Failed to save changes', 'error');
+                } catch (err) {
+                    console.error('Save error:', err);
+                    showMessage(`Failed to save changes: ${err.message}`, 'error');
                 }
             } catch (error) {
                 console.error('Save error:', error);
@@ -1652,18 +1638,42 @@
          * `currentPage` and triggers `updateFileList()` to append more items.
          */
         function initInfiniteScroll() {
-            const container = document.getElementById('fileListContent');
+            const container = document.querySelector('.file-list');
+            if (!container) {
+                console.error('Infinite scroll: .file-list container not found');
+                return;
+            }
+            
+            // Remove any existing scroll listener to prevent duplicates
+            container.removeEventListener('scroll', handleInfiniteScroll);
+            
+            // Add the scroll event listener
+            container.addEventListener('scroll', handleInfiniteScroll);
+            console.log('Infinite scroll initialized on .file-list container');
+        }
+        
+        /**
+         * Handle infinite scroll events
+         */
+        function handleInfiniteScroll() {
+            const container = document.querySelector('.file-list');
             if (!container) return;
-            container.addEventListener('scroll', () => {
-                const threshold = 50; // px from bottom to trigger load
-                if (container.scrollTop + container.clientHeight >= container.scrollHeight - threshold) {
-                    // Only load more if there are more items to show
-                    if (currentPage * itemsPerPage < filteredFilesCache.length) {
-                        currentPage++;
-                        updateFileList();
-                    }
+            
+            const threshold = 50; // px from bottom to trigger load
+            const { scrollTop, scrollHeight, clientHeight } = container;
+            
+            console.log(`Scroll event: scrollTop=${scrollTop}, scrollHeight=${scrollHeight}, clientHeight=${clientHeight}`);
+            
+            if (scrollTop + clientHeight >= scrollHeight - threshold) {
+                // Check if there are more items to load
+                if (filteredFilesCache && currentPage * itemsPerPage < filteredFilesCache.length) {
+                    currentPage++;
+                    console.log(`Loading page ${currentPage}... (${currentPage * itemsPerPage} of ${filteredFilesCache.length} items)`);
+                    updateFileList();
+                } else {
+                    console.log('No more items to load');
                 }
-            });
+            }
         }
 
         /**
@@ -1872,7 +1882,41 @@
                 throw new Error('Xano save failed');
             }
             
-            return await xanoResponse.json();
+            const result = await xanoResponse.json();
+            
+            // Step 3: Sync to Webflow CMS in background (non-blocking)
+            syncToWebflowBackground(cloudinaryData.secure_url, file.name, file.size, file.type);
+            
+            return result;
+        }
+
+        /**
+         * Sync uploaded file metadata to Webflow CMS in background
+         * This creates a reference to the Cloudinary file without uploading the actual file
+         * This is non-blocking and won't affect the main upload flow
+         */
+        async function syncToWebflowBackground(cloudinaryUrl, fileName, fileSize, fileType) {
+            try {
+                const response = await fetch('/.netlify/functions/webflow-media-sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cloudinaryUrl: cloudinaryUrl,
+                        fileName: fileName,
+                        fileSize: fileSize,
+                        fileType: fileType
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    console.log('File metadata synced to Webflow CMS:', result.webflowAssetId);
+                } else {
+                    console.warn('Webflow sync failed (non-critical):', result.error);
+                }
+            } catch (error) {
+                console.warn('Webflow sync error (non-critical):', error.message);
+            }
         }
 
         // Utility functions

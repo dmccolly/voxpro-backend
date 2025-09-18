@@ -76,8 +76,8 @@ function makeRequest(url, apiKey) {
           const parsed = JSON.parse(data);
           resolve(parsed);
         } catch (e) {
-          // If parsing fails, return empty array
-          resolve([]);
+          // Return the actual error instead of an empty array
+          reject(new Error(`Failed to parse XANO response: ${data}`));
         }
       });
     });
