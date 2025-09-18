@@ -1639,17 +1639,41 @@
          */
         function initInfiniteScroll() {
             const container = document.querySelector('.file-list');
+            if (!container) {
+                console.error('Infinite scroll: .file-list container not found');
+                return;
+            }
+            
+            // Remove any existing scroll listener to prevent duplicates
+            container.removeEventListener('scroll', handleInfiniteScroll);
+            
+            // Add the scroll event listener
+            container.addEventListener('scroll', handleInfiniteScroll);
+            console.log('Infinite scroll initialized on .file-list container');
+        }
+        
+        /**
+         * Handle infinite scroll events
+         */
+        function handleInfiniteScroll() {
+            const container = document.querySelector('.file-list');
             if (!container) return;
-            container.addEventListener('scroll', () => {
-                const threshold = 50; // px from bottom to trigger load
-                if (container.scrollTop + container.clientHeight >= container.scrollHeight - threshold) {
-                    // Only load more if there are more items to show
-                    if (currentPage * itemsPerPage < filteredFilesCache.length) {
-                        currentPage++;
-                        updateFileList();
-                    }
+            
+            const threshold = 50; // px from bottom to trigger load
+            const { scrollTop, scrollHeight, clientHeight } = container;
+            
+            console.log(`Scroll event: scrollTop=${scrollTop}, scrollHeight=${scrollHeight}, clientHeight=${clientHeight}`);
+            
+            if (scrollTop + clientHeight >= scrollHeight - threshold) {
+                // Check if there are more items to load
+                if (filteredFilesCache && currentPage * itemsPerPage < filteredFilesCache.length) {
+                    currentPage++;
+                    console.log(`Loading page ${currentPage}... (${currentPage * itemsPerPage} of ${filteredFilesCache.length} items)`);
+                    updateFileList();
+                } else {
+                    console.log('No more items to load');
                 }
-            });
+            }
         }
 
         /**
