@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cleanup Orphaned Files</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .button {
+            background-color: #dc3545;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        .button:hover {
+            background-color: #c82333;
+        }
+        .button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .link-button {
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            display: inline-block;
+        }
+        .link-button:hover {
+            background-color: #0056b3;
+            text-decoration: none;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Cleanup Orphaned Files</h1>
+        
+        <div class="warning">
+            <strong>Warning:</strong> This will permanently delete orphaned files including:
+            <ul>
+                <li>Files with empty media_url or attachment fields</li>
+                <li>Duplicate "download image" files (keeps only one)</li>
+                <li>Gemini generated image fragments</li>
+                <li>Generic numbered files (likely fragments)</li>
+                <li>Files with generic names like "image", "download", "untitled"</li>
+                <li>Very small files (< 1KB) that are likely fragments</li>
+                <li>Duplicate files with same title and size</li>
+            </ul>
+        </div>
+        
+        <p>This enhanced cleanup removes orphaned file fragments that have valid URLs but are duplicates or generated files that clutter the file manager.</p>
+        
+        <button id="cleanupBtn" class="button" onclick="cleanupOrphanedFiles()">Delete Orphaned Files</button>
+        <a href="/hoibf-file-manager.html" class="link-button">Go to File Manager</a>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function cleanupOrphanedFiles() {
+            const button = document.getElementById('cleanupBtn');
+            const resultDiv = document.getElementById('result');
+            
+            button.disabled = true;
+            button.textContent = 'Deleting...';
+            resultDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch('/.netlify/functions/cleanup-orphaned-files', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <h3>Cleanup Complete!</h3>
+                            <p>Total records found: ${data.total_records}</p>
+                            <p>Orphaned files found: ${data.orphaned_files_found}</p>
+                            <p>Successfully deleted: ${data.deleted}</p>
+                            ${data.errors && data.errors.length > 0 ? `<p>Errors: ${data.errors.length}</p>` : ''}
+                            <p><strong>Next step:</strong> <a href="/hoibf-file-manager.html">Go to File Manager</a> to see the cleaned results.</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h3>Cleanup Failed</h3>
+                            <p>Error: ${data.error}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>Cleanup Failed</h3>
+                        <p>Error: ${error.message}</p>
+                    </div>
+                `;
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Delete Orphaned Files';
+            }
+        }
+    </script>
+</body>
+</html>
