@@ -1882,7 +1882,41 @@
                 throw new Error('Xano save failed');
             }
             
-            return await xanoResponse.json();
+            const result = await xanoResponse.json();
+            
+            // Step 3: Sync to Webflow CMS in background (non-blocking)
+            syncToWebflowBackground(cloudinaryData.secure_url, file.name, file.size, file.type);
+            
+            return result;
+        }
+
+        /**
+         * Sync uploaded file metadata to Webflow CMS in background
+         * This creates a reference to the Cloudinary file without uploading the actual file
+         * This is non-blocking and won't affect the main upload flow
+         */
+        async function syncToWebflowBackground(cloudinaryUrl, fileName, fileSize, fileType) {
+            try {
+                const response = await fetch('/.netlify/functions/webflow-media-sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        cloudinaryUrl: cloudinaryUrl,
+                        fileName: fileName,
+                        fileSize: fileSize,
+                        fileType: fileType
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    console.log('File metadata synced to Webflow CMS:', result.webflowAssetId);
+                } else {
+                    console.warn('Webflow sync failed (non-critical):', result.error);
+                }
+            } catch (error) {
+                console.warn('Webflow sync error (non-critical):', error.message);
+            }
         }
 
         // Utility functions
