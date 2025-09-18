@@ -22,7 +22,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Read the template file - Netlify deploys public files to root
+    // Read the template file - public directory is deployed to root, so templates/ is at root level
     const templatePath = path.join(__dirname, '../../templates/voxpro-manager.html');
     const html = fs.readFileSync(templatePath, 'utf8');
     
