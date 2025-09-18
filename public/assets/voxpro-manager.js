@@ -161,15 +161,19 @@
         }
 
         browser.innerHTML = state.cloudinaryAssets.map(item => {
-            const icon = getMediaIcon(item.resource_type || '');
+            const thumbnail = getCloudinaryThumbnail(item);
+            const title = item.display_name || item.filename || item.public_id;
             return `
                 <div class="media-item" data-cloudinary-id="${item.public_id}">
-                    <div class="media-icon">${icon}</div>
-                    <div class="media-info">
-                        <div class="media-title">${item.title || item.public_id}</div>
-                        <div class="media-meta">
-                            ${item.station || 'Cloudinary'} • ${item.resource_type || 'Asset'}
+                    <div class="media-thumbnail" style="width: 60px; height: 60px; margin-right: 12px; border-radius: 4px; overflow: hidden; background: #333; display: flex; align-items: center; justify-content: center;">
+                        ${thumbnail}
+                    </div>
+                    <div class="media-info" style="flex: 1;">
+                        <div class="media-title" style="font-weight: 500; margin-bottom: 4px;">${title}</div>
+                        <div class="media-meta" style="font-size: 12px; color: #888;">
+                            ${item.resource_type || 'Asset'} • ${item.format || 'Unknown'}
                             ${item.bytes ? ` • ${formatFileSize(item.bytes)}` : ''}
+                            ${item.duration ? ` • ${Math.round(item.duration)}s` : ''}
                         </div>
                     </div>
                 </div>
@@ -213,6 +217,8 @@
         if (elements.stationInput) elements.stationInput.value = state.selectedMedia.station || '';
         if (elements.tagsInput) elements.tagsInput.value = state.selectedMedia.tags || '';
         if (elements.submittedByInput) elements.submittedByInput.value = state.selectedMedia.submitted_by || '';
+        
+        showMediaPreview(state.selectedMedia);
     }
 
     function renderMediaBrowser() {
@@ -225,15 +231,19 @@
         }
 
         browser.innerHTML = state.mediaList.map(item => {
-            const icon = getMediaIcon(item.file_type || item.category || '');
+            const thumbnail = getMediaThumbnail(item);
+            const title = item.title || item.filename || 'Untitled';
             return `
                 <div class="media-item" data-id="${item.id}">
-                    <div class="media-icon">${icon}</div>
-                    <div class="media-info">
-                        <div class="media-title">${item.title || 'Untitled'}</div>
-                        <div class="media-meta">
-                            ${item.station || 'Unknown'} • ${item.category || 'Media'}
+                    <div class="media-thumbnail" style="width: 60px; height: 60px; margin-right: 12px; border-radius: 4px; overflow: hidden; background: #333; display: flex; align-items: center; justify-content: center;">
+                        ${thumbnail}
+                    </div>
+                    <div class="media-info" style="flex: 1;">
+                        <div class="media-title" style="font-weight: 500; margin-bottom: 4px;">${title}</div>
+                        <div class="media-meta" style="font-size: 12px; color: #888;">
+                            ${item.station || 'Unknown'} • ${item.file_type || 'Unknown'}
                             ${item.file_size ? ` • ${formatFileSize(item.file_size)}` : ''}
+                            ${item.submitted_by ? ` • by ${item.submitted_by}` : ''}
                         </div>
                     </div>
                 </div>
@@ -263,6 +273,133 @@
         return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
     }
 
+    function getCloudinaryThumbnail(item) {
+        if (item.resource_type === 'image') {
+            return `<img src="${item.secure_url.replace('/upload/', '/upload/w_60,h_60,c_fill/')}" alt="${item.display_name || item.public_id}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        } else if (item.resource_type === 'video') {
+            return `<img src="${item.secure_url.replace('/upload/', '/upload/w_60,h_60,c_fill/').replace(/\.[^.]+$/, '.jpg')}" alt="${item.display_name || item.public_id}" style="width: 100%; height: 100%; object-fit: cover;">`;
+        } else if (item.resource_type === 'raw') {
+            return '<div style="font-size: 24px; color: #888;">📄</div>';
+        } else {
+            return '<div style="font-size: 24px; color: #888;">🎵</div>';
+        }
+    }
+
+    function getMediaThumbnail(item) {
+        const mediaUrl = item.cloudinary_url || item.media_url || item.attachment;
+        
+        if (item.file_type === 'image' && mediaUrl) {
+            if (mediaUrl.includes('cloudinary.com')) {
+                return `<img src="${mediaUrl.replace('/upload/', '/upload/w_60,h_60,c_fill/')}" alt="${item.title || 'Image'}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            } else {
+                return `<img src="${mediaUrl}" alt="${item.title || 'Image'}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            }
+        } else if (item.file_type === 'video' && mediaUrl) {
+            if (mediaUrl.includes('cloudinary.com')) {
+                return `<img src="${mediaUrl.replace('/upload/', '/upload/w_60,h_60,c_fill/').replace(/\.[^.]+$/, '.jpg')}" alt="${item.title || 'Video'}" style="width: 100%; height: 100%; object-fit: cover;">`;
+            } else {
+                return '<div style="font-size: 24px; color: #888;">🎬</div>';
+            }
+        } else if (item.file_type === 'audio') {
+            return '<div style="font-size: 24px; color: #888;">🎵</div>';
+        } else {
+            return '<div style="font-size: 24px; color: #888;">📄</div>';
+        }
+    }
+
+    function showMediaPreview(media) {
+        if (!media) return;
+        
+        const previewSection = document.getElementById('previewSection');
+        const previewContent = document.getElementById('previewContent');
+        
+        if (!previewSection || !previewContent) return;
+        
+        previewSection.style.display = 'block';
+        
+        const mediaUrl = media.cloudinary_url || media.media_url || media.attachment;
+        const title = media.title || media.filename || 'Untitled';
+        
+        if (!mediaUrl) {
+            previewContent.innerHTML = `
+                <div class="preview-placeholder">
+                    <div style="font-size: 48px; margin-bottom: 10px;">❌</div>
+                    <div style="color: #888;">No media URL available</div>
+                </div>
+            `;
+            return;
+        }
+        
+        previewContent.innerHTML = '';
+        
+        let mediaElement;
+        
+        if (media.file_type === 'audio') {
+            mediaElement = document.createElement('audio');
+            mediaElement.controls = true;
+            mediaElement.src = mediaUrl;
+            mediaElement.style.width = '100%';
+            
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.7); border-radius: 4px; color: white;';
+            overlay.textContent = `🎵 ${title}`;
+            previewContent.appendChild(overlay);
+            
+        } else if (media.file_type === 'video') {
+            mediaElement = document.createElement('video');
+            mediaElement.controls = true;
+            mediaElement.src = mediaUrl;
+            mediaElement.style.width = '100%';
+            mediaElement.style.maxHeight = '300px';
+            
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.7); border-radius: 4px; color: white;';
+            overlay.textContent = `🎬 ${title}`;
+            previewContent.appendChild(overlay);
+            
+        } else if (media.file_type === 'image') {
+            mediaElement = document.createElement('img');
+            mediaElement.src = mediaUrl;
+            mediaElement.alt = title;
+            mediaElement.style.maxWidth = '100%';
+            mediaElement.style.maxHeight = '300px';
+            mediaElement.style.objectFit = 'contain';
+            
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.7); border-radius: 4px; color: white;';
+            overlay.textContent = `🖼️ ${title}`;
+            previewContent.appendChild(overlay);
+            
+        } else {
+            previewContent.innerHTML = `
+                <div class="preview-placeholder">
+                    <div style="font-size: 48px; margin-bottom: 10px;">📄</div>
+                    <div style="color: #888;">${title}</div>
+                    <button onclick="window.open('${mediaUrl}', '_blank')" style="margin-top: 12px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        📥 Open File
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        if (mediaElement) {
+            mediaElement.onerror = function() {
+                previewContent.innerHTML = `
+                    <div class="preview-placeholder">
+                        <div style="font-size: 48px; margin-bottom: 10px;">⚠️</div>
+                        <div style="color: #888;">Error loading media</div>
+                        <button onclick="window.open('${mediaUrl}', '_blank')" style="margin-top: 12px; padding: 8px 16px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📥 Open Instead
+                        </button>
+                    </div>
+                `;
+            };
+            
+            previewContent.appendChild(mediaElement);
+        }
+    }
+
     function selectMedia(id) {
         state.selectedMedia = state.mediaList.find(m => m.id === id);
         if (!state.selectedMedia) return;
@@ -283,6 +420,8 @@
         if (elements.stationInput) elements.stationInput.value = state.selectedMedia.station || '';
         if (elements.tagsInput) elements.tagsInput.value = state.selectedMedia.tags || '';
         if (elements.submittedByInput) elements.submittedByInput.value = state.selectedMedia.submitted_by || '';
+        
+        showMediaPreview(state.selectedMedia);
     }
 
     // Assignment functions
@@ -520,6 +659,8 @@
             cloudinarySearch: document.getElementById('cloudinarySearch'),
             cloudinaryType: document.getElementById('cloudinaryType'),
             cloudinaryBrowser: document.getElementById('cloudinaryBrowser'),
+            previewSection: document.getElementById('previewSection'),
+            previewContent: document.getElementById('previewContent'),
             keySelect: document.getElementById('keySelect'),
             titleInput: document.getElementById('titleInput'),
             descriptionInput: document.getElementById('descriptionInput'),
@@ -616,6 +757,42 @@
         initialize();
     }
     
+    // Global functions for preview controls
+    window.playSelectedMedia = function() {
+        const previewContent = document.getElementById('previewContent');
+        if (!previewContent) return;
+        
+        const media = previewContent.querySelector('audio, video');
+        if (media) {
+            media.play().catch(error => {
+                console.log('Autoplay blocked:', error);
+                showMessage('info', 'Click the media player to start playback');
+            });
+        }
+    };
+
+    window.stopPreview = function() {
+        const previewContent = document.getElementById('previewContent');
+        if (!previewContent) return;
+        
+        const media = previewContent.querySelector('audio, video');
+        if (media) {
+            media.pause();
+            media.currentTime = 0;
+        }
+    };
+
+    window.openFullPreview = function() {
+        if (state.selectedMedia) {
+            const mediaUrl = state.selectedMedia.cloudinary_url || state.selectedMedia.media_url || state.selectedMedia.attachment;
+            if (mediaUrl) {
+                window.open(mediaUrl, '_blank');
+            } else {
+                showMessage('error', 'No media URL available');
+            }
+        }
+    };
+
     // Export for debugging
     window.voxProManager = {
         state,
