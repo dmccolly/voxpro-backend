@@ -89,6 +89,30 @@
 
     // Media functions
     async function loadMedia(query = '') {
+        return await loadAllMedia(query);
+    }
+
+    async function loadAllMedia(query = '', type = '') {
+        try {
+            const xanoMedia = await loadXanoMedia(query);
+            const cloudinaryAssets = await loadCloudinaryAssets(query, type);
+            
+            const allMedia = [...xanoMedia, ...cloudinaryAssets];
+            state.mediaList = allMedia;
+            
+            renderMediaBrowser();
+            setConnectionStatus(true);
+            
+            return allMedia;
+        } catch (error) {
+            console.error('Error loading all media:', error);
+            showMessage('error', 'Error loading media: ' + error.message);
+            setConnectionStatus(false);
+            return [];
+        }
+    }
+
+    async function loadXanoMedia(query = '') {
         try {
             let endpoint = CONFIG.LIST_MEDIA_ENDPOINT;
             if (query) {
@@ -101,26 +125,36 @@
             let data = await response.json();
             
             // Handle search results format
+            let mediaList = [];
             if (data.results) {
-                state.mediaList = data.results;
+                mediaList = data.results;
             } else {
-                state.mediaList = Array.isArray(data) ? data : [];
+                mediaList = Array.isArray(data) ? data : [];
             }
             
-            // Filter out test/invalid data
-            state.mediaList = state.mediaList.filter(item => {
+            // Filter out test/invalid data and add source
+            return mediaList.filter(item => {
                 return item.file_size && item.file_size > 100 && 
                        (item.cloudinary_url || item.file_url || item.database_url || item.media_url || item.attachment);
-            });
-            
-            renderMediaBrowser();
-            setConnectionStatus(true);
+            }).map(item => ({
+                ...item,
+                source: 'xano',
+                file_type: item.file_type || getMediaTypeFromUrl(item.media_url || item.attachment)
+            }));
             
         } catch (error) {
-            console.error('Load media error:', error);
-            showMessage('error', 'Failed to load media');
-            setConnectionStatus(false);
+            console.error('Load Xano media error:', error);
+            return [];
         }
+    }
+
+    function getMediaTypeFromUrl(url) {
+        if (!url) return 'unknown';
+        const ext = url.split('.').pop().toLowerCase();
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'image';
+        if (['mp4', 'webm', 'mov', 'avi'].includes(ext)) return 'video';
+        if (['mp3', 'wav', 'ogg', 'm4a'].includes(ext)) return 'audio';
+        return 'raw';
     }
 
     async function loadCloudinaryAssets(query = '', type = '') {
@@ -139,51 +173,23 @@
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const data = await response.json();
-            state.cloudinaryAssets = data.resources || [];
-            
-            renderCloudinaryBrowser();
-            setConnectionStatus(true);
+            return (data.resources || []).map(asset => ({
+                id: asset.public_id,
+                title: asset.display_name || asset.filename || asset.public_id,
+                media_url: asset.secure_url,
+                attachment: asset.secure_url,
+                source: 'cloudinary',
+                file_type: asset.resource_type,
+                file_size: asset.bytes,
+                cloudinary_data: asset
+            }));
             
         } catch (error) {
             console.error('Load Cloudinary assets error:', error);
-            showMessage('error', 'Failed to load Cloudinary assets');
-            setConnectionStatus(false);
+            return [];
         }
     }
 
-    function renderCloudinaryBrowser() {
-        const browser = elements.cloudinaryBrowser;
-        if (!browser) return;
-        
-        if (!state.cloudinaryAssets || state.cloudinaryAssets.length === 0) {
-            browser.innerHTML = '<div class="empty-state">No Cloudinary assets found</div>';
-            return;
-        }
-
-        browser.innerHTML = state.cloudinaryAssets.map(item => {
-            const thumbnail = getCloudinaryThumbnail(item);
-            const title = item.display_name || item.filename || item.public_id;
-            return `
-                <div class="media-item" data-cloudinary-id="${item.public_id}">
-                    <div class="media-thumbnail" style="width: 60px; height: 60px; margin-right: 12px; border-radius: 4px; overflow: hidden; background: #333; display: flex; align-items: center; justify-content: center;">
-                        ${thumbnail}
-                    </div>
-                    <div class="media-info" style="flex: 1;">
-                        <div class="media-title" style="font-weight: 500; margin-bottom: 4px;">${title}</div>
-                        <div class="media-meta" style="font-size: 12px; color: #888;">
-                            ${item.resource_type || 'Asset'} • ${item.format || 'Unknown'}
-                            ${item.bytes ? ` • ${formatFileSize(item.bytes)}` : ''}
-                            ${item.duration ? ` • ${Math.round(item.duration)}s` : ''}
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        browser.querySelectorAll('.media-item').forEach(item => {
-            item.addEventListener('click', () => selectCloudinaryAsset(item.dataset.cloudinaryId));
-        });
-    }
 
     function selectCloudinaryAsset(publicId) {
         const asset = state.cloudinaryAssets.find(a => a.public_id === publicId);
@@ -232,28 +238,55 @@
 
         browser.innerHTML = state.mediaList.map(item => {
             const thumbnail = getMediaThumbnail(item);
-            const title = item.title || item.filename || 'Untitled';
+            const title = item.title || item.filename || item.display_name || 'Untitled';
+            const itemId = item.source === 'cloudinary' ? item.id : item.id;
+            const clickHandler = item.source === 'cloudinary' ? 
+                `selectCloudinaryAsset('${item.id}')` : 
+                `selectMedia(${item.id})`;
+            
             return `
-                <div class="media-item" data-id="${item.id}">
+                <div class="media-item" data-id="${itemId}" data-source="${item.source}" onclick="${clickHandler}">
                     <div class="media-thumbnail" style="width: 60px; height: 60px; margin-right: 12px; border-radius: 4px; overflow: hidden; background: #333; display: flex; align-items: center; justify-content: center;">
                         ${thumbnail}
                     </div>
                     <div class="media-info" style="flex: 1;">
                         <div class="media-title" style="font-weight: 500; margin-bottom: 4px;">${title}</div>
                         <div class="media-meta" style="font-size: 12px; color: #888;">
-                            ${item.station || 'Unknown'} • ${item.file_type || 'Unknown'}
-                            ${item.file_size ? ` • ${formatFileSize(item.file_size)}` : ''}
-                            ${item.submitted_by ? ` • by ${item.submitted_by}` : ''}
+                            ${getMediaMetadata(item)}
                         </div>
                     </div>
                 </div>
             `;
         }).join('');
         
-        // Add click handlers
         browser.querySelectorAll('.media-item').forEach(item => {
-            item.addEventListener('click', () => selectMedia(parseInt(item.dataset.id)));
+            if (!item.onclick) {
+                const itemId = item.dataset.id;
+                const source = item.dataset.source;
+                if (source === 'cloudinary') {
+                    item.addEventListener('click', () => selectCloudinaryAsset(itemId));
+                } else {
+                    item.addEventListener('click', () => selectMedia(parseInt(itemId)));
+                }
+            }
         });
+    }
+
+    function getMediaMetadata(item) {
+        const parts = [];
+        
+        if (item.source === 'cloudinary') {
+            parts.push('Cloudinary');
+            if (item.file_type) parts.push(item.file_type);
+            if (item.file_size) parts.push(formatFileSize(item.file_size));
+        } else {
+            if (item.station) parts.push(item.station);
+            if (item.submitted_by) parts.push(`by ${item.submitted_by}`);
+            if (item.file_type) parts.push(item.file_type);
+            if (item.file_size) parts.push(formatFileSize(item.file_size));
+        }
+        
+        return parts.join(' • ') || 'Media';
     }
 
     function getMediaIcon(fileType) {
@@ -655,10 +688,8 @@
             connectionText: document.getElementById('connectionText'),
             messageBox: document.getElementById('messageBox'),
             searchInput: document.getElementById('searchInput'),
+            mediaTypeFilter: document.getElementById('mediaTypeFilter'),
             mediaBrowser: document.getElementById('mediaBrowser'),
-            cloudinarySearch: document.getElementById('cloudinarySearch'),
-            cloudinaryType: document.getElementById('cloudinaryType'),
-            cloudinaryBrowser: document.getElementById('cloudinaryBrowser'),
             previewSection: document.getElementById('previewSection'),
             previewContent: document.getElementById('previewContent'),
             keySelect: document.getElementById('keySelect'),
@@ -674,26 +705,21 @@
     }
 
     function attachEventListeners() {
-        // Search with debounce
+        // Unified search with debounce
         if (elements.searchInput) {
-            const debouncedSearch = debounce(e => loadMedia(e.target.value.trim()), CONFIG.DEBOUNCE_MS);
+            const debouncedSearch = debounce(e => {
+                const query = e.target.value.trim();
+                const type = elements.mediaTypeFilter?.value || '';
+                loadAllMedia(query, type);
+            }, CONFIG.DEBOUNCE_MS);
             elements.searchInput.addEventListener('input', debouncedSearch);
         }
         
-        if (elements.cloudinarySearch) {
-            const debouncedCloudinarySearch = debounce(e => {
-                const query = e.target.value.trim();
-                const type = elements.cloudinaryType?.value || '';
-                loadCloudinaryAssets(query, type);
-            }, CONFIG.DEBOUNCE_MS);
-            elements.cloudinarySearch.addEventListener('input', debouncedCloudinarySearch);
-        }
-        
-        if (elements.cloudinaryType) {
-            elements.cloudinaryType.addEventListener('change', e => {
-                const query = elements.cloudinarySearch?.value.trim() || '';
+        if (elements.mediaTypeFilter) {
+            elements.mediaTypeFilter.addEventListener('change', e => {
+                const query = elements.searchInput?.value.trim() || '';
                 const type = e.target.value;
-                loadCloudinaryAssets(query, type);
+                loadAllMedia(query, type);
             });
         }
         
@@ -740,8 +766,7 @@
         attachEventListeners();
         
         // Load initial data
-        await loadMedia();
-        await loadCloudinaryAssets();
+        await loadAllMedia();
         await loadAssignments();
         
         // Set up periodic refresh
