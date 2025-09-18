@@ -22,9 +22,30 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Read the template file - public directory is deployed to root, so templates/ is at root level
-    const templatePath = path.join(__dirname, '../../templates/voxpro-manager.html');
-    const html = fs.readFileSync(templatePath, 'utf8');
+    const possiblePaths = [
+      path.join(__dirname, '../../templates/voxpro-manager.html'),
+      path.join(__dirname, '../../../templates/voxpro-manager.html'),
+      path.join(__dirname, '../../public/templates/voxpro-manager.html'),
+      '/opt/build/repo/public/templates/voxpro-manager.html',
+      './templates/voxpro-manager.html'
+    ];
+    
+    let html = null;
+    let lastError = null;
+    
+    for (const templatePath of possiblePaths) {
+      try {
+        html = fs.readFileSync(templatePath, 'utf8');
+        break;
+      } catch (err) {
+        lastError = err;
+        continue;
+      }
+    }
+    
+    if (!html) {
+      throw new Error(`Template not found. Tried paths: ${possiblePaths.join(', ')}. Last error: ${lastError.message}`);
+    }
     
     return {
       statusCode: 200,
