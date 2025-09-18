@@ -5,6 +5,59 @@ const busboy = require('busboy');
 const cloudinary = require('cloudinary').v2;
 const https = require('https');
 
+const fetch = global.fetch || ((...args) => import('node-fetch').then(({ default: f }) => f(...args)));
+
+const syncToWebflowMediaAssets = async (uploadResult, formFields, file) => {
+    try {
+        const WEBFLOW_API_TOKEN = process.env.WEBFLOW_API_TOKEN;
+        const WEBFLOW_SITE_ID = process.env.WEBFLOW_SITE_ID || "688ed8debc05764047afa2a7";
+        const MEDIA_COLLECTION_ID = "6891479d29ed1066b71124e9";
+        
+        if (!WEBFLOW_API_TOKEN) {
+            console.warn('WEBFLOW_API_TOKEN not configured, skipping Webflow sync');
+            return;
+        }
+
+        const assetData = {
+            fieldData: {
+                name: formFields.title || file.filename,
+                'alt-text': formFields.description || '',
+                url: uploadResult.secure_url,
+                'file-size': uploadResult.bytes,
+                'file-type': uploadResult.resource_type,
+                category: formFields.category || 'Other',
+                station: formFields.station || '',
+                'submitted-by': formFields.submitted_by || '',
+                'cloudinary-url': uploadResult.secure_url
+            }
+        };
+
+        const createResponse = await fetch(
+            `https://api.webflow.com/v2/collections/${MEDIA_COLLECTION_ID}/items`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${WEBFLOW_API_TOKEN}`,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(assetData)
+            }
+        );
+
+        if (!createResponse.ok) {
+            const errorText = await createResponse.text();
+            throw new Error(`Webflow asset creation failed (${createResponse.status}): ${errorText}`);
+        }
+
+        const result = await createResponse.json();
+        console.log('Webflow media asset created successfully:', result.id);
+        
+    } catch (error) {
+        console.error('Webflow sync failed (non-blocking):', error.message);
+    }
+};
+
 // HTML page for GET requests
 const htmlPage = `<!DOCTYPE html>
 <html lang="en">
@@ -249,6 +302,8 @@ exports.handler = async (event) => {
         });
 
         console.log('Cloudinary upload successful:', uploadResult.secure_url);
+
+        await syncToWebflowMediaAssets(uploadResult, formFields, file);
 
         // Save to database
         const XANO_API_BASE = process.env.XANO_API_BASE || 'https://xajo-bs7d-cagt.n7e.xano.io/api:pYeQctVX';
