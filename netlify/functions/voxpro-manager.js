@@ -1272,14 +1272,29 @@ exports.handler = async (event, context) => {
             } else if (fileType === 'raw' || fileType === 'document') {
                 const fileExtension = (mediaUrl.split('.').pop() || title.split('.').pop() || '').toLowerCase();
                 const isPdf = fileExtension === 'pdf' || mediaUrl.includes('.pdf') || title.toLowerCase().includes('pdf');
+                const isDocx = fileExtension === 'docx' || fileExtension === 'doc' || mediaUrl.includes('.docx') || mediaUrl.includes('.doc') || title.toLowerCase().includes('doc');
                 
                 if (isPdf) {
+                    const iframe = document.createElement('iframe');
+                    iframe.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=0';
+                    iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
+                    
+                    iframe.onerror = function() {
+                        iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
+                    };
+                    
                     if (mediaContainer) {
-                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">PDF Document</div><div style="padding: 30px; text-align: center; background: var(--bg-primary); border-radius: 8px; border: 1px solid var(--bg-tertiary);"><div style="font-size: 64px; margin-bottom: 15px; color: #e74c3c;">📄</div><div style="color: var(--text-primary); font-size: 18px; font-weight: 500; margin-bottom: 15px;">' + title + '</div><div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">PDF Document • Click to view</div><a href="' + mediaUrl + '" target="_blank" style="color: white; background: #3498db; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block; font-weight: 500; transition: background 0.3s;">📖 Open PDF</a></div>';
+                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">PDF Document Preview</div>';
+                        mediaContainer.appendChild(iframe);
                     }
-                } else if (fileExtension === 'docx' || fileExtension === 'doc' || mediaUrl.includes('.docx') || mediaUrl.includes('.doc') || title.toLowerCase().includes('doc')) {
+                } else if (isDocx) {
+                    const iframe = document.createElement('iframe');
+                    iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
+                    iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
+                    
                     if (mediaContainer) {
-                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Word Document</div><div style="padding: 30px; text-align: center; background: var(--bg-primary); border-radius: 8px; border: 1px solid var(--bg-tertiary);"><div style="font-size: 64px; margin-bottom: 15px; color: #2980b9;">📝</div><div style="color: var(--text-primary); font-size: 18px; font-weight: 500; margin-bottom: 15px;">' + title + '</div><div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Word Document • Click to view</div><a href="' + mediaUrl + '" target="_blank" style="color: white; background: #2980b9; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block; font-weight: 500; transition: background 0.3s;">📄 Open Document</a></div>';
+                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview</div>';
+                        mediaContainer.appendChild(iframe);
                     }
                 } else {
                     const iframe = document.createElement('iframe');
