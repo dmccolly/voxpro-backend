@@ -600,12 +600,12 @@ exports.handler = async (event, context) => {
         function renderMediaBrowser() {
             const browser = elements.mediaBrowser;
             if (!browser) return;
-
+            
             if (state.mediaList.length === 0) {
                 browser.innerHTML = '<div class="empty-state">No media found</div>';
                 return;
             }
-
+            
             browser.innerHTML = state.mediaList.map(item => {
                 const thumbnail = getMediaThumbnail(item);
                 const title = item.title || 'Untitled';
@@ -626,7 +626,7 @@ exports.handler = async (event, context) => {
                     </div>
                 \`;
             }).join('');
-
+            
             browser.querySelectorAll('.media-item').forEach(item => {
                 item.addEventListener('click', () => {
                     const source = item.dataset.source;
