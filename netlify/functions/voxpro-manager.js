@@ -1352,6 +1352,7 @@ exports.handler = async (event, context) => {
             loadAssignments,
             renderAssignments,
             updateKeyButtons,
+            playMedia,
             stopAllMedia
         };
 
