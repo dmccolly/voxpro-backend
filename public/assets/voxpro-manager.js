@@ -499,12 +499,35 @@
     // Assignment functions
     async function loadAssignments() {
         try {
+            console.log('Loading assignments...');
             const data = await xanoRequest('/voxpro_assignments');
-            state.assignments = Array.isArray(data) ? data : [];
+            console.log('Raw assignment data:', data);
+            const assignments = Array.isArray(data) ? data : [];
+            
+            state.assignments = await Promise.all(assignments.map(async (assignment) => {
+                if (assignment.asset_id && state.mediaList.length > 0) {
+                    const mediaItem = state.mediaList.find(item => 
+                        parseInt(item.id) === parseInt(assignment.asset_id)
+                    );
+                    if (mediaItem) {
+                        return {
+                            ...assignment,
+                            title: assignment.title || mediaItem.title || mediaItem.filename || mediaItem.display_name,
+                            cloudinary_url: assignment.cloudinary_url || mediaItem.cloudinary_url || mediaItem.file_url || mediaItem.database_url,
+                            file_type: assignment.file_type || mediaItem.file_type,
+                            asset: mediaItem
+                        };
+                    }
+                }
+                return assignment;
+            }));
+            
+            console.log('Enriched assignments:', state.assignments);
             renderAssignments();
             updateKeyButtons();
         } catch (error) {
             console.error('Load assignments error:', error);
+            state.assignments = [];
         }
     }
 
