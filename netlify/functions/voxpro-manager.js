@@ -257,6 +257,7 @@ exports.handler = async (event, context) => {
             mediaList: [],
             selectedMedia: null,
             keyAssignments: {},
+            connectionStatus: 'Disconnected',
             isConnected: false,
             currentAudio: null,
             currentVideo: null
@@ -384,21 +385,30 @@ exports.handler = async (event, context) => {
             }
         }
         async function loadAllMedia(query = '', type = '') {
-            console.log('loadAllMedia called with query:', query, 'type:', type);
-            let xanoMedia = [];
             try {
-                xanoMedia = await loadXanoMedia(query);
-                console.log('Xano media loaded:', xanoMedia.length, 'items');
-            } catch (e) {
-                console.warn('Xano unreachable:', e);
+                console.log('loadAllMedia called with query:', query, 'type:', type);
+                let xanoMedia = [];
+                try {
+                    xanoMedia = await loadXanoMedia(query);
+                    console.log('Xano media loaded:', xanoMedia.length, 'items');
+                } catch (e) {
+                    console.warn('Xano unreachable:', e);
+                }
+                const cloud = await loadCloudinaryAssets(query, type);
+                console.log('Cloudinary media loaded:', cloud.length, 'items');
+                const all = [...xanoMedia, ...cloud];
+                console.log('Total media items:', all.length);
+                state.mediaList = all;
+                renderMediaBrowser();
+                showMessage('success', 'Loaded ' + all.length + ' media files');
+                updateConnectionStatus('Connected');
+                return all;
+            } catch (error) {
+                console.error('loadAllMedia error:', error);
+                showMessage('error', 'Failed to load media');
+                updateConnectionStatus('Disconnected');
+                return [];
             }
-            const cloud = await loadCloudinaryAssets(query, type);
-            console.log('Cloudinary media loaded:', cloud.length, 'items');
-            const all = [...xanoMedia, ...cloud];
-            console.log('Total media items:', all.length);
-            state.mediaList = all;
-            renderMediaBrowser();
-            return all;
         }
         function formatFileSize(bytes) {
             if (!bytes) return '';
@@ -568,64 +578,111 @@ exports.handler = async (event, context) => {
             preview.innerHTML = header;
             preview.appendChild(node);
         }
-        function assignMediaToKey(keyNumber, media) {
-            if (!keyNumber || !media) return;
-            state.keyAssignments[keyNumber] = {
-                id: media.id,
-                title: media.title,
-                media_url: media.attachment || media.media_url || media.cloudinary_url,
-                file_type: media.file_type,
-                asset: media
-            };
-            updateKeyButtons();
-            renderAssignments();
+        async function assignMediaToKey(keyNum, media) {
+            try {
+                const assignmentData = {
+                    asset_id: media.id,
+                    key_number: parseInt(keyNum),
+                    title: media.title || media.filename || media.display_name,
+                    file_type: media.file_type,
+                    cloudinary_url: media.attachment || media.media_url || media.cloudinary_url || media.file_url || media.database_url
+                };
+                
+                // Check if assignment exists for this key
+                const existingAssignment = Object.values(state.keyAssignments).find(a => {
+                    const keyForAssignment = Object.keys(state.keyAssignments).find(key => state.keyAssignments[key].id === a.id);
+                    return parseInt(keyForAssignment) === parseInt(keyNum);
+                });
+                
+                let response;
+                if (existingAssignment) {
+                    // Update existing assignment
+                    response = await fetch('/.netlify/functions/voxpro_assignments', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...assignmentData, id: existingAssignment.id })
+                    });
+                } else {
+                    // Create new assignment
+                    response = await fetch('/.netlify/functions/voxpro_assignments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(assignmentData)
+                    });
+                }
+                
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                
+                await loadAssignments();
+                showMessage('success', 'Media assigned to Key ' + keyNum);
+                
+            } catch (error) {
+                console.error('Assignment error:', error);
+                showMessage('error', 'Assignment failed: ' + error.message);
+            }
         }
         function renderAssignments() {
-            const list = elements.assignmentsList;
-            const entries = Object.entries(state.keyAssignments);
-            if (!entries.length) {
-                list.innerHTML = '<p style="text-align:center;color:var(--text-secondary);">No assignments yet</p>';
+            const container = document.getElementById('assignmentsList');
+            if (!container) return;
+            
+            const assignments = Object.values(state.keyAssignments);
+            if (assignments.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">No assignments yet</div>';
                 return;
             }
-            list.innerHTML = entries.map(([k, v]) => {
-                // Build assignment card using concatenation
-                return '<div class="assignment-item" style="padding:10px;border:1px solid var(--bg-tertiary);border-radius:4px;margin-bottom:8px;">' +
-                       '<div style="font-weight:bold;color:var(--accent);">Key ' + k + '</div>' +
-                       '<div style="color:var(--text-primary);">' + v.title + '</div>' +
-                       '<div style="color:var(--text-secondary);font-size:12px;">' + (v.file_type || 'Media') + '</div>' +
-                       '</div>';
+
+            container.innerHTML = assignments.map(assignment => {
+                const keyNum = Object.keys(state.keyAssignments).find(key => state.keyAssignments[key].id === assignment.id);
+                return '<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--bg-secondary); border-radius: 4px; margin-bottom: 4px;">' +
+                    '<span style="color: var(--text-primary);">Key ' + keyNum + ' — ' + assignment.title + '</span>' +
+                    '<button onclick="window.voxProManager.deleteAssignment(' + assignment.id + ')" style="background: var(--accent-color); color: white; border: none; border-radius: 3px; padding: 4px 8px; cursor: pointer;">×</button>' +
+                    '</div>';
             }).join('');
         }
         function updateKeyButtons() {
-            for (let i = 1; i <= 5; i++) {
-                const btn = document.getElementById('key' + i);
-                const assignment = state.keyAssignments[i];
-                if (!btn) continue;
+            document.querySelectorAll('.key-button').forEach(button => {
+                const keyNum = parseInt(button.dataset.key);
+                const assignment = state.keyAssignments[keyNum];
+                
                 if (assignment) {
-                    btn.classList.add('assigned');
-                    // build button label with string concatenation
-                    btn.textContent = 'KEY ' + i + ' • ' + assignment.title;
+                    button.classList.add('assigned');
+                    const title = assignment.title || 'Assigned';
+                    button.innerHTML = 'KEY ' + keyNum + '<br><small>' + title + '</small>';
                 } else {
-                    btn.classList.remove('assigned');
-                    btn.textContent = 'KEY ' + i;
+                    button.classList.remove('assigned');
+                    button.innerHTML = 'KEY ' + keyNum;
                 }
-            }
+            });
         }
         function setupKeyButtons() {
-            for (let i = 1; i <= 5; i++) {
-                const btn = document.getElementById('key' + i);
-                if (!btn) continue;
-                btn.addEventListener('click', () => {
-                    const assign = state.keyAssignments[i];
-                    if (assign && assign.media_url) {
-                        playMedia(assign.media_url, assign.file_type, assign.title);
-                    } else {
-                        // Avoid backtick interpolation within outer template
-                        showMessage('info', 'Key ' + i + ' has no assignment');
-                    }
-                });
+            const keyContainer = document.querySelector('.key-grid');
+            if (!keyContainer) return;
+            
+            for (let i = 1; i <= 12; i++) {
+                const button = document.createElement('button');
+                button.className = 'key-button';
+                button.dataset.key = i;
+                button.innerHTML = 'KEY ' + i;
+                button.addEventListener('click', () => playForKey(i));
+                keyContainer.appendChild(button);
             }
+        }
+        
+        function playForKey(keyNum) {
+            const assignment = state.keyAssignments[keyNum];
+            if (assignment && assignment.media_url) {
+                playMedia(assignment.media_url, assignment.title, assignment.file_type);
+            } else {
+                showMessage('info', 'No media assigned to Key ' + keyNum);
+            }
+        }
+        
+        function setupStopButton() {
             const stopBtn = document.getElementById('stopButton');
+            if (stopBtn) stopBtn.addEventListener('click', stopAllMedia);
+        }
             if (stopBtn) stopBtn.addEventListener('click', () => stopAllMedia());
         }
         function playMedia(mediaUrl, type, title) {
@@ -748,6 +805,162 @@ exports.handler = async (event, context) => {
                 if (url) window.open(url, '_blank');
             }
         };
+        async function loadAssignments() {
+            try {
+                console.log('Loading assignments...');
+                const response = await fetch('/.netlify/functions/voxpro_assignments', {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                
+                const data = await response.json();
+                console.log('Raw assignment data:', data);
+                const assignments = Array.isArray(data) ? data : [];
+                
+                state.keyAssignments = {};
+                assignments.forEach(assignment => {
+                    if (assignment.key_number && assignment.asset_id) {
+                        const mediaItem = state.mediaList.find(item => 
+                            parseInt(item.id) === parseInt(assignment.asset_id)
+                        );
+                        
+                        if (mediaItem) {
+                            state.keyAssignments[assignment.key_number] = {
+                                id: assignment.id,
+                                title: assignment.title || mediaItem.title || mediaItem.filename || mediaItem.display_name,
+                                media_url: mediaItem.attachment || mediaItem.media_url || assignment.cloudinary_url || mediaItem.cloudinary_url || mediaItem.file_url || mediaItem.database_url,
+                                file_type: assignment.file_type || mediaItem.file_type,
+                                asset: mediaItem
+                            };
+                        }
+                    }
+                });
+                
+                console.log('Loaded assignments:', state.keyAssignments);
+                updateKeyButtons();
+                renderAssignments();
+                updateConnectionStatus('Connected');
+            } catch (error) {
+                console.error('Load assignments error:', error);
+                state.keyAssignments = {};
+                updateConnectionStatus('Disconnected');
+            }
+        }
+        
+        function updateKeyButtons() {
+            document.querySelectorAll('.key-button').forEach(button => {
+                const keyNum = parseInt(button.dataset.key);
+                const assignment = state.keyAssignments[keyNum];
+                
+                if (assignment) {
+                    button.classList.add('assigned');
+                    const title = assignment.title || 'Assigned';
+                    button.innerHTML = 'KEY ' + keyNum + '<br><small>' + title + '</small>';
+                } else {
+                    button.classList.remove('assigned');
+                    button.innerHTML = 'KEY ' + keyNum;
+                }
+            });
+        }
+        
+        function renderAssignments() {
+            const container = document.getElementById('assignmentsList');
+            if (!container) return;
+            
+            const assignments = Object.values(state.keyAssignments);
+            if (assignments.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">No assignments yet</div>';
+                return;
+            }
+
+            container.innerHTML = assignments.map(assignment => {
+                const keyNum = Object.keys(state.keyAssignments).find(key => state.keyAssignments[key].id === assignment.id);
+                return '<div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; background: var(--bg-secondary); border-radius: 4px; margin-bottom: 4px;">' +
+                    '<span style="color: var(--text-primary);">Key ' + keyNum + ' — ' + assignment.title + '</span>' +
+                    '<button onclick="window.voxProManager.deleteAssignment(' + assignment.id + ')" style="background: var(--accent-color); color: white; border: none; border-radius: 3px; padding: 4px 8px; cursor: pointer;">×</button>' +
+                    '</div>';
+            }).join('');
+        }
+        
+        async function assignMediaToKey(keyNum, media) {
+            try {
+                const assignmentData = {
+                    asset_id: media.id,
+                    key_number: parseInt(keyNum),
+                    title: media.title || media.filename || media.display_name,
+                    file_type: media.file_type,
+                    cloudinary_url: media.attachment || media.media_url || media.cloudinary_url || media.file_url || media.database_url
+                };
+                
+                // Check if assignment exists for this key
+                const existingAssignment = Object.values(state.keyAssignments).find(a => 
+                    parseInt(Object.keys(state.keyAssignments).find(key => state.keyAssignments[key].id === a.id)) === parseInt(keyNum)
+                );
+                
+                let response;
+                if (existingAssignment) {
+                    // Update existing assignment
+                    response = await fetch('/.netlify/functions/voxpro_assignments', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...assignmentData, id: existingAssignment.id })
+                    });
+                } else {
+                    // Create new assignment
+                    response = await fetch('/.netlify/functions/voxpro_assignments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(assignmentData)
+                    });
+                }
+                
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                
+                await loadAssignments();
+                showMessage('success', 'Media assigned to Key ' + keyNum);
+                
+            } catch (error) {
+                console.error('Assignment error:', error);
+                showMessage('error', 'Assignment failed: ' + error.message);
+            }
+        }
+        
+        async function deleteAssignment(assignmentId) {
+            if (!confirm('Remove this key assignment?')) return;
+            
+            try {
+                const response = await fetch('/.netlify/functions/voxpro_assignments', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: assignmentId })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                
+                await loadAssignments();
+                showMessage('success', 'Assignment removed');
+                
+            } catch (error) {
+                console.error('Delete error:', error);
+                showMessage('error', 'Failed to remove assignment');
+            }
+        }
+        
+        function updateConnectionStatus(status) {
+            const statusElement = document.querySelector('.player-status');
+            if (statusElement) {
+                statusElement.textContent = status;
+                statusElement.style.color = status === 'Connected' ? '#4CAF50' : '#f44336';
+            }
+        }
+        
         function initialize() {
             console.log('VoxPro Manager initializing with enhanced document support...');
             setupKeyButtons();
@@ -766,8 +979,10 @@ exports.handler = async (event, context) => {
                     loadAllMedia(q, t);
                 });
             }
-            loadAllMedia().then(() => {
-                // assignments could be loaded here in future
+            loadAllMedia().then(async () => {
+                await loadAssignments();
+                // Set up periodic refresh
+                setInterval(loadAssignments, 30000);
             });
             const assignBtn = document.getElementById('assignButton');
             if (assignBtn) {
@@ -775,14 +990,20 @@ exports.handler = async (event, context) => {
                     const keyNum = elements.keySelect.value;
                     if (keyNum && state.selectedMedia) {
                         assignMediaToKey(keyNum, state.selectedMedia);
-                        // Use concatenation for the success message
-                        showMessage('success', 'Media assigned to Key ' + keyNum);
                     } else {
                         showMessage('error', 'Please select a key and media');
                     }
                 });
             }
         }
+        window.voxProManager = {
+            playMedia: (url, title, fileType) => playMedia(url, title, fileType),
+            stopAllMedia: stopAllMedia,
+            loadAssignments: loadAssignments,
+            assignMediaToKey: assignMediaToKey,
+            deleteAssignment: deleteAssignment
+        };
+        
         document.addEventListener('DOMContentLoaded', initialize);
     </script>
 </body>
