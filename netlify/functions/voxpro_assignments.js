@@ -89,9 +89,27 @@ exports.handler = async (event) => {
       };
       
     } else if (event.httpMethod === 'PATCH') {
+      let requestBody = {};
+      if (event.body) {
+        try {
+          requestBody = JSON.parse(event.body);
+        } catch (e) {
+          console.error('Invalid JSON in PATCH request body');
+        }
+      }
+      
+      const assignmentId = requestBody.id;
+      if (!assignmentId) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Assignment ID required for PATCH operation' })
+        };
+      }
+      
       const options = {
         hostname: 'xajo-bs7d-cagt.n7e.xano.io',
-        path: '/api:pYeQctVX/voxpro_assignments',
+        path: `/api:pYeQctVX/voxpro_assignments/${assignmentId}`,
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -125,9 +143,27 @@ exports.handler = async (event) => {
       };
       
     } else if (event.httpMethod === 'DELETE') {
+      let requestBody = {};
+      if (event.body) {
+        try {
+          requestBody = JSON.parse(event.body);
+        } catch (e) {
+          console.error('Invalid JSON in DELETE request body');
+        }
+      }
+      
+      const assignmentId = requestBody.id;
+      if (!assignmentId) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Assignment ID required for DELETE operation' })
+        };
+      }
+      
       const options = {
         hostname: 'xajo-bs7d-cagt.n7e.xano.io',
-        path: '/api:pYeQctVX/voxpro_assignments',
+        path: `/api:pYeQctVX/voxpro_assignments/${assignmentId}`,
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
