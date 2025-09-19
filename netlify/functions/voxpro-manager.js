@@ -762,11 +762,19 @@ exports.handler = async (event, context) => {
             try {
                 console.log('Loading assignments...');
                 const response = await fetch('/.netlify/functions/voxpro_assignments', {
-                    headers: { 'Content-Type': 'application/json' }
+                    method: 'GET',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
                 });
                 
+                console.log('Assignment fetch response status:', response.status);
+                
                 if (!response.ok) {
-                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                    const errorText = await response.text();
+                    console.error('Assignment fetch failed:', response.status, response.statusText, errorText);
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText + ' - ' + errorText);
                 }
                 
                 const data = await response.json();
@@ -795,11 +803,12 @@ exports.handler = async (event, context) => {
                 console.log('Loaded assignments:', state.keyAssignments);
                 updateKeyButtons();
                 renderAssignments();
-                updateConnectionStatus('Connected');
+                console.log('Assignment loading completed successfully');
             } catch (error) {
                 console.error('Load assignments error:', error);
                 state.keyAssignments = {};
                 updateConnectionStatus('Disconnected');
+                throw error;
             }
         }
         
@@ -854,24 +863,41 @@ exports.handler = async (event, context) => {
                 );
                 
                 let response;
+                console.log('Assignment data:', assignmentData);
+                console.log('Existing assignment:', existingAssignment);
+                
                 if (existingAssignment) {
                     // Update existing assignment
+                    const updateData = { ...assignmentData, id: existingAssignment.id };
+                    console.log('Updating assignment with data:', updateData);
                     response = await fetch('/.netlify/functions/voxpro_assignments', {
                         method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...assignmentData, id: existingAssignment.id })
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(updateData)
                     });
                 } else {
                     // Create new assignment
+                    console.log('Creating new assignment with data:', assignmentData);
                     response = await fetch('/.netlify/functions/voxpro_assignments', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
                         body: JSON.stringify(assignmentData)
                     });
                 }
                 
+                console.log('Assignment response status:', response.status);
+                console.log('Assignment response ok:', response.ok);
+                
                 if (!response.ok) {
-                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                    const errorText = await response.text();
+                    console.error('Assignment request failed:', response.status, response.statusText, errorText);
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText + ' - ' + errorText);
                 }
                 
                 await loadAssignments();
@@ -887,14 +913,22 @@ exports.handler = async (event, context) => {
             if (!confirm('Remove this key assignment?')) return;
             
             try {
+                console.log('Deleting assignment with ID:', assignmentId);
                 const response = await fetch('/.netlify/functions/voxpro_assignments', {
                     method: 'DELETE',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     body: JSON.stringify({ id: assignmentId })
                 });
                 
+                console.log('Delete response status:', response.status);
+                
                 if (!response.ok) {
-                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                    const errorText = await response.text();
+                    console.error('Delete request failed:', response.status, response.statusText, errorText);
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText + ' - ' + errorText);
                 }
                 
                 await loadAssignments();
@@ -907,10 +941,14 @@ exports.handler = async (event, context) => {
         }
         
         function updateConnectionStatus(status) {
+            console.log('Updating connection status to:', status);
             const statusElement = document.querySelector('.player-status');
             if (statusElement) {
                 statusElement.textContent = status;
                 statusElement.style.color = status === 'Connected' ? '#4CAF50' : '#f44336';
+                console.log('Connection status updated in UI:', status);
+            } else {
+                console.warn('Status element not found');
             }
         }
         
@@ -936,10 +974,16 @@ exports.handler = async (event, context) => {
             }
             
             loadAllMedia().then(async () => {
-                await loadAssignments();
-                updateConnectionStatus('Connected');
-                // Set up periodic refresh
-                setInterval(loadAssignments, 30000);
+                try {
+                    await loadAssignments();
+                    updateConnectionStatus('Connected');
+                    console.log('VoxPro Manager fully initialized and connected');
+                    // Set up periodic refresh
+                    setInterval(loadAssignments, 30000);
+                } catch (assignmentError) {
+                    console.warn('Assignment loading failed, but media loaded successfully:', assignmentError);
+                    updateConnectionStatus('Connected');
+                }
             }).catch(error => {
                 console.error('Initialization error:', error);
                 updateConnectionStatus('Disconnected');
