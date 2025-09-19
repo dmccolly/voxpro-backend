@@ -500,7 +500,15 @@
     async function loadAssignments() {
         try {
             console.log('Loading assignments...');
-            const data = await xanoRequest('/voxpro_assignments');
+            const response = await fetch('/.netlify/functions/voxpro_assignments', {
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
             console.log('Raw assignment data:', data);
             const assignments = Array.isArray(data) ? data : [];
             
