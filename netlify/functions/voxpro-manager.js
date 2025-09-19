@@ -1278,10 +1278,10 @@ exports.handler = async (event, context) => {
                     const iframe = document.createElement('iframe');
                     iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
                     
-                    iframe.src = mediaUrl + '#toolbar=1&navpanes=1&scrollbar=1&view=FitH';
+                    iframe.src = 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(mediaUrl);
                     
                     iframe.onerror = function() {
-                        iframe.src = mediaUrl;
+                        iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
                     };
                     
                     if (mediaContainer) {
