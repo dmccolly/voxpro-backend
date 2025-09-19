@@ -578,51 +578,6 @@ exports.handler = async (event, context) => {
             preview.innerHTML = header;
             preview.appendChild(node);
         }
-        async function assignMediaToKey(keyNum, media) {
-            try {
-                const assignmentData = {
-                    asset_id: media.id,
-                    key_number: parseInt(keyNum),
-                    title: media.title || media.filename || media.display_name,
-                    file_type: media.file_type,
-                    cloudinary_url: media.attachment || media.media_url || media.cloudinary_url || media.file_url || media.database_url
-                };
-                
-                // Check if assignment exists for this key
-                const existingAssignment = Object.values(state.keyAssignments).find(a => {
-                    const keyForAssignment = Object.keys(state.keyAssignments).find(key => state.keyAssignments[key].id === a.id);
-                    return parseInt(keyForAssignment) === parseInt(keyNum);
-                });
-                
-                let response;
-                if (existingAssignment) {
-                    // Update existing assignment
-                    response = await fetch('/.netlify/functions/voxpro_assignments', {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ ...assignmentData, id: existingAssignment.id })
-                    });
-                } else {
-                    // Create new assignment
-                    response = await fetch('/.netlify/functions/voxpro_assignments', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(assignmentData)
-                    });
-                }
-                
-                if (!response.ok) {
-                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
-                }
-                
-                await loadAssignments();
-                showMessage('success', 'Media assigned to Key ' + keyNum);
-                
-            } catch (error) {
-                console.error('Assignment error:', error);
-                showMessage('error', 'Assignment failed: ' + error.message);
-            }
-        }
         function renderAssignments() {
             const container = document.getElementById('assignmentsList');
             if (!container) return;
