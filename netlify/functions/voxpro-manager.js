@@ -1270,65 +1270,39 @@ exports.handler = async (event, context) => {
                 
                 showMessage('success', 'Displaying image: ' + title);
             } else if (fileType === 'raw' || fileType === 'document') {
-                const fileExtension = (mediaUrl.split('.').pop() || title.split('.').pop() || '').toLowerCase();
-                const isPdf = fileExtension === 'pdf' || mediaUrl.includes('.pdf') || title.toLowerCase().includes('pdf');
-                const isDocx = fileExtension === 'docx' || fileExtension === 'doc' || mediaUrl.includes('.docx') || mediaUrl.includes('.doc') || title.toLowerCase().includes('doc');
+                const conversionUrl = '/.netlify/functions/convert-document?url=' + encodeURIComponent(mediaUrl) + '&title=' + encodeURIComponent(title);
                 
-                if (isPdf || isDocx) {
-                    let thumbnailUrl = mediaUrl;
-                    
-                    const cloudinaryMatch = mediaUrl.match(/\/upload\/(?:v\d+\/)?([^\.]+)/);
-                    if (cloudinaryMatch) {
-                        const publicId = cloudinaryMatch[1];
-                        thumbnailUrl = 'https://res.cloudinary.com/dzrw8nopf/image/upload/c_fit,w_800,h_600,pg_1,f_jpg/' + publicId + '.jpg';
-                    }
-                    
-                    const previewContainer = document.createElement('div');
-                    previewContainer.style.cssText = 'width: 100%; background: var(--bg-primary); border-radius: 4px; padding: 15px; border: 1px solid var(--bg-tertiary);';
-                    
-                    const thumbnailImg = document.createElement('img');
-                    thumbnailImg.src = thumbnailUrl;
-                    thumbnailImg.style.cssText = 'width: 100%; max-height: 500px; object-fit: contain; border-radius: 4px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
-                    
-                    thumbnailImg.onload = function() {
-                        console.log('Document thumbnail loaded successfully:', thumbnailUrl);
-                    };
-                    
-                    thumbnailImg.onerror = function() {
-                        console.error('Failed to load document thumbnail, showing fallback:', thumbnailUrl);
-                        previewContainer.innerHTML = 
-                            '<div style="text-align: center; padding: 40px;">' +
-                                '<div style="font-size: 64px; margin-bottom: 20px; color: var(--text-secondary);">' + (isPdf ? '📄' : '📝') + '</div>' +
-                                '<div style="color: var(--text-primary); font-size: 18px; font-weight: 500; margin-bottom: 12px;">' + title + '</div>' +
-                                '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">' + (isPdf ? 'PDF Document' : 'DOCX Document') + '</div>' +
-                                '<button onclick="window.open(\'' + mediaUrl + '\', \'_blank\')" style="background: var(--accent-color); color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; cursor: pointer;">' +
-                                    '📥 Open Document' +
-                                '</button>' +
-                            '</div>';
-                    };
-                    
-                    previewContainer.appendChild(thumbnailImg);
-                    
-                    if (mediaContainer) {
-                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview (First Page)</div>';
-                        mediaContainer.appendChild(previewContainer);
-                    }
-                } else {
-                    const previewDiv = document.createElement('div');
-                    previewDiv.style.cssText = 'width: 100%; height: 400px; background: var(--bg-primary); border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed var(--bg-tertiary);';
-                    
-                    previewDiv.innerHTML = 
-                        '<div style="font-size: 48px; margin-bottom: 16px; color: var(--text-secondary);">📄</div>' +
-                        '<div style="color: var(--text-primary); font-size: 16px; font-weight: 500; margin-bottom: 8px;">' + title + '</div>' +
-                        '<button onclick="window.open(\'' + mediaUrl + '\', \'_blank\')" style="background: var(--accent-color); color: white; border: none; padding: 10px 20px; border-radius: 4px; font-size: 14px; cursor: pointer;">' +
-                            '📥 Open File' +
-                        '</button>';
-                    
-                    if (mediaContainer) {
-                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document preview</div>';
-                        mediaContainer.appendChild(previewDiv);
-                    }
+                const previewContainer = document.createElement('div');
+                previewContainer.style.cssText = 'width: 100%; background: var(--bg-primary); border-radius: 4px; padding: 15px; border: 1px solid var(--bg-tertiary);';
+                
+                const thumbnailImg = document.createElement('img');
+                thumbnailImg.style.cssText = 'width: 100%; max-height: 500px; object-fit: contain; border-radius: 4px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+                
+                thumbnailImg.onload = function() {
+                    console.log('Document preview loaded successfully:', conversionUrl);
+                };
+                
+                thumbnailImg.onerror = function() {
+                    console.error('Failed to load document preview, showing fallback:', conversionUrl);
+                    previewContainer.innerHTML = 
+                        '<div style="text-align: center; padding: 40px;">' +
+                            '<div style="font-size: 64px; margin-bottom: 20px; color: var(--text-secondary);">📄</div>' +
+                            '<div style="color: var(--text-primary); font-size: 18px; font-weight: 500; margin-bottom: 12px;">' + title + '</div>' +
+                            '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Document Preview</div>' +
+                            '<button onclick="window.open(\'' + mediaUrl + '\', \'_blank\')" style="background: var(--accent-color); color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; cursor: pointer;">' +
+                                '📥 Open Document' +
+                            '</button>' +
+                        '</div>';
+                };
+                
+                previewContainer.appendChild(thumbnailImg);
+                
+                if (mediaContainer) {
+                    mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview (First Page)</div>';
+                    mediaContainer.appendChild(previewContainer);
                 }
+                
+                thumbnailImg.src = conversionUrl;
                 
                 showMessage('success', 'Displaying document: ' + title);
             } else {
