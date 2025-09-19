@@ -471,7 +471,7 @@ exports.handler = async (event, context) => {
             }
         }
         function selectMedia(id) {
-            const item = state.mediaList.find(m => m.id === id && m.source === 'xano');
+            const item = state.mediaList.find(m => m.id === id);
             if (item) {
                 state.selectedMedia = item;
                 updatePreview(item);
