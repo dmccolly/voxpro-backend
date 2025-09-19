@@ -187,11 +187,11 @@ exports.handler = async (event, context) => {
                 <span id="statusText">Disconnected</span>
             </div>
             <div class="key-grid">
-                <button class="key-button" id="key1">KEY 1</button>
-                <button class="key-button" id="key2">KEY 2</button>
-                <button class="key-button" id="key3">KEY 3</button>
-                <button class="key-button" id="key4">KEY 4</button>
-                <button class="key-button" id="key5">KEY 5</button>
+                <button class="key-button" id="key1" data-key="1">KEY 1</button>
+                <button class="key-button" id="key2" data-key="2">KEY 2</button>
+                <button class="key-button" id="key3" data-key="3">KEY 3</button>
+                <button class="key-button" id="key4" data-key="4">KEY 4</button>
+                <button class="key-button" id="key5" data-key="5">KEY 5</button>
                 <button class="stop-button" id="stopButton">STOP</button>
             </div>
             <div class="assignments-section" id="assignmentsList">
@@ -611,18 +611,13 @@ exports.handler = async (event, context) => {
                 }
             });
         }
-        function setupKeyButtons() {
-            const keyContainer = document.querySelector('.key-grid');
-            if (!keyContainer) return;
-            
-            for (let i = 1; i <= 12; i++) {
-                const button = document.createElement('button');
-                button.className = 'key-button';
-                button.dataset.key = i;
-                button.innerHTML = 'KEY ' + i;
-                button.addEventListener('click', () => playForKey(i));
-                keyContainer.appendChild(button);
-            }
+        function setupStaticKeyButtons() {
+            document.querySelectorAll('.key-button').forEach(button => {
+                const keyNum = parseInt(button.dataset.key);
+                if (keyNum) {
+                    button.addEventListener('click', () => playForKey(keyNum));
+                }
+            });
         }
         
         function playForKey(keyNum) {
@@ -947,7 +942,7 @@ exports.handler = async (event, context) => {
         
         function initialize() {
             console.log('VoxPro Manager initializing with enhanced document support...');
-            setupKeyButtons();
+            setupStaticKeyButtons();
             setupStopButton();
             
             if (elements.searchInput) {
