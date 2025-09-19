@@ -1278,23 +1278,20 @@ exports.handler = async (event, context) => {
                     const iframe = document.createElement('iframe');
                     iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
                     
-                    iframe.src = 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(mediaUrl);
-                    
-                    iframe.onerror = function() {
-                        iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
-                    };
+                    iframe.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=1&view=FitH';
                     
                     if (mediaContainer) {
-                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">PDF Document Preview</div>';
+                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">PDF Document Preview (First Page)</div>';
                         mediaContainer.appendChild(iframe);
                     }
                 } else if (isDocx) {
                     const iframe = document.createElement('iframe');
-                    iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
                     iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
                     
+                    iframe.src = mediaUrl;
+                    
                     if (mediaContainer) {
-                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview</div>';
+                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview (First Page)</div>';
                         mediaContainer.appendChild(iframe);
                     }
                 } else {
