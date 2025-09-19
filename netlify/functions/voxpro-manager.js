@@ -369,8 +369,8 @@ exports.handler = async (event, context) => {
                     return {
                         id: item.id,
                         title: item.title || item.filename || item.display_name,
-                        media_url: item.cloudinary_url || item.file_url || item.database_url,
-                        attachment: item.cloudinary_url || item.file_url || item.database_url,
+                        media_url: item.attachment || item.media_url || item.cloudinary_url || item.file_url || item.database_url,
+                        attachment: item.attachment || item.media_url || item.cloudinary_url || item.file_url || item.database_url,
                         source: 'xano',
                         file_type: ftype,
                         file_ext: ext,
@@ -457,6 +457,7 @@ exports.handler = async (event, context) => {
                 el.addEventListener('click', () => {
                     const source = el.dataset.source;
                     const id = el.dataset.id;
+                    console.log('Media item clicked - id:', id, 'source:', source);
                     if (source === 'cloudinary') selectCloudinaryAsset(id);
                     else selectMedia(parseInt(id));
                 });
@@ -473,6 +474,7 @@ exports.handler = async (event, context) => {
         function selectMedia(id) {
             const item = state.mediaList.find(m => m.id === id);
             if (item) {
+                console.log('selectMedia found item:', item.title, 'attachment:', item.attachment, 'media_url:', item.media_url);
                 state.selectedMedia = item;
                 updatePreview(item);
                 updateMetadataForm(item);
