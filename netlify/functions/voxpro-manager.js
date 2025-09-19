@@ -546,12 +546,13 @@ exports.handler = async (event, context) => {
                 const data = await response.json();
                 const mediaList = Array.isArray(data) ? data : [];
                 
+                console.log('VoxPro Manager: Received', mediaList.length, 'items from Xano');
+                
                 return mediaList.filter(item => {
-                    if (query && !item.title.toLowerCase().includes(query.toLowerCase())) {
+                    if (query && item.title && !item.title.toLowerCase().includes(query.toLowerCase())) {
                         return false;
                     }
-                    return item.file_size && item.file_size > 100 && 
-                           (item.cloudinary_url || item.file_url || item.database_url);
+                    return item.title && (item.cloudinary_url || item.file_url || item.database_url || item.attachment);
                 }).map(item => ({
                     ...item,
                     source: 'xano'
