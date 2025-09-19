@@ -937,6 +937,7 @@ exports.handler = async (event, context) => {
             
             loadAllMedia().then(async () => {
                 await loadAssignments();
+                updateConnectionStatus('Connected');
                 // Set up periodic refresh
                 setInterval(loadAssignments, 30000);
             }).catch(error => {
