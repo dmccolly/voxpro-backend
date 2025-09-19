@@ -50,3 +50,33 @@ const payload = {
 };
 return payload;
 }
+
+export async function findByPublicId(xanoApiBase, endpoint, headers, publicId) {
+  try {
+    const url = `${xanoApiBase}${endpoint}?${fields.public_id}=${encodeURIComponent(publicId)}`;
+    const response = await fetch(url, { headers });
+    if (!response.ok) return null;
+    const data = await response.json();
+    return Array.isArray(data) ? data[0] : data;
+  } catch (error) {
+    console.warn('findByPublicId error:', error);
+    return null;
+  }
+}
+
+export async function batchGetByPublicIds(xanoApiBase, endpoint, headers, publicIds) {
+  try {
+    const url = `${xanoApiBase}${endpoint}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ public_ids: publicIds })
+    });
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.warn('batchGetByPublicIds error:', error);
+    return [];
+  }
+}
