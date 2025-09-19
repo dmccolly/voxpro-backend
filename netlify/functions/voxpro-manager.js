@@ -413,7 +413,7 @@ exports.handler = async (event, context) => {
             <div class="search-section">
                 <label class="form-label">Search Media (title, description, station, tags)</label>
                 <div class="picker-controls">
-                    <input type="text" class="search-input" id="searchInput" placeholder="Search all media (Cloudinary + Xano)..." style="flex: 1;">
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search media files..." style="flex: 1;">
                     <select class="form-select" id="mediaTypeFilter" style="width: 150px;">
                         <option value="">All Types</option>
                         <option value="image">Images</option>
