@@ -1165,16 +1165,50 @@ exports.handler = async (event, context) => {
         function playMedia(mediaUrl, fileType, title) {
             stopAllMedia();
             
+            let mediaContainer = document.getElementById('playerMediaContainer');
+            if (!mediaContainer) {
+                const playerSection = document.querySelector('.player-section');
+                if (playerSection) {
+                    mediaContainer = document.createElement('div');
+                    mediaContainer.id = 'playerMediaContainer';
+                    mediaContainer.style.cssText = 'margin: 15px 0; padding: 10px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--bg-tertiary);';
+                    
+                    const stopButton = document.getElementById('stopButton');
+                    if (stopButton && stopButton.parentNode) {
+                        stopButton.parentNode.insertBefore(mediaContainer, stopButton.nextSibling);
+                    } else {
+                        playerSection.appendChild(mediaContainer);
+                    }
+                }
+            }
+            
             if (fileType === 'audio') {
                 const audio = new Audio(mediaUrl);
+                audio.controls = true;
+                audio.style.cssText = 'width: 100%; background: var(--bg-primary); border-radius: 4px;';
+                
+                if (mediaContainer) {
+                    mediaContainer.innerHTML = '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">Now Playing: ' + title + '</div>';
+                    mediaContainer.appendChild(audio);
+                }
+                
                 audio.play();
                 state.currentAudio = audio;
                 showMessage('success', 'Playing: ' + title);
             } else if (fileType === 'video') {
-                const audio = new Audio(mediaUrl);
-                audio.play();
-                state.currentAudio = audio;
-                showMessage('success', 'Playing audio from: ' + title);
+                const video = document.createElement('video');
+                video.src = mediaUrl;
+                video.controls = true;
+                video.style.cssText = 'width: 100%; max-height: 300px; background: var(--bg-primary); border-radius: 4px;';
+                
+                if (mediaContainer) {
+                    mediaContainer.innerHTML = '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">Now Playing: ' + title + '</div>';
+                    mediaContainer.appendChild(video);
+                }
+                
+                video.play();
+                state.currentVideo = video;
+                showMessage('success', 'Playing video: ' + title);
             } else {
                 showMessage('info', 'Media type not supported for playback');
             }
@@ -1184,6 +1218,15 @@ exports.handler = async (event, context) => {
             if (state.currentAudio) {
                 state.currentAudio.pause();
                 state.currentAudio = null;
+            }
+            if (state.currentVideo) {
+                state.currentVideo.pause();
+                state.currentVideo = null;
+            }
+            
+            const mediaContainer = document.getElementById('playerMediaContainer');
+            if (mediaContainer) {
+                mediaContainer.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 20px;">No media playing</div>';
             }
         }
 
