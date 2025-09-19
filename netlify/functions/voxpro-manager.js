@@ -520,7 +520,7 @@ exports.handler = async (event, context) => {
 
         async function loadAllMedia(query = '', type = '') {
             try {
-                console.log('VoxPro Manager: Loading media from Xano endpoint only');
+                console.log('VoxPro Manager: Loading media from Xano endpoint only - v2');
                 const xanoMedia = await loadXanoMedia(query);
                 
                 state.mediaList = xanoMedia;
