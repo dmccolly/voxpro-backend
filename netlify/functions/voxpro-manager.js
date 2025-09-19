@@ -960,30 +960,30 @@ exports.handler = async (event, context) => {
                 console.log('Raw assignment data:', data);
                 const assignments = Array.isArray(data) ? data : [];
                 
-                state.assignments = await Promise.all(assignments.map(async (assignment) => {
-                    if (assignment.asset_id && state.mediaList.length > 0) {
+                state.keyAssignments = {};
+                assignments.forEach(assignment => {
+                    if (assignment.key_number && assignment.asset_id && state.mediaList.length > 0) {
                         const mediaItem = state.mediaList.find(item => 
                             parseInt(item.id) === parseInt(assignment.asset_id)
                         );
                         if (mediaItem) {
-                            return {
-                                ...assignment,
+                            state.keyAssignments[assignment.key_number] = {
+                                id: assignment.id,
                                 title: assignment.title || mediaItem.title || mediaItem.filename || mediaItem.display_name,
-                                cloudinary_url: assignment.cloudinary_url || mediaItem.cloudinary_url || mediaItem.file_url || mediaItem.database_url,
+                                media_url: assignment.cloudinary_url || mediaItem.cloudinary_url || mediaItem.file_url || mediaItem.database_url,
                                 file_type: assignment.file_type || mediaItem.file_type,
                                 asset: mediaItem
                             };
                         }
                     }
-                    return assignment;
-                }));
+                });
                 
-                console.log('Enriched assignments:', state.assignments);
+                console.log('Populated keyAssignments:', state.keyAssignments);
                 renderAssignments();
                 updateKeyButtons();
             } catch (error) {
                 console.error('Load assignments error:', error);
-                state.assignments = [];
+                state.keyAssignments = {};
             }
         }
 
@@ -1315,6 +1315,8 @@ exports.handler = async (event, context) => {
             state,
             loadAllMedia,
             loadAssignments,
+            renderAssignments,
+            updateKeyButtons,
             stopAllMedia
         };
 
