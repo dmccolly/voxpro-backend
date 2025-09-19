@@ -1278,10 +1278,10 @@ exports.handler = async (event, context) => {
                     const iframe = document.createElement('iframe');
                     iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
                     
-                    iframe.src = 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent(mediaUrl);
+                    iframe.src = mediaUrl + '#toolbar=1&navpanes=1&scrollbar=1&view=FitH';
                     
                     iframe.onerror = function() {
-                        iframe.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=0';
+                        iframe.src = mediaUrl;
                     };
                     
                     if (mediaContainer) {
