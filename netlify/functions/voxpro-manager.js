@@ -49,6 +49,7 @@ exports.handler = async (event, context) => {
         .container {
             display: flex;
             min-height: 100vh;
+            width: 100%;
         }
 
         .player-section {
@@ -56,6 +57,9 @@ exports.handler = async (event, context) => {
             padding: 20px;
             background: var(--bg-secondary);
             border-right: 1px solid var(--bg-tertiary);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
 
         .manager-section {
@@ -110,10 +114,12 @@ exports.handler = async (event, context) => {
         .key-button:hover {
             background: var(--accent);
             transform: translateY(-2px);
+            color: white;
         }
 
         .key-button.assigned {
             background: var(--accent);
+            color: white;
         }
 
         .stop-button {
@@ -464,6 +470,8 @@ exports.handler = async (event, context) => {
 
                 <label class="form-label">Submitted By</label>
                 <input type="text" class="form-input" id="submittedByInput" placeholder="Name or initials">
+                
+                <button class="form-button" id="assignButton" style="margin-top: 15px; background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Assign to Key</button>
             </div>
         </div>
     </div>
@@ -532,24 +540,17 @@ exports.handler = async (event, context) => {
 
         async function loadXanoMedia(query = '') {
             try {
-                let endpoint = CONFIG.LIST_MEDIA_ENDPOINT;
-                if (query) {
-                    endpoint = \`\${CONFIG.SEARCH_MEDIA_ENDPOINT}?q=\${encodeURIComponent(query)}\`;
-                }
+                const response = await fetch('/.netlify/functions/xano-proxy/user_submission');
                 
-                const response = await fetch(endpoint);
                 if (!response.ok) throw new Error(\`HTTP \${response.status}\`);
                 
-                let data = await response.json();
-                
-                let mediaList = [];
-                if (data.results) {
-                    mediaList = data.results;
-                } else {
-                    mediaList = Array.isArray(data) ? data : [];
-                }
+                const data = await response.json();
+                const mediaList = Array.isArray(data) ? data : [];
                 
                 return mediaList.filter(item => {
+                    if (query && !item.title.toLowerCase().includes(query.toLowerCase())) {
+                        return false;
+                    }
                     return item.file_size && item.file_size > 100 && 
                            (item.cloudinary_url || item.file_url || item.database_url);
                 }).map(item => ({
@@ -607,7 +608,7 @@ exports.handler = async (event, context) => {
 
             browser.innerHTML = state.mediaList.map(item => {
                 const thumbnail = getMediaThumbnail(item);
-                const title = item.title || item.filename || item.display_name || 'Untitled';
+                const title = item.title || 'Untitled';
                 const itemId = item.source === 'cloudinary' ? item.id : item.id;
                 
                 return \`
@@ -965,6 +966,225 @@ exports.handler = async (event, context) => {
             }
             
             loadAllMedia();
+            setupKeyButtons();
+            
+            const assignButton = document.getElementById('assignButton');
+            if (assignButton) {
+                assignButton.addEventListener('click', () => {
+                    const keyNumber = elements.keySelect.value;
+                    if (keyNumber && state.selectedMedia) {
+                        assignMediaToKey(keyNumber, state.selectedMedia);
+                        showMessage('success', \`Media assigned to Key \${keyNumber}\`);
+                    } else {
+                        showMessage('error', 'Please select a key and media');
+                    }
+                });
+            }
+        }
+
+        function assignMediaToKey(keyNumber, media) {
+            if (!media || !keyNumber) return;
+            
+            state.keyAssignments[keyNumber] = {
+                id: media.id,
+                title: media.title,
+                media_url: media.cloudinary_url || media.media_url || media.attachment,
+                file_type: media.file_type
+            };
+            
+            updateKeyButtons();
+            renderAssignments();
+        }
+
+        function updateKeyButtons() {
+            for (let i = 1; i <= 5; i++) {
+                const button = document.getElementById(\`key\${i}\`);
+                const assignment = state.keyAssignments[i];
+                
+                if (button) {
+                    if (assignment) {
+                        button.textContent = \`KEY \${i}: \${assignment.title}\`;
+                        button.classList.add('assigned');
+                    } else {
+                        button.textContent = \`KEY \${i}\`;
+                        button.classList.remove('assigned');
+                    }
+                }
+            }
+        }
+
+        function renderAssignments() {
+            const assignmentsList = elements.assignmentsList;
+            if (!assignmentsList) return;
+            
+            const assignments = Object.entries(state.keyAssignments).map(([key, assignment]) => {
+                return \`
+                    <div class="assignment-item">
+                        <span>Key \${key}: \${assignment.title}</span>
+                        <button onclick="removeAssignment(\${key})" style="background: var(--error); color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Remove</button>
+                    </div>
+                \`;
+            }).join('');
+            
+            assignmentsList.innerHTML = assignments || '<div class="empty-state">No assignments</div>';
+        }
+
+        function removeAssignment(keyNumber) {
+            delete state.keyAssignments[keyNumber];
+            updateKeyButtons();
+            renderAssignments();
+            showMessage('success', \`Key \${keyNumber} assignment removed\`);
+        }
+
+        window.playSelectedMedia = function() {
+            if (!state.selectedMedia) {
+                showMessage('error', 'No media selected');
+                return;
+            }
+            
+            const mediaUrl = state.selectedMedia.cloudinary_url || state.selectedMedia.media_url || state.selectedMedia.attachment;
+            if (!mediaUrl) {
+                showMessage('error', 'No media URL available');
+                return;
+            }
+            
+            if (state.currentAudio) {
+                state.currentAudio.pause();
+                state.currentAudio = null;
+            }
+            
+            const audio = new Audio(mediaUrl);
+            audio.play().then(() => {
+                state.currentAudio = audio;
+                showMessage('success', 'Playing: ' + (state.selectedMedia.title || 'Media'));
+            }).catch(error => {
+                console.error('Playback error:', error);
+                showMessage('error', 'Failed to play media');
+            });
+        };
+
+        window.stopPreview = function() {
+            if (state.currentAudio) {
+                state.currentAudio.pause();
+                state.currentAudio = null;
+                showMessage('info', 'Playback stopped');
+            }
+        };
+
+        window.openFullPreview = function() {
+            if (!state.selectedMedia) {
+                showMessage('error', 'No media selected');
+                return;
+            }
+            
+            const mediaUrl = state.selectedMedia.cloudinary_url || state.selectedMedia.media_url || state.selectedMedia.attachment;
+            if (mediaUrl) {
+                window.open(mediaUrl, '_blank');
+            } else {
+                showMessage('error', 'No media URL available');
+            }
+        }
+
+        function assignMediaToKey(keyNumber, media) {
+            if (!media || !keyNumber) return;
+            
+            state.keyAssignments[keyNumber] = {
+                id: media.id,
+                title: media.title,
+                media_url: media.cloudinary_url || media.media_url || media.attachment,
+                file_type: media.file_type
+            };
+            
+            updateKeyButtons();
+            renderAssignments();
+        }
+        
+        function updateKeyButtons() {
+            for (let i = 1; i <= 5; i++) {
+                const button = document.getElementById(\`key\${i}\`);
+                const assignment = state.keyAssignments[i];
+                
+                if (button) {
+                    if (assignment) {
+                        button.textContent = \`KEY \${i}: \${assignment.title}\`;
+                        button.classList.add('assigned');
+                    } else {
+                        button.textContent = \`KEY \${i}\`;
+                        button.classList.remove('assigned');
+                    }
+                }
+            }
+        }
+        
+        function renderAssignments() {
+            const assignmentsList = elements.assignmentsList;
+            if (!assignmentsList) return;
+            
+            const assignments = Object.entries(state.keyAssignments);
+            if (assignments.length === 0) {
+                assignmentsList.innerHTML = \`
+                    <div style="text-align: center; color: var(--text-secondary); padding: 20px;">
+                        No assignments yet
+                    </div>
+                \`;
+                return;
+            }
+            
+            assignmentsList.innerHTML = assignments.map(([key, assignment]) => \`
+                <div class="assignment-item" style="padding: 10px; border: 1px solid var(--bg-tertiary); border-radius: 4px; margin-bottom: 8px;">
+                    <div style="font-weight: bold; color: var(--accent);">Key \${key}</div>
+                    <div style="color: var(--text-primary);">\${assignment.title}</div>
+                    <div style="color: var(--text-secondary); font-size: 12px;">\${assignment.file_type || 'Media'}</div>
+                </div>
+            \`).join('');
+        }
+        
+        function setupKeyButtons() {
+            for (let i = 1; i <= 5; i++) {
+                const button = document.getElementById(\`key\${i}\`);
+                if (button) {
+                    button.addEventListener('click', () => {
+                        const assignment = state.keyAssignments[i];
+                        if (assignment && assignment.media_url) {
+                            playMedia(assignment.media_url, assignment.file_type, assignment.title);
+                        } else {
+                            showMessage('info', \`Key \${i} has no assignment\`);
+                        }
+                    });
+                }
+            }
+            
+            const stopButton = document.getElementById('stopButton');
+            if (stopButton) {
+                stopButton.addEventListener('click', () => {
+                    stopAllMedia();
+                });
+            }
+        }
+        
+        function playMedia(mediaUrl, fileType, title) {
+            stopAllMedia();
+            
+            if (fileType === 'audio') {
+                const audio = new Audio(mediaUrl);
+                audio.play();
+                state.currentAudio = audio;
+                showMessage('success', 'Playing: ' + title);
+            } else if (fileType === 'video') {
+                const audio = new Audio(mediaUrl);
+                audio.play();
+                state.currentAudio = audio;
+                showMessage('success', 'Playing audio from: ' + title);
+            } else {
+                showMessage('info', 'Media type not supported for playback');
+            }
+        }
+        
+        function stopAllMedia() {
+            if (state.currentAudio) {
+                state.currentAudio.pause();
+                state.currentAudio = null;
+            }
         }
 
         window.playSelectedMedia = function() {
