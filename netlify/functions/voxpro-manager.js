@@ -1270,23 +1270,36 @@ exports.handler = async (event, context) => {
                 
                 showMessage('success', 'Displaying image: ' + title);
             } else if (fileType === 'raw' || fileType === 'document') {
-                const iframe = document.createElement('iframe');
-                
                 const fileExtension = (mediaUrl.split('.').pop() || title.split('.').pop() || '').toLowerCase();
                 
                 if (fileExtension === 'pdf') {
-                    iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
+                    const iframe = document.createElement('iframe');
+                    iframe.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=0';
+                    iframe.style.cssText = 'width: 100%; height: 400px; border: none; background: var(--bg-primary); border-radius: 4px;';
+                    
+                    iframe.onerror = function() {
+                        if (mediaContainer) {
+                            mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">PDF preview - <a href="' + mediaUrl + '" target="_blank" style="color: var(--accent-color);">Click to open PDF</a></div>';
+                        }
+                    };
+                    
+                    if (mediaContainer) {
+                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">PDF preview</div>';
+                        mediaContainer.appendChild(iframe);
+                    }
                 } else if (fileExtension === 'docx' || fileExtension === 'doc') {
-                    iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
+                    if (mediaContainer) {
+                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document preview</div><div style="padding: 20px; text-align: center; background: var(--bg-primary); border-radius: 4px; border: 2px dashed var(--bg-tertiary);"><div style="font-size: 48px; margin-bottom: 10px;">📄</div><div style="color: var(--text-primary); margin-bottom: 10px;">' + title + '</div><a href="' + mediaUrl + '" target="_blank" style="color: var(--accent-color); text-decoration: none; padding: 8px 16px; background: var(--bg-secondary); border-radius: 4px; display: inline-block;">Open Document</a></div>';
+                    }
                 } else {
+                    const iframe = document.createElement('iframe');
                     iframe.src = mediaUrl;
-                }
-                
-                iframe.style.cssText = 'width: 100%; height: 400px; border: none; background: var(--bg-primary); border-radius: 4px;';
-                
-                if (mediaContainer) {
-                    mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document preview - ' + fileExtension.toUpperCase() + '</div>';
-                    mediaContainer.appendChild(iframe);
+                    iframe.style.cssText = 'width: 100%; height: 400px; border: none; background: var(--bg-primary); border-radius: 4px;';
+                    
+                    if (mediaContainer) {
+                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document preview</div>';
+                        mediaContainer.appendChild(iframe);
+                    }
                 }
                 
                 showMessage('success', 'Displaying document: ' + title);
