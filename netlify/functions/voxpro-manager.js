@@ -286,7 +286,8 @@ exports.handler = async (event, context) => {
             const box = elements.messageBox;
             if (!box) return;
             box.textContent = message;
-            box.className = `message ${type}`;
+            // Use string concatenation to avoid nested template literals inside the surrounding template
+            box.className = 'message ' + type;
             box.style.display = 'block';
             setTimeout(() => { box.style.display = 'none'; }, 5000);
         }
@@ -296,8 +297,9 @@ exports.handler = async (event, context) => {
             const indicator = elements.statusIndicator;
             const text = elements.statusText;
             if (statusEl && indicator && text) {
-                statusEl.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
-                indicator.className = `status-indicator ${connected ? 'connected' : 'disconnected'}`;
+                // Build classes without backtick interpolation to avoid breaking the outer template literal
+                statusEl.className = 'connection-status ' + (connected ? 'connected' : 'disconnected');
+                indicator.className = 'status-indicator ' + (connected ? 'connected' : 'disconnected');
                 text.textContent = connected ? 'Connected' : 'Disconnected';
             }
         }
@@ -310,11 +312,11 @@ exports.handler = async (event, context) => {
         }
         async function xanoRequest(endpoint, options = {}) {
             try {
-                const response = await fetch(`${CONFIG.XANO_PROXY_ENDPOINT}${endpoint}`, {
+                const response = await fetch(CONFIG.XANO_PROXY_ENDPOINT + endpoint, {
                     headers: { 'Content-Type': 'application/json' },
                     ...options
                 });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (!response.ok) throw new Error('HTTP ' + response.status);
                 const data = await response.json();
                 setConnectionStatus(true);
                 return data;
@@ -328,9 +330,9 @@ exports.handler = async (event, context) => {
         async function loadXanoMedia(query = '') {
             try {
                 let endpoint = CONFIG.LIST_MEDIA_ENDPOINT;
-                if (query) endpoint = `${CONFIG.SEARCH_MEDIA_ENDPOINT}?q=${encodeURIComponent(query)}`;
+                if (query) endpoint = CONFIG.SEARCH_MEDIA_ENDPOINT + '?q=' + encodeURIComponent(query);
                 const response = await fetch(endpoint);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (!response.ok) throw new Error('HTTP ' + response.status);
                 const data = await response.json();
                 let list = data.results ? data.results : (Array.isArray(data) ? data : []);
                 return list.filter(item => item.file_size && item.file_size > 100 && (item.cloudinary_url || item.file_url || item.database_url))
@@ -344,12 +346,12 @@ exports.handler = async (event, context) => {
             try {
                 let endpoint = CONFIG.CLOUDINARY_ASSETS_ENDPOINT;
                 const params = new URLSearchParams();
-                if (query) params.append('expression', `filename:*${query}*`);
+                if (query) params.append('expression', 'filename:*' + query + '*');
                 if (type) params.append('type', type);
                 params.append('max', '50');
                 if (params.toString()) endpoint += '?' + params.toString();
                 const response = await fetch(endpoint);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (!response.ok) throw new Error('HTTP ' + response.status);
                 const data = await response.json();
                 return (data.resources || []).map(asset => {
                     const ext = (asset.format || '').toLowerCase();
@@ -393,7 +395,7 @@ exports.handler = async (event, context) => {
             if (!bytes) return '';
             const units = ['B','KB','MB','GB','TB'];
             const i = Math.floor(Math.log(bytes) / Math.log(1024));
-            return `${(bytes / Math.pow(1024,i)).toFixed(1)} ${units[i]}`;
+            return (bytes / Math.pow(1024,i)).toFixed(1) + ' ' + units[i];
         }
         function getMediaThumbnail(item) {
             const mediaUrl = item.cloudinary_url || item.media_url || item.attachment;
@@ -401,20 +403,24 @@ exports.handler = async (event, context) => {
             const ext = (item.file_ext || '').toLowerCase();
             if (type === 'image' && mediaUrl) {
                 const thumb = mediaUrl.includes('cloudinary.com') ? mediaUrl.replace('/upload/', '/upload/w_60,h_60,c_fill,f_auto,q_auto/') : mediaUrl;
-                return `<img src="${thumb}" alt="${item.title || 'Image'}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:1.2rem;">🖼️</div>`;
+                return '<img src="' + thumb + '" alt="' + (item.title || 'Image') + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' +
+                       '<div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:1.2rem;">🖼️</div>';
             }
             if (type === 'video') {
                 const still = mediaUrl && mediaUrl.includes('cloudinary.com') ? mediaUrl.replace('/upload/', '/upload/so_0,w_60,h_60,c_fill,f_auto,q_auto/').replace(/\.(mp4|mov|avi|webm)$/i, '.jpg') : '';
-                return still ? `<img src="${still}" alt="${item.title || 'Video'}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:1.2rem;">🎬</div>` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">🎬</div>`;
+                return still ? ('<img src="' + still + '" alt="' + (item.title || 'Video') + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\\'none\\'; this.nextElementSibling.style.display=\\'flex\\';">' +
+                                 '<div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:1.2rem;">🎬</div>')
+                             : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">🎬</div>';
             }
             if ((type === 'document-pdf' || ext === 'pdf') && mediaUrl && mediaUrl.includes('cloudinary.com')) {
                 const thumb = mediaUrl.replace('/upload/', '/upload/w_60,h_60,c_fill,f_auto,q_auto,pg_1/');
-                return `<img src="${thumb}" alt="${item.title || 'PDF'}" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:1.2rem;">📄</div>`;
+                return '<img src="' + thumb + '" alt="' + (item.title || 'PDF') + '" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'; this.nextElementSibling.style.display=\'flex\';">' +
+                       '<div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:1.2rem;">📄</div>';
             }
             if (type === 'document-office' || type === 'document') {
-                return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">📃</div>`;
+                return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">📃</div>';
             }
-            return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">📁</div>`;
+            return '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">📁</div>';
         }
         function renderMediaBrowser() {
             const container = elements.mediaBrowser;
@@ -426,16 +432,17 @@ exports.handler = async (event, context) => {
             container.innerHTML = state.mediaList.map(item => {
                 const thumb = getMediaThumbnail(item);
                 const title = item.title || item.filename || item.display_name || 'Untitled';
-                const meta = `${item.station || item.source || 'Unknown'} • ${item.file_type || 'Media'}${item.file_size ? ` • ${formatFileSize(item.file_size)}` : ''}`;
-                return `<div class="media-item" data-id="${item.id}" data-source="${item.source}">
-                            <div class="media-icon" style="width:60px;height:60px;border-radius:4px;overflow:hidden;background:var(--bg-tertiary);display:flex;align-items:center;justify-content:center;">
-                                ${thumb}
-                            </div>
-                            <div class="media-info">
-                                <div class="media-title">${title}</div>
-                                <div class="media-meta">${meta}</div>
-                            </div>
-                        </div>`;
+                const meta = (item.station || item.source || 'Unknown') + ' • ' + (item.file_type || 'Media') + (item.file_size ? (' • ' + formatFileSize(item.file_size)) : '');
+                // Build markup without using backtick template strings
+                return '<div class="media-item" data-id="' + item.id + '" data-source="' + item.source + '">' +
+                       '<div class="media-icon" style="width:60px;height:60px;border-radius:4px;overflow:hidden;background:var(--bg-tertiary);display:flex;align-items:center;justify-content:center;">' +
+                       thumb +
+                       '</div>' +
+                       '<div class="media-info">' +
+                       '<div class="media-title">' + title + '</div>' +
+                       '<div class="media-meta">' + meta + '</div>' +
+                       '</div>' +
+                       '</div>';
             }).join('');
             container.querySelectorAll('.media-item').forEach(el => {
                 el.addEventListener('click', () => {
@@ -475,7 +482,8 @@ exports.handler = async (event, context) => {
             const mediaUrl = media.cloudinary_url || media.media_url || media.attachment;
             const type = media.file_type;
             const title = media.title || '';
-            const header = `<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">Preview: ${title}</div>`;
+            // Build header using concatenation to avoid nested template literals
+            const header = '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">Preview: ' + title + '</div>';
             let node;
             if (type === 'audio') {
                 node = document.createElement('audio');
@@ -496,12 +504,12 @@ exports.handler = async (event, context) => {
                 node.style.objectFit = 'contain';
             } else if (type === 'document-pdf') {
                 node = document.createElement('iframe');
-                node.src = `${mediaUrl}#toolbar=0&navpanes=0&scrollbar=0`;
+                node.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=0';
                 node.style.width = '100%';
                 node.style.height = '520px';
                 node.style.border = '0';
             } else if (type === 'document-office' || type === 'document') {
-                const src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(mediaUrl)}`;
+                const src = 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(mediaUrl);
                 node = document.createElement('iframe');
                 node.src = src;
                 node.style.width = '100%';
@@ -537,37 +545,40 @@ exports.handler = async (event, context) => {
                 return;
             }
             list.innerHTML = entries.map(([k, v]) => {
-                return `<div class="assignment-item" style="padding:10px;border:1px solid var(--bg-tertiary);border-radius:4px;margin-bottom:8px;">
-                            <div style="font-weight:bold;color:var(--accent);">Key ${k}</div>
-                            <div style="color:var(--text-primary);">${v.title}</div>
-                            <div style="color:var(--text-secondary);font-size:12px;">${v.file_type || 'Media'}</div>
-                        </div>`;
+                // Build assignment card using concatenation
+                return '<div class="assignment-item" style="padding:10px;border:1px solid var(--bg-tertiary);border-radius:4px;margin-bottom:8px;">' +
+                       '<div style="font-weight:bold;color:var(--accent);">Key ' + k + '</div>' +
+                       '<div style="color:var(--text-primary);">' + v.title + '</div>' +
+                       '<div style="color:var(--text-secondary);font-size:12px;">' + (v.file_type || 'Media') + '</div>' +
+                       '</div>';
             }).join('');
         }
         function updateKeyButtons() {
             for (let i = 1; i <= 5; i++) {
-                const btn = document.getElementById(`key${i}`);
+                const btn = document.getElementById('key' + i);
                 const assignment = state.keyAssignments[i];
                 if (!btn) continue;
                 if (assignment) {
                     btn.classList.add('assigned');
-                    btn.textContent = `KEY ${i} • ${assignment.title}`;
+                    // build button label with string concatenation
+                    btn.textContent = 'KEY ' + i + ' • ' + assignment.title;
                 } else {
                     btn.classList.remove('assigned');
-                    btn.textContent = `KEY ${i}`;
+                    btn.textContent = 'KEY ' + i;
                 }
             }
         }
         function setupKeyButtons() {
             for (let i = 1; i <= 5; i++) {
-                const btn = document.getElementById(`key${i}`);
+                const btn = document.getElementById('key' + i);
                 if (!btn) continue;
                 btn.addEventListener('click', () => {
                     const assign = state.keyAssignments[i];
                     if (assign && assign.media_url) {
                         playMedia(assign.media_url, assign.file_type, assign.title);
                     } else {
-                        showMessage('info', `Key ${i} has no assignment`);
+                        // Avoid backtick interpolation within outer template
+                        showMessage('info', 'Key ' + i + ' has no assignment');
                     }
                 });
             }
@@ -588,7 +599,7 @@ exports.handler = async (event, context) => {
                 container.style.border = '1px solid var(--bg-tertiary)';
                 section.insertBefore(container, document.getElementById('stopButton').nextSibling);
             }
-            const header = `<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">Now Playing: ${title}</div>`;
+            const header = '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">Now Playing: ' + title + '</div>';
             let el;
             if (type === 'audio') {
                 el = new Audio(mediaUrl);
@@ -615,13 +626,15 @@ exports.handler = async (event, context) => {
                 showMessage('success', 'Displaying image: ' + title);
             } else if (type === 'document-pdf') {
                 el = document.createElement('iframe');
-                el.src = `${mediaUrl}#toolbar=0&navpanes=0&scrollbar=0`;
+                // build PDF viewer URL without using backtick interpolation
+                el.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=0';
                 el.style.width = '100%';
                 el.style.height = '400px';
                 el.style.border = 'none';
                 showMessage('success', 'Displaying document: ' + title);
             } else if (type === 'document-office' || type === 'document') {
-                const src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(mediaUrl)}`;
+                // build Office viewer URL without backticks
+                const src = 'https://view.officeapps.live.com/op/embed.aspx?src=' + encodeURIComponent(mediaUrl);
                 el = document.createElement('iframe');
                 el.src = src;
                 el.style.width = '100%';
@@ -694,7 +707,8 @@ exports.handler = async (event, context) => {
                     const keyNum = elements.keySelect.value;
                     if (keyNum && state.selectedMedia) {
                         assignMediaToKey(keyNum, state.selectedMedia);
-                        showMessage('success', `Media assigned to Key ${keyNum}`);
+                        // Use concatenation for the success message
+                        showMessage('success', 'Media assigned to Key ' + keyNum);
                     } else {
                         showMessage('error', 'Please select a key and media');
                     }
