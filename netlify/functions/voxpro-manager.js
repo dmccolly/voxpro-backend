@@ -1274,24 +1274,32 @@ exports.handler = async (event, context) => {
                 const isPdf = fileExtension === 'pdf' || mediaUrl.includes('.pdf') || title.toLowerCase().includes('pdf');
                 const isDocx = fileExtension === 'docx' || fileExtension === 'doc' || mediaUrl.includes('.docx') || mediaUrl.includes('.doc') || title.toLowerCase().includes('doc');
                 
-                if (isPdf) {
+                if (isPdf || isDocx) {
                     const iframe = document.createElement('iframe');
                     iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
                     
-                    iframe.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=1&view=FitH';
+                    const encodedUrl = encodeURIComponent(mediaUrl);
+                    iframe.src = 'https://docs.google.com/viewer?url=' + encodedUrl + '&embedded=true';
+                    
+                    iframe.onload = function() {
+                        console.log('Document loaded successfully in Google Docs Viewer:', mediaUrl);
+                    };
+                    
+                    iframe.onerror = function() {
+                        console.error('Failed to load document in Google Docs Viewer:', mediaUrl);
+                        if (mediaContainer) {
+                            mediaContainer.innerHTML = titleDiv + 
+                                '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview</div>' +
+                                '<div style="padding: 20px; text-align: center; background: var(--bg-primary); border-radius: 4px;">' +
+                                '<p style="color: var(--text-secondary); margin-bottom: 10px;">Unable to preview document</p>' +
+                                '<a href="' + mediaUrl + '" target="_blank" style="color: var(--accent-color); text-decoration: none; padding: 8px 16px; background: var(--bg-tertiary); border-radius: 4px;">Open Document</a>' +
+                                '</div>';
+                        }
+                    };
                     
                     if (mediaContainer) {
-                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">PDF Document Preview (First Page)</div>';
-                        mediaContainer.appendChild(iframe);
-                    }
-                } else if (isDocx) {
-                    const iframe = document.createElement('iframe');
-                    iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
-                    
-                    iframe.src = mediaUrl;
-                    
-                    if (mediaContainer) {
-                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview (First Page)</div>';
+                        mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">' + 
+                            (isPdf ? 'PDF Document Preview (First Page)' : 'Document Preview (First Page)') + '</div>';
                         mediaContainer.appendChild(iframe);
                     }
                 } else {
