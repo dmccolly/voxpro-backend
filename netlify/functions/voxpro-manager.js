@@ -1271,11 +1271,21 @@ exports.handler = async (event, context) => {
                 showMessage('success', 'Displaying image: ' + title);
             } else if (fileType === 'raw' || fileType === 'document') {
                 const iframe = document.createElement('iframe');
-                iframe.src = mediaUrl;
+                
+                const fileExtension = (mediaUrl.split('.').pop() || title.split('.').pop() || '').toLowerCase();
+                
+                if (fileExtension === 'pdf') {
+                    iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
+                } else if (fileExtension === 'docx' || fileExtension === 'doc') {
+                    iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
+                } else {
+                    iframe.src = mediaUrl;
+                }
+                
                 iframe.style.cssText = 'width: 100%; height: 400px; border: none; background: var(--bg-primary); border-radius: 4px;';
                 
                 if (mediaContainer) {
-                    mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document preview (click to download if needed)</div>';
+                    mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document preview - ' + fileExtension.toUpperCase() + '</div>';
                     mediaContainer.appendChild(iframe);
                 }
                 
