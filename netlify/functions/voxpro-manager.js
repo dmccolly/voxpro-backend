@@ -1270,13 +1270,37 @@ exports.handler = async (event, context) => {
                 
                 showMessage('success', 'Displaying image: ' + title);
             } else if (fileType === 'raw' || fileType === 'document') {
-                const iframe = document.createElement('iframe');
-                iframe.src = mediaUrl;
-                iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
+                let previewUrl = mediaUrl;
+                if (mediaUrl.includes('cloudinary.com')) {
+                    previewUrl = mediaUrl.replace('/upload/', '/upload/w_600,h_800,c_fit,f_jpg,pg_1/');
+                }
+                
+                const img = document.createElement('img');
+                img.src = previewUrl;
+                img.style.cssText = 'width: 100%; max-height: 600px; object-fit: contain; background: white; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+                
+                img.onload = function() {
+                    console.log('Document preview loaded successfully');
+                };
+                
+                img.onerror = function() {
+                    console.log('Document preview failed, showing fallback');
+                    img.style.display = 'none';
+                    const fallback = document.createElement('div');
+                    fallback.style.cssText = 'text-align: center; padding: 40px; background: var(--bg-secondary); border-radius: 4px; border: 1px solid var(--bg-tertiary);';
+                    fallback.innerHTML = 
+                        '<div style="font-size: 64px; margin-bottom: 20px; color: var(--text-secondary);">📄</div>' +
+                        '<div style="color: var(--text-primary); font-size: 18px; font-weight: 500; margin-bottom: 12px;">' + title + '</div>' +
+                        '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Document preview not available</div>' +
+                        '<button onclick="window.open(\'' + mediaUrl + '\', \'_blank\')" style="background: var(--accent-color); color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; cursor: pointer;">' +
+                            'Open Document' +
+                        '</button>';
+                    img.parentNode.appendChild(fallback);
+                };
                 
                 if (mediaContainer) {
-                    mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview</div>';
-                    mediaContainer.appendChild(iframe);
+                    mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview (First Page)</div>';
+                    mediaContainer.appendChild(img);
                 }
                 
                 showMessage('success', 'Displaying document: ' + title);
