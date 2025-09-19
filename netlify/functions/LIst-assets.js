@@ -1,4 +1,4 @@
-// ESM Netlify Function (Node 18+)
+// CommonJS Netlify Function for Cloudinary Admin Search
 const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME;
 const API_KEY = process.env.CLOUDINARY_API_KEY;
 const API_SECRET = process.env.CLOUDINARY_API_SECRET;
@@ -11,8 +11,7 @@ function basicAuthHeader(key, secret) {
 function buildExpressionFromQuery(q = "", type = "") {
   const parts = [];
   if (q) {
-    // search in filename, public_id, and tags
-    const safe = q.replace(/["]/g, '\\"');
+    const safe = q.replace(/["]/g, '\\"'); // escape quotes
     parts.push(`(filename:${safe}* OR public_id:${safe}* OR tags:${safe})`);
   }
   if (type) {
@@ -25,18 +24,63 @@ function buildExpressionFromQuery(q = "", type = "") {
   return parts.length ? parts.join(" AND ") : "/*";
 }
 
-export async function handler(event) {
+exports.handler = async (event) => {
   try {
     if (!CLOUD_NAME || !API_KEY || !API_SECRET) {
-      return new Response(
-        JSON.stringify({ error: "Missing Cloudinary env vars" }),
-        { status: 500, headers: { "content-type": "application/json" } }
-      );
+      return {
+        statusCode: 500,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ error: "Missing Cloudinary env vars" }),
+      };
     }
 
-    const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/resources/search`;
-    const params = new URL(event?.rawUrl || "").searchParams;
+    const params = new URL(event.rawUrl).searchParams;
     const q = params.get("q") || "";
     const type = params.get("type") || "";
 
-    const bod
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/resources/search`, {
+      method: "POST",
+      headers: {
+        Authorization: basicAuthHeader(API_KEY, API_SECRET),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        expression: buildExpressionFromQuery(q, type),
+        max_results: 50,
+        sort_by: [{ public_id: "desc" }],
+      }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      return {
+        statusCode: 502,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ error: "Cloudinary error", status: res.status, body: txt }),
+      };
+    }
+
+    const data = await res.json();
+    const resources = (data.resources || []).map((r) => ({
+      public_id: r.public_id,
+      display_name: r.display_name || r.filename || r.public_id,
+      filename: r.filename,
+      secure_url: r.secure_url,
+      resource_type: r.resource_type, // 'image' | 'video' | 'raw'
+      format: r.format,               // 'jpg' | 'mp4' | 'pdf' | 'docx' ...
+      bytes: r.bytes,
+    }));
+
+    return {
+      statusCode: 200,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ resources }),
+    };
+  } catch (err) {
+    return {
+      statusCode: 500,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ error: err.message }),
+    };
+  }
+};
