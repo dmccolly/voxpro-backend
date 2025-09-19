@@ -942,14 +942,7 @@ exports.handler = async (event, context) => {
         
         function updateConnectionStatus(status) {
             console.log('Updating connection status to:', status);
-            const statusElement = document.querySelector('.player-status');
-            if (statusElement) {
-                statusElement.textContent = status;
-                statusElement.style.color = status === 'Connected' ? '#4CAF50' : '#f44336';
-                console.log('Connection status updated in UI:', status);
-            } else {
-                console.warn('Status element not found');
-            }
+            setConnectionStatus(status === 'Connected');
         }
         
         function initialize() {
