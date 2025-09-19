@@ -521,15 +521,13 @@ exports.handler = async (event, context) => {
         async function loadAllMedia(query = '', type = '') {
             try {
                 const xanoMedia = await loadXanoMedia(query);
-                const cloudinaryAssets = await loadCloudinaryAssets(query, type);
                 
-                const allMedia = [...xanoMedia, ...cloudinaryAssets];
-                state.mediaList = allMedia;
+                state.mediaList = xanoMedia;
                 
                 renderMediaBrowser();
                 setConnectionStatus(true);
                 
-                return allMedia;
+                return xanoMedia;
             } catch (error) {
                 console.error('Error loading all media:', error);
                 showMessage('error', 'Error loading media: ' + error.message);
