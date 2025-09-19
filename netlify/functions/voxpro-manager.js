@@ -1278,7 +1278,7 @@ exports.handler = async (event, context) => {
                     const iframe = document.createElement('iframe');
                     iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
                     
-                    iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
+                    iframe.src = 'https://mozilla.github.io/pdf.js/web/viewer.html?file=' + encodeURIComponent(mediaUrl);
                     
                     iframe.onerror = function() {
                         iframe.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=0';
