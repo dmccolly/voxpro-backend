@@ -1276,11 +1276,12 @@ exports.handler = async (event, context) => {
                 
                 if (isPdf) {
                     const iframe = document.createElement('iframe');
-                    iframe.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=0';
                     iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
                     
+                    iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
+                    
                     iframe.onerror = function() {
-                        iframe.src = 'https://docs.google.com/viewer?url=' + encodeURIComponent(mediaUrl) + '&embedded=true';
+                        iframe.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=0';
                     };
                     
                     if (mediaContainer) {
