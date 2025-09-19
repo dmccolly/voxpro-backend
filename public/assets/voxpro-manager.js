@@ -156,16 +156,33 @@
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const data = await response.json();
-            return (data.resources || []).map(asset => ({
-                id: asset.public_id,
-                title: asset.display_name || asset.filename || asset.public_id,
-                media_url: asset.secure_url,
-                attachment: asset.secure_url,
-                source: 'cloudinary',
-                file_type: asset.resource_type,
-                file_size: asset.bytes,
-                cloudinary_data: asset
-            }));
+            return (data.resources || []).map(asset => {
+                // Determine file extension and classify document types.
+                const ext = (asset.format || '').toLowerCase();
+                let fileType = asset.resource_type;
+                // Cloudinary returns raw resource_type for documents such as pdf, docx, ppt, etc.
+                if (fileType === 'raw') {
+                    if (ext === 'pdf') {
+                        fileType = 'pdf';
+                    } else if (['doc','docx','ppt','pptx','xls','xlsx'].includes(ext)) {
+                        fileType = 'office';
+                    } else {
+                        // keep as raw for other unknown raw types
+                        fileType = 'raw';
+                    }
+                }
+                return {
+                    id: asset.public_id,
+                    title: asset.display_name || asset.filename || asset.public_id,
+                    media_url: asset.secure_url,
+                    attachment: asset.secure_url,
+                    source: 'cloudinary',
+                    file_type: fileType,
+                    file_ext: ext,
+                    file_size: asset.bytes,
+                    cloudinary_data: asset
+                };
+            });
             
         } catch (error) {
             console.error('Load Cloudinary assets error:', error);
@@ -249,6 +266,10 @@
                 ? `<img src="${thumbnailUrl}" alt="${item.title || 'Video'}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                    <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 1.2rem;">🎬</div>`
                 : `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">🎬</div>`;
+        } else if ((fileType === 'pdf' || item.file_ext === 'pdf') && mediaUrl && mediaUrl.includes('cloudinary.com')) {
+            // For PDF files hosted on Cloudinary, request page 1 as a thumbnail.
+            const thumbUrl = mediaUrl.replace('/upload/', '/upload/pg_1,w_60,h_60,c_fill,f_auto,q_auto/');
+            return `<img src="${thumbUrl}" alt="${item.title || 'PDF'}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; font-size: 1.2rem;">📄</div>`;
         } else {
             const icon = getMediaIcon(fileType);
             return `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">${icon}</div>`;
@@ -331,6 +352,25 @@
             mediaElement.style.maxHeight = '300px';
             mediaElement.style.objectFit = 'contain';
             
+        } else if (media.file_type === 'pdf' || media.file_ext === 'pdf') {
+            // Use an iframe to embed the PDF directly. The fragment options remove toolbar and navigation panes.
+            const iframe = document.createElement('iframe');
+            iframe.src = `${mediaUrl}#toolbar=0&navpanes=0&scrollbar=0`;
+            iframe.style.width = '100%';
+            iframe.style.height = '300px';
+            iframe.style.border = 'none';
+            mediaElement = iframe;
+
+        } else if (media.file_type === 'office' || (media.file_ext && ['doc','docx','ppt','pptx','xls','xlsx'].includes(media.file_ext))) {
+            // Embed Office documents via Microsoft Office Web Viewer. The file must be publicly accessible.
+            const officeSrc = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(mediaUrl)}`;
+            const iframe = document.createElement('iframe');
+            iframe.src = officeSrc;
+            iframe.style.width = '100%';
+            iframe.style.height = '300px';
+            iframe.style.border = 'none';
+            mediaElement = iframe;
+
         } else {
             previewContent.innerHTML = `
                 <div class="preview-placeholder">
