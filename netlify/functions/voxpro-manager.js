@@ -945,7 +945,50 @@ exports.handler = async (event, context) => {
             };
         }
 
+        async function loadAssignments() {
+            try {
+                console.log('Loading assignments...');
+                const response = await fetch('/.netlify/functions/voxpro_assignments', {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                }
+                
+                const data = await response.json();
+                console.log('Raw assignment data:', data);
+                const assignments = Array.isArray(data) ? data : [];
+                
+                state.assignments = await Promise.all(assignments.map(async (assignment) => {
+                    if (assignment.asset_id && state.mediaList.length > 0) {
+                        const mediaItem = state.mediaList.find(item => 
+                            parseInt(item.id) === parseInt(assignment.asset_id)
+                        );
+                        if (mediaItem) {
+                            return {
+                                ...assignment,
+                                title: assignment.title || mediaItem.title || mediaItem.filename || mediaItem.display_name,
+                                cloudinary_url: assignment.cloudinary_url || mediaItem.cloudinary_url || mediaItem.file_url || mediaItem.database_url,
+                                file_type: assignment.file_type || mediaItem.file_type,
+                                asset: mediaItem
+                            };
+                        }
+                    }
+                    return assignment;
+                }));
+                
+                console.log('Enriched assignments:', state.assignments);
+                renderAssignments();
+                updateKeyButtons();
+            } catch (error) {
+                console.error('Load assignments error:', error);
+                state.assignments = [];
+            }
+        }
+
         function initialize() {
+            console.log('VoxPro Manager initializing - v2.1...');
             setupUploadHandlers();
             
             if (elements.searchInput) {
@@ -965,7 +1008,9 @@ exports.handler = async (event, context) => {
                 });
             }
             
-            loadAllMedia();
+            loadAllMedia().then(() => {
+                loadAssignments();
+            });
             setupKeyButtons();
             
             const assignButton = document.getElementById('assignButton');
@@ -1263,6 +1308,14 @@ exports.handler = async (event, context) => {
                     showMessage('error', 'No media URL available');
                 }
             }
+        };
+
+        // Export for debugging
+        window.voxProManager = {
+            state,
+            loadAllMedia,
+            loadAssignments,
+            stopAllMedia
         };
 
         document.addEventListener('DOMContentLoaded', initialize);
