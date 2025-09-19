@@ -683,8 +683,6 @@ exports.handler = async (event, context) => {
             const stopBtn = document.getElementById('stopButton');
             if (stopBtn) stopBtn.addEventListener('click', stopAllMedia);
         }
-            if (stopBtn) stopBtn.addEventListener('click', () => stopAllMedia());
-        }
         function playMedia(mediaUrl, type, title) {
             stopAllMedia();
             let container = document.getElementById('playerMediaContainer');
@@ -964,6 +962,8 @@ exports.handler = async (event, context) => {
         function initialize() {
             console.log('VoxPro Manager initializing with enhanced document support...');
             setupKeyButtons();
+            setupStopButton();
+            
             if (elements.searchInput) {
                 const debounced = debounce(e => {
                     const q = e.target.value.trim();
@@ -979,11 +979,16 @@ exports.handler = async (event, context) => {
                     loadAllMedia(q, t);
                 });
             }
+            
             loadAllMedia().then(async () => {
                 await loadAssignments();
                 // Set up periodic refresh
                 setInterval(loadAssignments, 30000);
+            }).catch(error => {
+                console.error('Initialization error:', error);
+                updateConnectionStatus('Disconnected');
             });
+            
             const assignBtn = document.getElementById('assignButton');
             if (assignBtn) {
                 assignBtn.addEventListener('click', () => {
