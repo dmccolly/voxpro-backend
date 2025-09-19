@@ -2,7 +2,7 @@
   publish   = "public"
   functions = "netlify/functions"
 
-# Deployment trigger Thu Sep 19 19:01:25 UTC 2025 - Force redeploy for PDF/DOCX iframe embedding fix
+# Deployment trigger Thu Sep 19 19:09:32 UTC 2025 - Force redeploy for PDF.js viewer fix
 
 [build.environment]
   NODE_VERSION = "18"
