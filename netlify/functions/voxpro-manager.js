@@ -970,7 +970,7 @@ exports.handler = async (event, context) => {
                             state.keyAssignments[assignment.key_number] = {
                                 id: assignment.id,
                                 title: assignment.title || mediaItem.title || mediaItem.filename || mediaItem.display_name,
-                                media_url: assignment.cloudinary_url || mediaItem.cloudinary_url || mediaItem.file_url || mediaItem.database_url,
+                                media_url: mediaItem.attachment || mediaItem.media_url || assignment.cloudinary_url || mediaItem.cloudinary_url || mediaItem.file_url || mediaItem.database_url,
                                 file_type: assignment.file_type || mediaItem.file_type,
                                 asset: mediaItem
                             };
@@ -1033,8 +1033,9 @@ exports.handler = async (event, context) => {
             state.keyAssignments[keyNumber] = {
                 id: media.id,
                 title: media.title,
-                media_url: media.cloudinary_url || media.media_url || media.attachment,
-                file_type: media.file_type
+                media_url: media.attachment || media.media_url || media.cloudinary_url,
+                file_type: media.file_type,
+                asset: media
             };
             
             updateKeyButtons();
@@ -1136,8 +1137,9 @@ exports.handler = async (event, context) => {
             state.keyAssignments[keyNumber] = {
                 id: media.id,
                 title: media.title,
-                media_url: media.cloudinary_url || media.media_url || media.attachment,
-                file_type: media.file_type
+                media_url: media.attachment || media.media_url || media.cloudinary_url,
+                file_type: media.file_type,
+                asset: media
             };
             
             updateKeyButtons();
@@ -1227,13 +1229,15 @@ exports.handler = async (event, context) => {
                 }
             }
             
+            const titleDiv = '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">Now Playing: ' + title + '</div>';
+            
             if (fileType === 'audio') {
                 const audio = new Audio(mediaUrl);
                 audio.controls = true;
                 audio.style.cssText = 'width: 100%; background: var(--bg-primary); border-radius: 4px;';
                 
                 if (mediaContainer) {
-                    mediaContainer.innerHTML = '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">Now Playing: ' + title + '</div>';
+                    mediaContainer.innerHTML = titleDiv;
                     mediaContainer.appendChild(audio);
                 }
                 
@@ -1247,15 +1251,46 @@ exports.handler = async (event, context) => {
                 video.style.cssText = 'width: 100%; max-height: 300px; background: var(--bg-primary); border-radius: 4px;';
                 
                 if (mediaContainer) {
-                    mediaContainer.innerHTML = '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 8px;">Now Playing: ' + title + '</div>';
+                    mediaContainer.innerHTML = titleDiv;
                     mediaContainer.appendChild(video);
                 }
                 
                 video.play();
                 state.currentVideo = video;
                 showMessage('success', 'Playing video: ' + title);
+            } else if (fileType === 'image') {
+                const img = document.createElement('img');
+                img.src = mediaUrl;
+                img.style.cssText = 'width: 100%; max-height: 400px; object-fit: contain; background: var(--bg-primary); border-radius: 4px;';
+                
+                if (mediaContainer) {
+                    mediaContainer.innerHTML = titleDiv;
+                    mediaContainer.appendChild(img);
+                }
+                
+                showMessage('success', 'Displaying image: ' + title);
+            } else if (fileType === 'raw' || fileType === 'document') {
+                const iframe = document.createElement('iframe');
+                iframe.src = mediaUrl;
+                iframe.style.cssText = 'width: 100%; height: 400px; border: none; background: var(--bg-primary); border-radius: 4px;';
+                
+                if (mediaContainer) {
+                    mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document preview (click to download if needed)</div>';
+                    mediaContainer.appendChild(iframe);
+                }
+                
+                showMessage('success', 'Displaying document: ' + title);
             } else {
-                showMessage('info', 'Media type not supported for playback');
+                const iframe = document.createElement('iframe');
+                iframe.src = mediaUrl;
+                iframe.style.cssText = 'width: 100%; height: 400px; border: none; background: var(--bg-primary); border-radius: 4px;';
+                
+                if (mediaContainer) {
+                    mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Media preview</div>';
+                    mediaContainer.appendChild(iframe);
+                }
+                
+                showMessage('success', 'Displaying: ' + title);
             }
         }
         
