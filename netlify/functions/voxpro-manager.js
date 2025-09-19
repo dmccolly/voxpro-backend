@@ -598,7 +598,7 @@ exports.handler = async (event, context) => {
         }
         function updateKeyButtons() {
             document.querySelectorAll('.key-button').forEach(button => {
-                const keyNum = parseInt(button.dataset.key);
+                const keyNum = parseInt(button.dataset.key || button.id.replace('key', ''));
                 const assignment = state.keyAssignments[keyNum];
                 
                 if (assignment) {
@@ -814,7 +814,7 @@ exports.handler = async (event, context) => {
         
         function updateKeyButtons() {
             document.querySelectorAll('.key-button').forEach(button => {
-                const keyNum = parseInt(button.dataset.key);
+                const keyNum = parseInt(button.dataset.key || button.id.replace('key', ''));
                 const assignment = state.keyAssignments[keyNum];
                 
                 if (assignment) {
