@@ -1270,39 +1270,14 @@ exports.handler = async (event, context) => {
                 
                 showMessage('success', 'Displaying image: ' + title);
             } else if (fileType === 'raw' || fileType === 'document') {
-                const conversionUrl = '/.netlify/functions/convert-document?url=' + encodeURIComponent(mediaUrl) + '&title=' + encodeURIComponent(title);
-                
-                const previewContainer = document.createElement('div');
-                previewContainer.style.cssText = 'width: 100%; background: var(--bg-primary); border-radius: 4px; padding: 15px; border: 1px solid var(--bg-tertiary);';
-                
-                const thumbnailImg = document.createElement('img');
-                thumbnailImg.style.cssText = 'width: 100%; max-height: 500px; object-fit: contain; border-radius: 4px; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
-                
-                thumbnailImg.onload = function() {
-                    console.log('Document preview loaded successfully:', conversionUrl);
-                };
-                
-                thumbnailImg.onerror = function() {
-                    console.error('Failed to load document preview, showing fallback:', conversionUrl);
-                    previewContainer.innerHTML = 
-                        '<div style="text-align: center; padding: 40px;">' +
-                            '<div style="font-size: 64px; margin-bottom: 20px; color: var(--text-secondary);">📄</div>' +
-                            '<div style="color: var(--text-primary); font-size: 18px; font-weight: 500; margin-bottom: 12px;">' + title + '</div>' +
-                            '<div style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Document Preview</div>' +
-                            '<button onclick="window.open(\'' + mediaUrl + '\', \'_blank\')" style="background: var(--accent-color); color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 14px; cursor: pointer;">' +
-                                '📥 Open Document' +
-                            '</button>' +
-                        '</div>';
-                };
-                
-                previewContainer.appendChild(thumbnailImg);
+                const iframe = document.createElement('iframe');
+                iframe.src = mediaUrl;
+                iframe.style.cssText = 'width: 100%; height: 500px; border: none; background: var(--bg-primary); border-radius: 4px;';
                 
                 if (mediaContainer) {
-                    mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview (First Page)</div>';
-                    mediaContainer.appendChild(previewContainer);
+                    mediaContainer.innerHTML = titleDiv + '<div style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">Document Preview</div>';
+                    mediaContainer.appendChild(iframe);
                 }
-                
-                thumbnailImg.src = conversionUrl;
                 
                 showMessage('success', 'Displaying document: ' + title);
             } else {
