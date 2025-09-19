@@ -834,7 +834,7 @@
     }
 
     async function initialize() {
-        console.log('VoxPro Manager initializing...');
+        console.log('VoxPro Manager initializing - v2.1...');
         
         initializeElements();
         setConnectionStatus(false);
@@ -848,7 +848,7 @@
         // Set up periodic refresh
         setInterval(loadAssignments, CONFIG.ASSIGNMENTS_REFRESH_MS);
         
-        console.log('VoxPro Manager initialized');
+        console.log('VoxPro Manager initialized - v2.1');
     }
 
     // Start when DOM is ready
