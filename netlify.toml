@@ -2,7 +2,7 @@
   publish   = "public"
   functions = "netlify/functions"
 
-# Deployment trigger Thu Sep 19 19:18:05 UTC 2025 - Force redeploy for Office 365 viewer fix
+# Deployment trigger Thu Sep 19 21:54:06 UTC 2025 - Force redeploy for URL mapping fix
 
 [build.environment]
   NODE_VERSION = "18"
