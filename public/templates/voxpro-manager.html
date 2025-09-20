@@ -341,6 +341,152 @@
             padding: 20px;
         }
 
+        /* Preview Player Styles */
+        .preview-section {
+            margin-top: 25px;
+        }
+
+        .preview-section h3 {
+            color: var(--text-accent);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .preview-window {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            border: 1px solid var(--bg-tertiary);
+            margin-bottom: 20px;
+        }
+
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--bg-primary);
+        }
+
+        .preview-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .preview-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .preview-btn {
+            padding: 6px 10px;
+            background: var(--accent);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .preview-btn:hover {
+            background: var(--accent-secondary);
+        }
+
+        .preview-content {
+            padding: 20px;
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preview-placeholder {
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .placeholder-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        .placeholder-text {
+            font-size: 1rem;
+        }
+
+        /* Upload Area Styles */
+        .upload-section {
+            margin-top: 25px;
+        }
+
+        .upload-section h3 {
+            color: var(--text-accent);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: var(--accent);
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: var(--accent);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        .upload-text {
+            font-size: 1rem;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .upload-subtext {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-container {
+            margin-top: 15px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
         @media (max-width: 768px) {
             .container {
                 grid-template-columns: 1fr;
@@ -377,6 +523,43 @@
                 <h3>Current Key Assignments</h3>
                 <div id="assignmentsList">
                     <div class="empty-state">Loading assignments...</div>
+                </div>
+            </div>
+
+            <!-- Embedded Preview Player -->
+            <div class="preview-section">
+                <h3>Media Preview</h3>
+                <div class="preview-window">
+                    <div class="preview-header">
+                        <span class="preview-title">Preview Player</span>
+                        <div class="preview-controls">
+                            <button class="preview-btn" id="fullscreenBtn" title="Open Fullscreen">⛶</button>
+                            <button class="preview-btn" id="downloadBtn" title="Download">📥</button>
+                        </div>
+                    </div>
+                    <div class="preview-content" id="previewContent">
+                        <div class="preview-placeholder">
+                            <div class="placeholder-icon">📄</div>
+                            <div class="placeholder-text">Select media to preview or press a key to play</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drag & Drop Upload Area -->
+            <div class="upload-section">
+                <h3>Upload Media</h3>
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">Drag & drop files here or click to select</div>
+                    <div class="upload-subtext">Supports: Audio, Video, Images, PDFs, Documents</div>
+                </div>
+                <input type="file" id="fileInput" multiple style="display: none;" accept="audio/*,video/*,image/*,.pdf,.doc,.docx">
+                <div class="progress-container" id="progressContainer" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Uploading...</div>
                 </div>
             </div>
         </div>

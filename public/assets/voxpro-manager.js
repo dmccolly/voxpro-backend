@@ -19,7 +19,8 @@
         mediaList: [],
         assignments: [],
         playing: null,
-        connected: false
+        connected: false,
+        currentPreviewMedia: null
     };
 
     // DOM elements cache
@@ -201,6 +202,8 @@
             selectedItem.classList.add('selected');
         }
 
+        showMediaPreview(state.selectedMedia);
+
         // Populate form
         if (elements.titleInput) elements.titleInput.value = state.selectedMedia.title || '';
         if (elements.descriptionInput) elements.descriptionInput.value = state.selectedMedia.description || '';
@@ -364,6 +367,185 @@
         }
     }
 
+    function showMediaPreview(mediaItem) {
+        if (!mediaItem) return;
+        
+        const previewContent = elements.previewContent;
+        if (!previewContent) return;
+        
+        const mediaUrl = mediaItem.cloudinary_url || mediaItem.file_url || mediaItem.database_url || mediaItem.media_url;
+        
+        if (!mediaUrl) {
+            previewContent.innerHTML = `
+                <div class="preview-placeholder">
+                    <div class="placeholder-icon">❌</div>
+                    <div class="placeholder-text">No media URL available</div>
+                </div>
+            `;
+            return;
+        }
+        
+        previewContent.innerHTML = '';
+        
+        let mediaElement;
+        const fileType = (mediaItem.file_type || '').toLowerCase();
+        
+        if (fileType === 'audio' || fileType.includes('audio')) {
+            mediaElement = document.createElement('audio');
+            mediaElement.controls = true;
+            mediaElement.src = mediaUrl;
+            mediaElement.style.width = '100%';
+            
+        } else if (fileType === 'video' || fileType.includes('video')) {
+            mediaElement = document.createElement('video');
+            mediaElement.controls = true;
+            mediaElement.src = mediaUrl;
+            mediaElement.style.width = '100%';
+            mediaElement.style.maxHeight = '300px';
+            
+        } else if (fileType === 'image' || fileType.includes('image')) {
+            mediaElement = document.createElement('img');
+            mediaElement.src = mediaUrl;
+            mediaElement.alt = mediaItem.title || 'Image';
+            mediaElement.style.maxWidth = '100%';
+            mediaElement.style.maxHeight = '300px';
+            mediaElement.style.objectFit = 'contain';
+            
+        } else if (mediaUrl.toLowerCase().includes('.pdf')) {
+            mediaElement = document.createElement('iframe');
+            mediaElement.src = mediaUrl + '#toolbar=1&navpanes=1&scrollbar=1';
+            mediaElement.style.width = '100%';
+            mediaElement.style.height = '300px';
+            
+        } else if (mediaUrl.toLowerCase().match(/\.(doc|docx|txt|rtf)$/)) {
+            mediaElement = document.createElement('iframe');
+            mediaElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(mediaUrl)}&embedded=true`;
+            mediaElement.style.width = '100%';
+            mediaElement.style.height = '300px';
+            
+        } else {
+            previewContent.innerHTML = `
+                <div class="preview-placeholder">
+                    <div class="placeholder-icon">📄</div>
+                    <div class="placeholder-text">${mediaItem.title || 'File'}</div>
+                    <button onclick="window.open('${mediaUrl}', '_blank')" style="margin-top: 12px; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        📥 Download File
+                    </button>
+                </div>
+            `;
+            return;
+        }
+        
+        if (mediaElement) {
+            mediaElement.onerror = function() {
+                previewContent.innerHTML = `
+                    <div class="preview-placeholder">
+                        <div class="placeholder-icon">⚠️</div>
+                        <div class="placeholder-text">Error loading media</div>
+                        <button onclick="window.open('${mediaUrl}', '_blank')" style="margin-top: 12px; padding: 8px 16px; background: var(--error); color: white; border: none; border-radius: 4px; cursor: pointer;">
+                            📥 Download Instead
+                        </button>
+                    </div>
+                `;
+            };
+            
+            previewContent.appendChild(mediaElement);
+        }
+        
+        state.currentPreviewMedia = mediaItem;
+    }
+
+    function setupUploadHandlers() {
+        const uploadArea = elements.uploadArea;
+        const fileInput = elements.fileInput;
+        
+        if (!uploadArea || !fileInput) return;
+        
+        fileInput.addEventListener('change', handleFileSelect);
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+    }
+    
+    function handleFileSelect(event) {
+        const files = Array.from(event.target.files);
+        if (files.length > 0) {
+            uploadFiles(files);
+        }
+    }
+    
+    function handleDragOver(event) {
+        event.preventDefault();
+        event.currentTarget.classList.add('dragover');
+    }
+    
+    function handleDragLeave(event) {
+        event.currentTarget.classList.remove('dragover');
+    }
+    
+    function handleDrop(event) {
+        event.preventDefault();
+        event.currentTarget.classList.remove('dragover');
+        const files = Array.from(event.dataTransfer.files);
+        if (files.length > 0) {
+            uploadFiles(files);
+        }
+    }
+    
+    async function uploadFiles(files) {
+        const progressContainer = elements.progressContainer;
+        const progressFill = elements.progressFill;
+        const progressText = elements.progressText;
+        
+        if (!progressContainer || !progressFill || !progressText) return;
+        
+        progressContainer.style.display = 'block';
+        let successCount = 0;
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const percent = Math.round(((i + 1) / files.length) * 100);
+            progressFill.style.width = percent + '%';
+            progressText.textContent = `Uploading ${file.name} (${i + 1}/${files.length})...`;
+            
+            try {
+                await uploadSingleFile(file);
+                successCount++;
+            } catch (error) {
+                console.error(`Failed to upload ${file.name}:`, error);
+                showMessage('error', `Failed to upload ${file.name}: ${error.message}`);
+            }
+        }
+        
+        progressContainer.style.display = 'none';
+        progressFill.style.width = '0%';
+        
+        await loadMedia();
+        
+        showMessage('success', `Upload completed: ${successCount} of ${files.length} file${files.length !== 1 ? 's' : ''} uploaded`);
+    }
+    
+    async function uploadSingleFile(file) {
+        const formData = new FormData();
+        formData.append('attachment', file);
+        formData.append('title', file.name);
+        formData.append('category', 'Media');
+        formData.append('submitted_by', 'VoxPro Manager');
+        
+        const response = await fetch('/.netlify/functions/file-manager-upload', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.text();
+            throw new Error(error || 'Upload failed');
+        }
+        
+        return await response.json();
+    }
+
     // Media playback
     async function playForKey(keyNum) {
         const assignment = state.assignments.find(a => 
@@ -391,15 +573,20 @@
         );
         document.getElementById(`key${keyNum}`)?.classList.add('playing');
         
-        // Create and play media
-        const fileType = (assignment.file_type || assignment.asset?.file_type || '').toLowerCase();
+        showMediaPreview(assignment);
         
-        if (fileType.includes('audio')) {
-            playAudio(mediaUrl, keyNum);
-        } else if (fileType.includes('video')) {
-            playVideo(mediaUrl, keyNum);
-        } else {
-            window.open(mediaUrl, '_blank');
+        const previewContent = elements.previewContent;
+        if (previewContent) {
+            const audioElement = previewContent.querySelector('audio');
+            const videoElement = previewContent.querySelector('video');
+            
+            if (audioElement) {
+                audioElement.play().catch(() => {
+                });
+            } else if (videoElement) {
+                videoElement.play().catch(() => {
+                });
+            }
         }
         
         state.playing = { key: keyNum, assignmentId: assignment.id };
@@ -480,7 +667,15 @@
             submittedByInput: document.getElementById('submittedByInput'),
             assignButton: document.getElementById('assignButton'),
             assignmentsList: document.getElementById('assignmentsList'),
-            stopButton: document.getElementById('stopButton')
+            stopButton: document.getElementById('stopButton'),
+            previewContent: document.getElementById('previewContent'),
+            fullscreenBtn: document.getElementById('fullscreenBtn'),
+            downloadBtn: document.getElementById('downloadBtn'),
+            uploadArea: document.getElementById('uploadArea'),
+            fileInput: document.getElementById('fileInput'),
+            progressContainer: document.getElementById('progressContainer'),
+            progressFill: document.getElementById('progressFill'),
+            progressText: document.getElementById('progressText')
         };
     }
 
@@ -505,6 +700,40 @@
         if (elements.assignButton) {
             elements.assignButton.addEventListener('click', createAssignment);
         }
+        
+        if (elements.fullscreenBtn) {
+            elements.fullscreenBtn.addEventListener('click', () => {
+                if (state.currentPreviewMedia) {
+                    const mediaUrl = state.currentPreviewMedia.cloudinary_url || 
+                                   state.currentPreviewMedia.file_url || 
+                                   state.currentPreviewMedia.database_url || 
+                                   state.currentPreviewMedia.media_url;
+                    if (mediaUrl) window.open(mediaUrl, '_blank');
+                }
+            });
+        }
+        
+        if (elements.downloadBtn) {
+            elements.downloadBtn.addEventListener('click', () => {
+                if (state.currentPreviewMedia) {
+                    const mediaUrl = state.currentPreviewMedia.cloudinary_url || 
+                                   state.currentPreviewMedia.file_url || 
+                                   state.currentPreviewMedia.database_url || 
+                                   state.currentPreviewMedia.media_url;
+                    if (mediaUrl) {
+                        const link = document.createElement('a');
+                        link.href = mediaUrl;
+                        link.download = state.currentPreviewMedia.title || 'download';
+                        link.target = '_blank';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    }
+                }
+            });
+        }
+        
+        setupUploadHandlers();
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
