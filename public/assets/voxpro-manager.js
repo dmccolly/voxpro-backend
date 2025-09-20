@@ -89,35 +89,52 @@
     // Media functions
     async function loadMedia(query = '') {
         try {
-            let endpoint = CONFIG.LIST_MEDIA_ENDPOINT;
+            console.log('Loading media...');
+            setConnectionStatus(false);
+            
+            let url = CONFIG.LIST_MEDIA_ENDPOINT;
             if (query) {
-                endpoint = `${CONFIG.SEARCH_MEDIA_ENDPOINT}?q=${encodeURIComponent(query)}`;
+                url = `${CONFIG.SEARCH_MEDIA_ENDPOINT}?q=${encodeURIComponent(query)}`;
             }
             
-            const response = await fetch(endpoint);
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Media loaded:', data);
             
-            let data = await response.json();
-            
-            // Handle search results format
             if (data.results) {
                 state.mediaList = data.results;
+            } else if (Array.isArray(data)) {
+                state.mediaList = data;
             } else {
-                state.mediaList = Array.isArray(data) ? data : [];
+                state.mediaList = [];
             }
-            
-            // Filter out test/invalid data
+
+            // Filter out invalid entries
             state.mediaList = state.mediaList.filter(item => {
-                return item.file_size && item.file_size > 100 && 
-                       (item.cloudinary_url || item.file_url || item.database_url);
+                const hasUrl = item.cloudinary_url || item.file_url || item.database_url || item.media_url;
+                const hasSize = item.file_size && item.file_size > 100;
+                
+                return hasUrl && hasSize;
             });
-            
+
+            console.log('Media loaded:', state.mediaList.length, 'items');
             renderMediaBrowser();
             setConnectionStatus(true);
             
         } catch (error) {
             console.error('Load media error:', error);
-            showMessage('error', 'Failed to load media');
+            showMessage('error', 'Failed to load media: ' + error.message);
             setConnectionStatus(false);
         }
     }
@@ -195,12 +212,30 @@
     // Assignment functions
     async function loadAssignments() {
         try {
-            const data = await xanoRequest('/voxpro_assignments');
+            console.log('Loading assignments...');
+            
+            const response = await fetch(`${CONFIG.XANO_PROXY_BASE}/voxpro_assignments`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
             state.assignments = Array.isArray(data) ? data : [];
+            
+            console.log('Assignments loaded:', state.assignments);
             renderAssignments();
             updateKeyButtons();
+            
         } catch (error) {
             console.error('Load assignments error:', error);
+            state.assignments = [];
+            renderAssignments();
         }
     }
 
@@ -213,14 +248,27 @@
             return;
         }
 
-        container.innerHTML = state.assignments.map(assignment => `
+        const enrichedAssignments = state.assignments.map(assignment => {
+            const mediaItem = state.mediaList.find(media => media.id === assignment.asset_id);
+            return {
+                ...assignment,
+                title: assignment.title || mediaItem?.title || 'Unknown',
+                cloudinary_url: assignment.cloudinary_url || mediaItem?.cloudinary_url || mediaItem?.file_url || mediaItem?.database_url || mediaItem?.media_url,
+                file_type: assignment.file_type || mediaItem?.file_type
+            };
+        });
+
+        container.innerHTML = enrichedAssignments.map(assignment => `
             <div class="assignment-item">
                 <span class="assignment-key">
-                    Key ${assignment.key_number} — ${assignment.title || assignment.asset?.title || 'Unknown'}
+                    Key ${assignment.key_number} — ${assignment.title}
                 </span>
                 <button class="remove-button" data-id="${assignment.id}">×</button>
             </div>
         `).join('');
+        
+        // Update state with enriched assignments for playback
+        state.assignments = enrichedAssignments;
         
         // Add delete handlers
         container.querySelectorAll('.remove-button').forEach(btn => {
