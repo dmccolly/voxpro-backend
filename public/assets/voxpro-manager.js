@@ -391,23 +391,20 @@
         }
         
         if (description && description.trim()) {
-            const descriptionOverlay = document.createElement('div');
-            descriptionOverlay.style.cssText = `
-                position: absolute;
-                bottom: 0;
-                left: 0;
-                right: 0;
-                background: linear-gradient(transparent, rgba(0,0,0,0.8));
-                color: white;
-                padding: 20px 16px 12px;
+            const descriptionElement = document.createElement('div');
+            descriptionElement.style.cssText = `
+                margin-top: 12px;
+                padding: 12px 16px;
+                background: var(--bg-tertiary);
+                border: 1px solid var(--bg-primary);
+                border-radius: 6px;
+                color: var(--text-primary);
                 font-size: 0.9rem;
                 line-height: 1.4;
-                border-radius: 0 0 8px 8px;
-                pointer-events: none;
-                z-index: 10;
+                word-wrap: break-word;
             `;
-            descriptionOverlay.textContent = description;
-            mediaContainer.appendChild(descriptionOverlay);
+            descriptionElement.textContent = description;
+            mediaContainer.appendChild(descriptionElement);
         }
     }
 
@@ -433,7 +430,7 @@
         
         // Create container for media and description
         const mediaContainer = document.createElement('div');
-        mediaContainer.style.cssText = 'position: relative; width: 100%; height: 100%;';
+        mediaContainer.style.cssText = 'display: flex; flex-direction: column; width: 100%; height: 100%;';
         
         let mediaElement;
         const fileType = (mediaItem.file_type || '').toLowerCase();
@@ -616,6 +613,11 @@
                     <div style="color: var(--text-secondary);">Unable to display PDF</div>
                 </div>
             `;
+            
+            const mediaContainer = container.parentElement;
+            if (mediaContainer && window.voxProManager) {
+                window.voxProManager.addDescriptionOverlay(mediaContainer, mediaItem);
+            }
         }
     }
 
@@ -661,6 +663,11 @@
                     <div style="color: var(--text-secondary);">Unable to display document</div>
                 </div>
             `;
+            
+            const mediaContainer = container.parentElement;
+            if (mediaContainer && window.voxProManager) {
+                window.voxProManager.addDescriptionOverlay(mediaContainer, mediaItem);
+            }
         }
     }
 
