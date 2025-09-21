@@ -1235,7 +1235,7 @@
                 <!-- Simplified upload area: just a button to select files -->
                 <button class="details-btn" type="button">Select Files</button>
             </div>
-            <input type="file" id="fileInput" multiple style="display: none;" accept="image/*,video/*,audio/*">
+            <input type="file" id="fileInput" multiple style="display: none;" accept="image/*,video/*,audio/*,.pdf,.doc,.docx">
             <div class="progress-container" id="progressContainer">
                 <div class="progress-bar">
                     <div class="progress-fill" id="progressFill"></div>
@@ -2167,31 +2167,33 @@
                 overlay.textContent = `🖼️ ${file.title || 'Image'}`;
                 previewContent.appendChild(overlay);
                 
-            } else if (fileUrl.toLowerCase().includes('.pdf')) {
-                // PDF Viewer
-                mediaElement = document.createElement('iframe');
-                mediaElement.src = fileUrl + '#toolbar=1&navpanes=1&scrollbar=1';
-                mediaElement.style.width = '100%';
-                mediaElement.style.height = '350px';
-                
-                // Add file info overlay
-                const overlay = document.createElement('div');
-                overlay.className = 'file-info-overlay';
-                overlay.textContent = `📄 ${file.title || 'PDF Document'}`;
-                previewContent.appendChild(overlay);
-                
-            } else if (fileUrl.toLowerCase().match(/\.(doc|docx|txt|rtf)$/)) {
-                // Document Viewer (using Google Docs Viewer)
-                mediaElement = document.createElement('iframe');
-                mediaElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
-                mediaElement.style.width = '100%';
-                mediaElement.style.height = '350px';
-                
-                // Add file info overlay
-                const overlay = document.createElement('div');
-                overlay.className = 'file-info-overlay';
-                overlay.textContent = `📝 ${file.title || 'Document'}`;
-                previewContent.appendChild(overlay);
+            } else if (file.file_type === 'document') {
+                // Check if it's a PDF based on URL or original filename
+                if (fileUrl.toLowerCase().includes('.pdf') || (file.title && file.title.toLowerCase().includes('.pdf'))) {
+                    // PDF Viewer
+                    mediaElement = document.createElement('iframe');
+                    mediaElement.src = fileUrl + '#toolbar=1&navpanes=1&scrollbar=1';
+                    mediaElement.style.width = '100%';
+                    mediaElement.style.height = '350px';
+                    
+                    // Add file info overlay
+                    const overlay = document.createElement('div');
+                    overlay.className = 'file-info-overlay';
+                    overlay.textContent = `📄 ${file.title || 'PDF Document'}`;
+                    previewContent.appendChild(overlay);
+                } else {
+                    // Document Viewer (using Google Docs Viewer for DOCX, DOC, etc.)
+                    mediaElement = document.createElement('iframe');
+                    mediaElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(fileUrl)}&embedded=true`;
+                    mediaElement.style.width = '100%';
+                    mediaElement.style.height = '350px';
+                    
+                    // Add file info overlay
+                    const overlay = document.createElement('div');
+                    overlay.className = 'file-info-overlay';
+                    overlay.textContent = `📝 ${file.title || 'Document'}`;
+                    previewContent.appendChild(overlay);
+                }
                 
             } else {
                 // Generic file - show download option
