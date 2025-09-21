@@ -468,7 +468,6 @@ CUSTOMIZATION:
                 renderKeys();
                 renderKeysList();
                 attachEventListeners();
-                setupModalControls();
                 showMessage('success', 'VoxPro Companion Player Ready');
             } catch (error) {
                 console.error('Failed to initialize companion player:', error);
@@ -600,7 +599,7 @@ CUSTOMIZATION:
             // Add STOP button to second row
             const stopButton = document.createElement('div');
             stopButton.className = 'key-button stop-btn';
-            stopButton.id = 'stopBtnInGrid';
+            stopButton.id = 'stopBtn';
             stopButton.onclick = () => stopPlayback();
             stopButton.style.background = 'var(--error)';
             stopButton.style.color = 'white';
@@ -929,52 +928,21 @@ CUSTOMIZATION:
 
         // Attach event listeners
         function attachEventListeners() {
-            // Modal controls
-            elements.minimizeBtn.addEventListener('click', () => {
-                if (state.modalState === 'minimized') {
-                    // Restore
-                    state.modalState = 'normal';
-                    elements.modalSection.classList.remove('minimized');
-                    elements.minimizeBtn.textContent = '−';
-                    elements.minimizeBtn.title = 'Minimize';
-                } else {
-                    // Minimize
-                    state.modalState = 'minimized';
-                    elements.modalSection.classList.add('minimized');
-                    elements.modalSection.classList.remove('maximized');
-                    elements.minimizeBtn.textContent = '□';
-                    elements.minimizeBtn.title = 'Restore';
-                    elements.maximizeBtn.textContent = '□';
-                    elements.maximizeBtn.title = 'Maximize';
-                }
-            });
+            // Update elements cache to include dynamically created elements
+            elements.stopBtn = document.getElementById('stopBtn');
+            
+            // Modal controls - add null checks for safety
+            if (elements.closeBtn) {
+                elements.closeBtn.addEventListener('click', () => {
+                    stopPlayback();
+                });
+            }
 
-            elements.maximizeBtn.addEventListener('click', () => {
-                if (state.modalState === 'maximized') {
-                    // Restore
-                    state.modalState = 'normal';
-                    elements.modalSection.classList.remove('maximized');
-                    elements.maximizeBtn.textContent = '□';
-                    elements.maximizeBtn.title = 'Maximize';
-                } else {
-                    // Maximize
-                    state.modalState = 'maximized';
-                    elements.modalSection.classList.add('maximized');
-                    elements.modalSection.classList.remove('minimized');
-                    elements.maximizeBtn.textContent = '❐';
-                    elements.maximizeBtn.title = 'Restore';
-                    elements.minimizeBtn.textContent = '−';
-                    elements.minimizeBtn.title = 'Minimize';
-                }
-            });
-
-            elements.closeBtn.addEventListener('click', () => {
-                stopPlayback();
-            });
-
-            elements.stopBtn.addEventListener('click', () => {
-                stopPlayback();
-            });
+            if (elements.stopBtn) {
+                elements.stopBtn.addEventListener('click', () => {
+                    stopPlayback();
+                });
+            }
 
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
