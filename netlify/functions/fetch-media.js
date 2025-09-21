@@ -79,21 +79,68 @@ exports.handler = async (event, context) => {
 };
 
 // Reliable HTTP request function based on Audio Memory Game implementation
-function makeHttpRequest(method, urlString) {
+async function makeHttpRequest(method, urlString) {
+  if (urlString.includes('res.cloudinary.com') && (urlString.includes('.pdf') || urlString.includes('.docx') || urlString.includes('.doc'))) {
+    console.log('Document file detected, trying f_auto transformation');
+    
+    const fAutoUrl = urlString.replace('/image/upload/', '/image/upload/f_auto/');
+    
+    if (fAutoUrl !== urlString) {
+      console.log('Trying f_auto URL:', fAutoUrl);
+      
+      try {
+        const result = await makeHttpRequestInternal(method, fAutoUrl);
+        console.log('✅ f_auto URL worked:', fAutoUrl);
+        return result;
+      } catch (error) {
+        console.log('f_auto URL failed:', fAutoUrl, error.message);
+      }
+    }
+  }
+  
+  console.log('Trying original URL');
+  return makeHttpRequestInternal(method, urlString);
+}
+
+function generateSignedUrl(originalUrl) {
+  const crypto = require('crypto');
+  
+  const urlParts = originalUrl.match(/https:\/\/res\.cloudinary\.com\/([^\/]+)\/([^\/]+)\/([^\/]+)\/(.+)/);
+  if (!urlParts) return originalUrl;
+  
+  const [, cloudName, resourceType, deliveryType, publicIdWithParams] = urlParts;
+  const publicId = publicIdWithParams.split('.')[0]; // Remove extension
+  
+  const timestamp = Math.floor(Date.now() / 1000);
+  const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${process.env.Cloudinary_Secret_Key}`;
+  const signature = crypto.createHash('sha1').update(stringToSign).digest('hex');
+  
+  return `https://res.cloudinary.com/${cloudName}/${resourceType}/${deliveryType}/${publicIdWithParams}?timestamp=${timestamp}&signature=${signature}`;
+}
+
+function makeHttpRequestInternal(method, urlString) {
   return new Promise((resolve, reject) => {
     const url = new URL(urlString);
     const isHttps = url.protocol === 'https:';
     const client = isHttps ? https : http;
     
+    const headers = {
+      'User-Agent': 'VoxPro-Media-Fetcher/1.0',
+      'Accept': '*/*'
+    };
+
+    if (url.hostname === 'res.cloudinary.com') {
+      console.log('Detected Cloudinary URL, attempting public access');
+    } else {
+      console.log('Proceeding with direct URL fetch (no authentication)');
+    }
+
     const options = {
       hostname: url.hostname,
       port: url.port || (isHttps ? 443 : 80),
       path: url.pathname + url.search,
       method: method,
-      headers: {
-        'User-Agent': 'VoxPro-Media-Fetcher/1.0',
-        'Accept': '*/*'
-      },
+      headers: headers,
       timeout: 30000 // 30 second timeout for media files
     };
 
@@ -106,7 +153,7 @@ function makeHttpRequest(method, urlString) {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         // Handle redirects
         console.log(`Following redirect to: ${res.headers.location}`);
-        return makeHttpRequest(method, res.headers.location)
+        return makeHttpRequestInternal(method, res.headers.location)
           .then(resolve)
           .catch(reject);
       }

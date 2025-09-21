@@ -501,7 +501,46 @@
                 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
             }
             
-            const loadingTask = pdfjsLib.getDocument(url);
+            const proxyUrl = `/.netlify/functions/fetch-media?url=${encodeURIComponent(url)}`;
+            const response = await fetch(proxyUrl);
+            
+            if (!response.ok) {
+                throw new Error(`Proxy fetch failed: ${response.status} ${response.statusText}`);
+            }
+            
+            const contentType = response.headers.get('content-type') || '';
+            console.log('Received content type:', contentType);
+            
+            // Check if we received image data (from Cloudinary f_auto transformation)
+            if (contentType.startsWith('image/')) {
+                console.log('Received image data, displaying as image instead of PDF');
+                
+                container.innerHTML = '';
+                container.style.cssText = `
+                    width: 100%; height: 500px; border: none; border-radius: 4px;
+                    overflow: auto; background: #f5f5f5; padding: 10px; display: flex;
+                    flex-direction: column; align-items: center;
+                `;
+                
+                const img = document.createElement('img');
+                img.style.cssText = 'max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+                img.src = proxyUrl;
+                img.alt = 'Document preview';
+                
+                container.appendChild(img);
+                
+                const info = document.createElement('div');
+                info.style.cssText = 'text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;';
+                info.textContent = `${mediaItem.title || 'PDF Document'} - Converted to image for preview`;
+                container.appendChild(info);
+                
+                console.log('Document displayed as image successfully');
+                return;
+            }
+            
+            const arrayBuffer = await response.arrayBuffer();
+            
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
             const pdf = await loadingTask.promise;
             
             container.innerHTML = '';
@@ -551,9 +590,11 @@
 
     async function renderDOCX(url, container, mediaItem) {
         try {
-            const response = await fetch(url);
+            const proxyUrl = `/.netlify/functions/fetch-media?url=${encodeURIComponent(url)}`;
+            const response = await fetch(proxyUrl);
+            
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                throw new Error(`Proxy fetch failed: ${response.status} ${response.statusText}`);
             }
             
             const arrayBuffer = await response.arrayBuffer();
