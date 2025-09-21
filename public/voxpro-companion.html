@@ -481,7 +481,7 @@ CUSTOMIZATION:
             try {
                 console.log('Loading assignments...');
                 
-                const response = await fetch('/.netlify/functions/xano-proxy?endpoint=voxpro_assignments', {
+                const response = await fetch('/.netlify/functions/xano-proxy/voxpro_assignments', {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
@@ -521,7 +521,7 @@ CUSTOMIZATION:
             try {
                 console.log('Loading media list...');
                 
-                const response = await fetch('/.netlify/functions/xano-proxy?endpoint=user_submission', {
+                const response = await fetch('/.netlify/functions/xano-proxy/user_submission', {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
