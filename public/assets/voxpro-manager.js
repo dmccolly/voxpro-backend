@@ -417,96 +417,28 @@
             mediaElement.style.objectFit = 'contain';
             
         } else if (mediaUrl.toLowerCase().includes('.pdf')) {
-            mediaElement = document.createElement('iframe');
-            mediaElement.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=1&view=FitH';
-            mediaElement.style.width = '100%';
-            mediaElement.style.height = '500px';
-            mediaElement.style.border = 'none';
-            mediaElement.style.borderRadius = '4px';
+            // Create container for PDF rendering
+            mediaElement = document.createElement('div');
+            mediaElement.style.cssText = `
+                width: 100%; height: 500px; border: none; border-radius: 4px;
+                display: flex; align-items: center; justify-content: center;
+                background: var(--bg-tertiary);
+            `;
+            mediaElement.innerHTML = '<div style="color: var(--text-secondary);">Loading PDF...</div>';
             
-            const handlePdfFallback = () => {
-                const googleDocsElement = document.createElement('iframe');
-                googleDocsElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(mediaUrl)}&embedded=true`;
-                googleDocsElement.style.width = '100%';
-                googleDocsElement.style.height = '500px';
-                googleDocsElement.style.border = 'none';
-                googleDocsElement.style.borderRadius = '4px';
-                
-                const handleGoogleDocsFallback = () => {
-                    const fallbackElement = document.createElement('div');
-                    fallbackElement.style.cssText = `
-                        display: flex; flex-direction: column; align-items: center; justify-content: center;
-                        height: 400px; background: var(--bg-tertiary); border-radius: 4px;
-                        text-align: center; padding: 20px;
-                    `;
-                    fallbackElement.innerHTML = `
-                        <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
-                        <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${mediaItem.title || 'PDF Document'}</div>
-                        <button onclick="window.open('${mediaUrl}', '_blank')" style="padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
-                            📥 Open PDF in New Tab
-                        </button>
-                    `;
-                    if (googleDocsElement.parentNode) {
-                        googleDocsElement.parentNode.replaceChild(fallbackElement, googleDocsElement);
-                    }
-                };
-                
-                googleDocsElement.onerror = handleGoogleDocsFallback;
-                setTimeout(handleGoogleDocsFallback, 10000);
-                
-                if (mediaElement.parentNode) {
-                    mediaElement.parentNode.replaceChild(googleDocsElement, mediaElement);
-                }
-            };
-            
-            mediaElement.onerror = handlePdfFallback;
-            setTimeout(handlePdfFallback, 5000);
+            renderPDF(mediaUrl, mediaElement, mediaItem);
             
         } else if (mediaUrl.toLowerCase().match(/\.(doc|docx|txt|rtf)$/)) {
-            mediaElement = document.createElement('iframe');
-            mediaElement.src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(mediaUrl)}`;
-            mediaElement.style.width = '100%';
-            mediaElement.style.height = '500px';
-            mediaElement.style.border = 'none';
-            mediaElement.style.borderRadius = '4px';
+            // Create container for DOCX rendering
+            mediaElement = document.createElement('div');
+            mediaElement.style.cssText = `
+                width: 100%; height: 500px; border: 1px solid var(--bg-tertiary); 
+                border-radius: 4px; padding: 20px; overflow-y: auto;
+                background: white; color: black;
+            `;
+            mediaElement.innerHTML = '<div style="text-align: center; color: #666;">Loading document...</div>';
             
-            const handleOfficeFallback = () => {
-                const googleDocsElement = document.createElement('iframe');
-                googleDocsElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(mediaUrl)}&embedded=true`;
-                googleDocsElement.style.width = '100%';
-                googleDocsElement.style.height = '500px';
-                googleDocsElement.style.border = 'none';
-                googleDocsElement.style.borderRadius = '4px';
-                
-                const handleGoogleDocsFallback = () => {
-                    const fallbackElement = document.createElement('div');
-                    fallbackElement.style.cssText = `
-                        display: flex; flex-direction: column; align-items: center; justify-content: center;
-                        height: 400px; background: var(--bg-tertiary); border-radius: 4px;
-                        text-align: center; padding: 20px;
-                    `;
-                    fallbackElement.innerHTML = `
-                        <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
-                        <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${mediaItem.title || 'Document'}</div>
-                        <button onclick="window.open('${mediaUrl}', '_blank')" style="padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
-                            📥 Open Document in New Tab
-                        </button>
-                    `;
-                    if (googleDocsElement.parentNode) {
-                        googleDocsElement.parentNode.replaceChild(fallbackElement, googleDocsElement);
-                    }
-                };
-                
-                googleDocsElement.onerror = handleGoogleDocsFallback;
-                setTimeout(handleGoogleDocsFallback, 10000);
-                
-                if (mediaElement.parentNode) {
-                    mediaElement.parentNode.replaceChild(googleDocsElement, mediaElement);
-                }
-            };
-            
-            mediaElement.onerror = handleOfficeFallback;
-            setTimeout(handleOfficeFallback, 5000);
+            renderDOCX(mediaUrl, mediaElement, mediaItem);
             
         } else {
             previewContent.innerHTML = `
@@ -560,6 +492,102 @@
         }
         
         state.currentPreviewMedia = mediaItem;
+    }
+
+    async function renderPDF(url, container, mediaItem) {
+        try {
+            // Configure PDF.js worker
+            if (typeof pdfjsLib !== 'undefined') {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+            }
+            
+            const loadingTask = pdfjsLib.getDocument(url);
+            const pdf = await loadingTask.promise;
+            
+            container.innerHTML = '';
+            container.style.cssText = `
+                width: 100%; height: 500px; border: none; border-radius: 4px;
+                overflow-y: auto; background: #f5f5f5; padding: 10px;
+            `;
+            
+            const page = await pdf.getPage(1);
+            const scale = 1.2;
+            const viewport = page.getViewport({ scale: scale });
+            
+            // Create canvas for PDF rendering
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            canvas.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 0 auto;';
+            
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+            container.appendChild(canvas);
+            
+            const pageInfo = document.createElement('div');
+            pageInfo.style.cssText = 'text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;';
+            pageInfo.textContent = `${mediaItem.title || 'PDF Document'} - Page 1 of ${pdf.numPages}`;
+            container.appendChild(pageInfo);
+            
+        } catch (error) {
+            console.error('PDF rendering error:', error);
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
+                    <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${mediaItem.title || 'PDF Document'}</div>
+                    <div style="color: var(--text-secondary); margin-bottom: 16px;">Unable to display PDF</div>
+                    <button onclick="window.open('${url}', '_blank')" style="padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+                        📥 Open PDF in New Tab
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    async function renderDOCX(url, container, mediaItem) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const arrayBuffer = await response.arrayBuffer();
+            
+            const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+            
+            container.innerHTML = `
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6;">
+                    <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                        ${mediaItem.title || 'Document'}
+                    </h3>
+                    <div style="margin-top: 20px;">
+                        ${result.value}
+                    </div>
+                </div>
+            `;
+            
+            if (result.messages && result.messages.length > 0) {
+                console.log('Mammoth conversion messages:', result.messages);
+            }
+            
+        } catch (error) {
+            console.error('DOCX rendering error:', error);
+            container.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
+                    <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${mediaItem.title || 'Document'}</div>
+                    <div style="color: var(--text-secondary); margin-bottom: 16px;">Unable to display document</div>
+                    <button onclick="window.open('${url}', '_blank')" style="padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+                        📥 Open Document in New Tab
+                    </button>
+                </div>
+            `;
+        }
     }
 
     function setupUploadHandlers() {
