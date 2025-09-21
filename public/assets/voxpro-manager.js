@@ -303,6 +303,7 @@
         }
         
         const keySlot = elements.keySelect?.value;
+        console.log('Key slot value:', keySlot, 'Type:', typeof keySlot);
         if (!keySlot) {
             showMessage('error', 'Please select a key slot');
             return;
@@ -314,11 +315,13 @@
                 parseInt(a.key_number) === parseInt(keySlot)
             );
             
+            const descriptionValue = elements.descriptionInput?.value?.trim() || '';
+            
             const assignmentData = {
                 asset_id: state.selectedMedia.id,
                 key_number: parseInt(keySlot),
                 title: elements.titleInput?.value || state.selectedMedia.title,
-                description: elements.descriptionInput?.value || state.selectedMedia.description,
+                description: descriptionValue,
                 station: elements.stationInput?.value || state.selectedMedia.station,
                 tags: elements.tagsInput?.value || state.selectedMedia.tags,
                 submitted_by: elements.submittedByInput?.value || state.selectedMedia.submitted_by,
@@ -326,30 +329,40 @@
                 cloudinary_url: state.selectedMedia.cloudinary_url || state.selectedMedia.file_url || state.selectedMedia.database_url
             };
             
+            console.log('=== ASSIGNMENT DATA BEING SENT ===');
+            console.log('Description from form:', elements.descriptionInput?.value);
+            console.log('Description trimmed:', descriptionValue);
+            console.log('Final assignment data:', JSON.stringify(assignmentData, null, 2));
+            
+            let result;
             if (existingAssignment) {
                 // Update existing assignment
-                await xanoRequest(`/voxpro_assignments/${existingAssignment.id}`, {
+                result = await xanoRequest(`/voxpro_assignments/${existingAssignment.id}`, {
                     method: 'PATCH',
                     body: JSON.stringify(assignmentData)
                 });
                 showMessage('success', `Key ${keySlot} updated successfully!`);
             } else {
                 // Create new assignment
-                await xanoRequest('/voxpro_assignments', {
+                result = await xanoRequest('/voxpro_assignments', {
                     method: 'POST',
                     body: JSON.stringify(assignmentData)
                 });
                 showMessage('success', `Media assigned to Key ${keySlot}!`);
             }
             
+            console.log('Assignment API response:', result);
+            
             await loadAssignments();
             
-            // Clear selection
-            if (elements.keySelect) elements.keySelect.value = '';
+            // if (elements.keySelect) elements.keySelect.value = '';
+            
+            return result;
             
         } catch (error) {
             console.error('Assignment error:', error);
             showMessage('error', `Assignment failed: ${error.message}`);
+            throw error;
         }
     }
 
@@ -365,6 +378,36 @@
         } catch (error) {
             console.error('Delete error:', error);
             showMessage('error', 'Failed to remove assignment');
+        }
+    }
+
+    function addDescriptionOverlay(mediaContainer, mediaItem) {
+        let description = '';
+        const descriptionInput = document.getElementById('descriptionInput');
+        if (descriptionInput && descriptionInput.value && descriptionInput.value.trim()) {
+            description = descriptionInput.value.trim();
+        } else {
+            description = mediaItem.description || mediaItem.asset?.description || '';
+        }
+        
+        if (description && description.trim()) {
+            const descriptionOverlay = document.createElement('div');
+            descriptionOverlay.style.cssText = `
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(transparent, rgba(0,0,0,0.8));
+                color: white;
+                padding: 20px 16px 12px;
+                font-size: 0.9rem;
+                line-height: 1.4;
+                border-radius: 0 0 8px 8px;
+                pointer-events: none;
+                z-index: 10;
+            `;
+            descriptionOverlay.textContent = description;
+            mediaContainer.appendChild(descriptionOverlay);
         }
     }
 
@@ -445,9 +488,6 @@
                 <div class="preview-placeholder">
                     <div class="placeholder-icon">📄</div>
                     <div class="placeholder-text">${mediaItem.title || 'File'}</div>
-                    <button onclick="window.open('${mediaUrl}', '_blank')" style="margin-top: 12px; padding: 8px 16px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        📥 Download File
-                    </button>
                 </div>
             `;
             return;
@@ -459,33 +499,14 @@
                     <div class="preview-placeholder">
                         <div class="placeholder-icon">⚠️</div>
                         <div class="placeholder-text">Error loading media</div>
-                        <button onclick="window.open('${mediaUrl}', '_blank')" style="margin-top: 12px; padding: 8px 16px; background: var(--error); color: white; border: none; border-radius: 4px; cursor: pointer;">
-                            📥 Download Instead
-                        </button>
                     </div>
                 `;
             };
             
             mediaContainer.appendChild(mediaElement);
             
-            const description = mediaItem.description || mediaItem.asset?.description;
-            if (description && description.trim()) {
-                const descriptionOverlay = document.createElement('div');
-                descriptionOverlay.style.cssText = `
-                    position: absolute;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    background: linear-gradient(transparent, rgba(0,0,0,0.8));
-                    color: white;
-                    padding: 20px 16px 12px;
-                    font-size: 0.9rem;
-                    line-height: 1.4;
-                    border-radius: 0 0 8px 8px;
-                    pointer-events: none;
-                `;
-                descriptionOverlay.textContent = description;
-                mediaContainer.appendChild(descriptionOverlay);
+            if (!mediaUrl.toLowerCase().includes('.pdf') && !mediaUrl.toLowerCase().match(/\.(doc|docx|txt|rtf)$/)) {
+                addDescriptionOverlay(mediaContainer, mediaItem);
             }
             
             previewContent.appendChild(mediaContainer);
@@ -529,28 +550,16 @@
                 
                 container.appendChild(img);
                 
-                const description = mediaItem.description || mediaItem.asset?.description;
-                if (description && description.trim()) {
-                    const descriptionDiv = document.createElement('div');
-                    descriptionDiv.style.cssText = `
-                        background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.9));
-                        color: white;
-                        padding: 12px 16px;
-                        margin-top: 10px;
-                        border-radius: 8px;
-                        font-size: 0.9rem;
-                        line-height: 1.4;
-                        max-width: 100%;
-                        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                    `;
-                    descriptionDiv.textContent = description;
-                    container.appendChild(descriptionDiv);
-                }
                 
                 const info = document.createElement('div');
                 info.style.cssText = 'text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;';
                 info.textContent = `${mediaItem.title || 'PDF Document'} - Converted to image for preview`;
                 container.appendChild(info);
+                
+                const mediaContainer = container.parentElement;
+                if (mediaContainer && window.voxProManager) {
+                    window.voxProManager.addDescriptionOverlay(mediaContainer, mediaItem);
+                }
                 
                 console.log('Document displayed as image successfully');
                 return;
@@ -586,57 +595,25 @@
             await page.render(renderContext).promise;
             container.appendChild(canvas);
             
-            const description = mediaItem.description || mediaItem.asset?.description;
-            if (description && description.trim()) {
-                const descriptionDiv = document.createElement('div');
-                descriptionDiv.style.cssText = `
-                    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.9));
-                    color: white;
-                    padding: 12px 16px;
-                    margin-top: 10px;
-                    border-radius: 8px;
-                    font-size: 0.9rem;
-                    line-height: 1.4;
-                    max-width: 100%;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                `;
-                descriptionDiv.textContent = description;
-                container.appendChild(descriptionDiv);
-            }
             
             const pageInfo = document.createElement('div');
             pageInfo.style.cssText = 'text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;';
             pageInfo.textContent = `${mediaItem.title || 'PDF Document'} - Page 1 of ${pdf.numPages}`;
             container.appendChild(pageInfo);
             
+            const mediaContainer = container.parentElement;
+            if (mediaContainer && window.voxProManager) {
+                window.voxProManager.addDescriptionOverlay(mediaContainer, mediaItem);
+            }
+            
         } catch (error) {
             console.error('PDF rendering error:', error);
-            // Create description element if available for error case
-            const description = mediaItem.description || mediaItem.asset?.description;
-            const descriptionHtml = description && description.trim() ? `
-                <div style="
-                    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.9));
-                    color: white;
-                    padding: 12px 16px;
-                    margin-bottom: 16px;
-                    border-radius: 8px;
-                    font-size: 0.9rem;
-                    line-height: 1.4;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                ">
-                    ${description}
-                </div>
-            ` : '';
             
             container.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
                     <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
                     <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${mediaItem.title || 'PDF Document'}</div>
-                    ${descriptionHtml}
-                    <div style="color: var(--text-secondary); margin-bottom: 16px;">Unable to display PDF</div>
-                    <button onclick="window.open('${url}', '_blank')" style="padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
-                        📥 Open PDF in New Tab
-                    </button>
+                    <div style="color: var(--text-secondary);">Unable to display PDF</div>
                 </div>
             `;
         }
@@ -655,29 +632,11 @@
             
             const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
             
-            // Create description element if available
-            const description = mediaItem.description || mediaItem.asset?.description;
-            const descriptionHtml = description && description.trim() ? `
-                <div style="
-                    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.9));
-                    color: white;
-                    padding: 12px 16px;
-                    margin-bottom: 20px;
-                    border-radius: 8px;
-                    font-size: 0.9rem;
-                    line-height: 1.4;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                ">
-                    ${description}
-                </div>
-            ` : '';
-            
             container.innerHTML = `
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6;">
                     <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid #eee; padding-bottom: 10px;">
                         ${mediaItem.title || 'Document'}
                     </h3>
-                    ${descriptionHtml}
                     <div style="margin-top: 20px;">
                         ${result.value}
                     </div>
@@ -688,34 +647,18 @@
                 console.log('Mammoth conversion messages:', result.messages);
             }
             
+            const mediaContainer = container.parentElement;
+            if (mediaContainer && window.voxProManager) {
+                window.voxProManager.addDescriptionOverlay(mediaContainer, mediaItem);
+            }
+            
         } catch (error) {
             console.error('DOCX rendering error:', error);
-            // Create description element if available for DOCX error case
-            const description = mediaItem.description || mediaItem.asset?.description;
-            const descriptionHtml = description && description.trim() ? `
-                <div style="
-                    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.9));
-                    color: white;
-                    padding: 12px 16px;
-                    margin-bottom: 16px;
-                    border-radius: 8px;
-                    font-size: 0.9rem;
-                    line-height: 1.4;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-                ">
-                    ${description}
-                </div>
-            ` : '';
-            
             container.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
                     <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
                     <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${mediaItem.title || 'Document'}</div>
-                    ${descriptionHtml}
-                    <div style="color: var(--text-secondary); margin-bottom: 16px;">Unable to display document</div>
-                    <button onclick="window.open('${url}', '_blank')" style="padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
-                        📥 Open Document in New Tab
-                    </button>
+                    <div style="color: var(--text-secondary);">Unable to display document</div>
                 </div>
             `;
         }
@@ -952,7 +895,6 @@
             stopButton: document.getElementById('stopButton'),
             previewContent: document.getElementById('previewContent'),
             fullscreenBtn: document.getElementById('fullscreenBtn'),
-            downloadBtn: document.getElementById('downloadBtn'),
             uploadArea: document.getElementById('uploadArea'),
             fileInput: document.getElementById('fileInput'),
             progressContainer: document.getElementById('progressContainer'),
@@ -995,25 +937,6 @@
             });
         }
         
-        if (elements.downloadBtn) {
-            elements.downloadBtn.addEventListener('click', () => {
-                if (state.currentPreviewMedia) {
-                    const mediaUrl = state.currentPreviewMedia.cloudinary_url || 
-                                   state.currentPreviewMedia.file_url || 
-                                   state.currentPreviewMedia.database_url || 
-                                   state.currentPreviewMedia.media_url;
-                    if (mediaUrl) {
-                        const link = document.createElement('a');
-                        link.href = mediaUrl;
-                        link.download = state.currentPreviewMedia.title || 'download';
-                        link.target = '_blank';
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                    }
-                }
-            });
-        }
         
         setupUploadHandlers();
         
@@ -1073,6 +996,8 @@
         loadMedia,
         loadAssignments,
         stopPlayback,
-        playForKey
+        playForKey,
+        createAssignment,
+        addDescriptionOverlay
     };
 })();
