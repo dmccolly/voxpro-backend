@@ -529,6 +529,24 @@
                 
                 container.appendChild(img);
                 
+                const description = mediaItem.description || mediaItem.asset?.description;
+                if (description && description.trim()) {
+                    const descriptionDiv = document.createElement('div');
+                    descriptionDiv.style.cssText = `
+                        background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.9));
+                        color: white;
+                        padding: 12px 16px;
+                        margin-top: 10px;
+                        border-radius: 8px;
+                        font-size: 0.9rem;
+                        line-height: 1.4;
+                        max-width: 100%;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                    `;
+                    descriptionDiv.textContent = description;
+                    container.appendChild(descriptionDiv);
+                }
+                
                 const info = document.createElement('div');
                 info.style.cssText = 'text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;';
                 info.textContent = `${mediaItem.title || 'PDF Document'} - Converted to image for preview`;
@@ -568,6 +586,24 @@
             await page.render(renderContext).promise;
             container.appendChild(canvas);
             
+            const description = mediaItem.description || mediaItem.asset?.description;
+            if (description && description.trim()) {
+                const descriptionDiv = document.createElement('div');
+                descriptionDiv.style.cssText = `
+                    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.9));
+                    color: white;
+                    padding: 12px 16px;
+                    margin-top: 10px;
+                    border-radius: 8px;
+                    font-size: 0.9rem;
+                    line-height: 1.4;
+                    max-width: 100%;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                `;
+                descriptionDiv.textContent = description;
+                container.appendChild(descriptionDiv);
+            }
+            
             const pageInfo = document.createElement('div');
             pageInfo.style.cssText = 'text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;';
             pageInfo.textContent = `${mediaItem.title || 'PDF Document'} - Page 1 of ${pdf.numPages}`;
@@ -575,10 +611,28 @@
             
         } catch (error) {
             console.error('PDF rendering error:', error);
+            // Create description element if available for error case
+            const description = mediaItem.description || mediaItem.asset?.description;
+            const descriptionHtml = description && description.trim() ? `
+                <div style="
+                    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.9));
+                    color: white;
+                    padding: 12px 16px;
+                    margin-bottom: 16px;
+                    border-radius: 8px;
+                    font-size: 0.9rem;
+                    line-height: 1.4;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                ">
+                    ${description}
+                </div>
+            ` : '';
+            
             container.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
                     <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
                     <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${mediaItem.title || 'PDF Document'}</div>
+                    ${descriptionHtml}
                     <div style="color: var(--text-secondary); margin-bottom: 16px;">Unable to display PDF</div>
                     <button onclick="window.open('${url}', '_blank')" style="padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
                         📥 Open PDF in New Tab
@@ -601,11 +655,29 @@
             
             const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
             
+            // Create description element if available
+            const description = mediaItem.description || mediaItem.asset?.description;
+            const descriptionHtml = description && description.trim() ? `
+                <div style="
+                    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.9));
+                    color: white;
+                    padding: 12px 16px;
+                    margin-bottom: 20px;
+                    border-radius: 8px;
+                    font-size: 0.9rem;
+                    line-height: 1.4;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                ">
+                    ${description}
+                </div>
+            ` : '';
+            
             container.innerHTML = `
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6;">
                     <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid #eee; padding-bottom: 10px;">
                         ${mediaItem.title || 'Document'}
                     </h3>
+                    ${descriptionHtml}
                     <div style="margin-top: 20px;">
                         ${result.value}
                     </div>
@@ -618,10 +690,28 @@
             
         } catch (error) {
             console.error('DOCX rendering error:', error);
+            // Create description element if available for DOCX error case
+            const description = mediaItem.description || mediaItem.asset?.description;
+            const descriptionHtml = description && description.trim() ? `
+                <div style="
+                    background: linear-gradient(135deg, rgba(0,0,0,0.8), rgba(0,0,0,0.9));
+                    color: white;
+                    padding: 12px 16px;
+                    margin-bottom: 16px;
+                    border-radius: 8px;
+                    font-size: 0.9rem;
+                    line-height: 1.4;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+                ">
+                    ${description}
+                </div>
+            ` : '';
+            
             container.innerHTML = `
                 <div style="text-align: center; padding: 40px;">
                     <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
                     <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${mediaItem.title || 'Document'}</div>
+                    ${descriptionHtml}
                     <div style="color: var(--text-secondary); margin-bottom: 16px;">Unable to display document</div>
                     <button onclick="window.open('${url}', '_blank')" style="padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
                         📥 Open Document in New Tab
