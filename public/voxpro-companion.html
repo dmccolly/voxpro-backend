@@ -750,6 +750,9 @@ CUSTOMIZATION:
             elements.modalSection.classList.remove('minimized', 'maximized');
             elements.maximizeBtn.textContent = '□';
             elements.maximizeBtn.title = 'Maximize';
+            
+            // Setup modal controls after media is loaded
+            setupModalControls();
         }
 
         // Render PDF using PDF.js
