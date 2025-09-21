@@ -1060,7 +1060,8 @@ CUSTOMIZATION:
                     // Only handle escape if not typing in an input field
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
                     
-                    if (isMaximized) {
+                    e.preventDefault();
+                    if (state.modalState === 'maximized') {
                         // First escape: restore from maximized
                         maximizeBtn.click();
                     } else if (state.playing) {
