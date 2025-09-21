@@ -2203,11 +2203,28 @@
             } else if (file.file_type === 'document') {
                 // Check if it's a PDF based on URL or original filename
                 if (fileUrl.toLowerCase().includes('.pdf') || (file.title && file.title.toLowerCase().includes('.pdf'))) {
-                    // PDF Viewer
-                    mediaElement = document.createElement('iframe');
-                    mediaElement.src = fileUrl + '#toolbar=1&navpanes=1&scrollbar=1';
+                    // PDF Viewer - use Cloudinary transform to convert to image
+                    mediaElement = document.createElement('img');
+                    if (fileUrl.includes('cloudinary.com')) {
+                        mediaElement.src = fileUrl.replace('/upload/', '/upload/w_600,h_800,c_fit,f_jpg,pg_1/');
+                    } else {
+                        mediaElement.src = fileUrl;
+                    }
                     mediaElement.style.width = '100%';
-                    mediaElement.style.height = '350px';
+                    mediaElement.style.maxHeight = '350px';
+                    mediaElement.style.objectFit = 'contain';
+                    mediaElement.style.border = '1px solid #ddd';
+                    
+                    // Add error handling with fallback
+                    mediaElement.onerror = function() {
+                        this.style.display = 'none';
+                        const fallback = document.createElement('div');
+                        fallback.style.textAlign = 'center';
+                        fallback.style.padding = '20px';
+                        fallback.style.color = '#666';
+                        fallback.textContent = 'PDF preview not available';
+                        this.parentNode.appendChild(fallback);
+                    };
                     
                     // Add file info overlay
                     const overlay = document.createElement('div');
