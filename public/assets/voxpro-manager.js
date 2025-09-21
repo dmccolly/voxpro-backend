@@ -799,32 +799,19 @@
             isVideo: fileType === 'video' || fileType.includes('video') || mediaUrl.toLowerCase().match(/\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/)
         });
         
-        if (fileType === 'video' || fileType.includes('video') || mediaUrl.toLowerCase().match(/\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/)) {
-            console.log('DEBUG: Calling playVideo function');
-            console.log('DEBUG: playVideo function type:', typeof playVideo);
-            try {
-                playVideo(mediaUrl, keyNum);
-            } catch (error) {
-                console.error('ERROR calling playVideo:', error);
-                showMessage('error', 'Failed to open video modal: ' + error.message);
-            }
-        } else if (fileType === 'audio' || fileType.includes('audio') || mediaUrl.toLowerCase().match(/\.(mp3|wav|ogg|aac|flac|m4a)$/)) {
-            playAudio(mediaUrl, keyNum);
-        } else {
-            showMediaPreview(assignment);
+        showMediaPreview(assignment);
+        
+        const previewContent = elements.previewContent;
+        if (previewContent) {
+            const audioElement = previewContent.querySelector('audio');
+            const videoElement = previewContent.querySelector('video');
             
-            const previewContent = elements.previewContent;
-            if (previewContent) {
-                const audioElement = previewContent.querySelector('audio');
-                const videoElement = previewContent.querySelector('video');
-                
-                if (audioElement) {
-                    audioElement.play().catch(() => {
-                    });
-                } else if (videoElement) {
-                    videoElement.play().catch(() => {
-                    });
-                }
+            if (audioElement) {
+                audioElement.play().catch(() => {
+                });
+            } else if (videoElement) {
+                videoElement.play().catch(() => {
+                });
             }
         }
         
@@ -1073,27 +1060,99 @@
             elements.assignButton.addEventListener('click', createAssignment);
         }
         
+        const minimizeBtn = document.getElementById('minimizeBtn');
+        const maximizeBtn = document.getElementById('maximizeBtn');
+        const closeBtn = document.getElementById('closeBtn');
+        const previewWindow = document.querySelector('.preview-window');
+        const previewContent = document.getElementById('previewContent');
+
+        if (minimizeBtn && previewWindow && previewContent) {
+            minimizeBtn.addEventListener('click', () => {
+                if (previewContent.style.display === 'none') {
+                    previewContent.style.display = 'block';
+                    minimizeBtn.textContent = '−';
+                    minimizeBtn.title = 'Minimize';
+                } else {
+                    previewContent.style.display = 'none';
+                    minimizeBtn.textContent = '□';
+                    minimizeBtn.title = 'Restore';
+                }
+            });
+        }
+
+        if (maximizeBtn && previewWindow) {
+            maximizeBtn.addEventListener('click', () => {
+                if (previewWindow.classList.contains('maximized')) {
+                    previewWindow.classList.remove('maximized');
+                    previewWindow.style.cssText = '';
+                    maximizeBtn.textContent = '□';
+                    maximizeBtn.title = 'Maximize';
+                } else {
+                    previewWindow.classList.add('maximized');
+                    previewWindow.style.cssText = `
+                        position: fixed !important;
+                        top: 20px !important;
+                        left: 20px !important;
+                        right: 20px !important;
+                        bottom: 20px !important;
+                        width: auto !important;
+                        height: auto !important;
+                        z-index: 9999 !important;
+                        background: var(--bg-secondary) !important;
+                        border: 2px solid var(--accent) !important;
+                    `;
+                    maximizeBtn.textContent = '❐';
+                    maximizeBtn.title = 'Restore';
+                }
+            });
+        }
+
+        if (closeBtn && previewContent) {
+            closeBtn.addEventListener('click', () => {
+                const video = previewContent.querySelector('video');
+                const audio = previewContent.querySelector('audio');
+                if (video) video.pause();
+                if (audio) audio.pause();
+                
+                previewContent.innerHTML = `
+                    <div class="preview-placeholder">
+                        <div class="placeholder-icon">📄</div>
+                        <div class="placeholder-text">Select media to preview or press a key to play</div>
+                    </div>
+                `;
+                
+                if (previewWindow) {
+                    previewWindow.classList.remove('maximized');
+                    previewWindow.style.cssText = '';
+                }
+                if (minimizeBtn) {
+                    minimizeBtn.textContent = '−';
+                    minimizeBtn.title = 'Minimize';
+                }
+                if (maximizeBtn) {
+                    maximizeBtn.textContent = '□';
+                    maximizeBtn.title = 'Maximize';
+                }
+                previewContent.style.display = 'block';
+                
+                state.currentPreviewMedia = null;
+                state.playing = null;
+                
+                document.querySelectorAll('.key-button').forEach(btn => 
+                    btn.classList.remove('playing')
+                );
+            });
+        }
+
         if (elements.fullscreenBtn) {
             elements.fullscreenBtn.addEventListener('click', () => {
                 if (state.currentModal) {
-                    const maximizeBtn = state.currentModal.querySelector('.modal-header button[title="Maximize"], .modal-header button[title="Restore"]');
-                    if (maximizeBtn) {
-                        maximizeBtn.click();
+                    const modalMaximizeBtn = state.currentModal.querySelector('.modal-header button[title="Maximize"], .modal-header button[title="Restore"]');
+                    if (modalMaximizeBtn) {
+                        modalMaximizeBtn.click();
                     }
-                } else if (state.currentPreviewMedia) {
-                    const previewContent = elements.previewContent;
-                    if (previewContent) {
-                        const previewVideo = previewContent.querySelector('video');
-                        if (previewVideo) {
-                            previewVideo.pause();
-                        }
-                    }
-                    
-                    const mediaUrl = state.currentPreviewMedia.cloudinary_url || 
-                                   state.currentPreviewMedia.file_url || 
-                                   state.currentPreviewMedia.database_url || 
-                                   state.currentPreviewMedia.media_url;
-                    if (mediaUrl) window.open(mediaUrl, '_blank');
+                } else if (state.currentPreviewMedia && maximizeBtn) {
+                    maximizeBtn.click();
                 }
             });
         }
