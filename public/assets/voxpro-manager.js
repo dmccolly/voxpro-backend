@@ -930,17 +930,22 @@
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             const activeElement = document.activeElement;
-            const isInputField = activeElement.tagName === 'INPUT' || 
-                                activeElement.tagName === 'TEXTAREA';
+            const isInputField = activeElement && (
+                activeElement.tagName === 'INPUT' || 
+                activeElement.tagName === 'TEXTAREA' ||
+                activeElement.isContentEditable ||
+                activeElement.classList.contains('ql-editor')
+            );
             
             // Number keys 1-5 for playing
             if (e.key >= '1' && e.key <= '5' && !e.ctrlKey && !e.altKey) {
                 if (!isInputField) {
+                    e.preventDefault();
                     playForKey(e.key);
                 }
             }
             
-            // Spacebar or ESC to stop
+            // Spacebar or ESC to stop (only when not in input fields)
             if (e.key === 'Escape' || (e.key === ' ' && !isInputField)) {
                 e.preventDefault();
                 stopPlayback();
