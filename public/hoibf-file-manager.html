@@ -452,6 +452,32 @@
             letter-spacing: 0.5px;
         }
 
+        .sortable-header {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background-color 0.2s ease;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .sortable-header:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sort-indicator {
+            font-size: 12px;
+            margin-left: 4px;
+            opacity: 0.5;
+            transition: opacity 0.2s ease;
+        }
+        
+        .sort-indicator.active {
+            opacity: 1;
+        }
+
         .file-item {
             display: grid;
             grid-template-columns: 40px 1fr 80px 80px 100px 100px 120px 100px;
@@ -1120,12 +1146,12 @@
                 <div class="file-list">
                     <div class="file-list-header">
                         <div></div>
-                        <div>Title</div>
-                        <div>Type</div>
-                        <div>Size</div>
-                        <div>Duration</div>
-                        <div>Station</div>
-                        <div>Modified</div>
+                        <div class="sortable-header" onclick="sortFiles('title')">Title <span id="sort-title" class="sort-indicator"></span></div>
+                        <div class="sortable-header" onclick="sortFiles('file_type')">Type <span id="sort-file_type" class="sort-indicator"></span></div>
+                        <div class="sortable-header" onclick="sortFiles('file_size')">Size <span id="sort-file_size" class="sort-indicator"></span></div>
+                        <div class="sortable-header" onclick="sortFiles('duration')">Duration <span id="sort-duration" class="sort-indicator"></span></div>
+                        <div class="sortable-header" onclick="sortFiles('station')">Station <span id="sort-station" class="sort-indicator"></span></div>
+                        <div class="sortable-header" onclick="sortFiles('created_at')">Modified <span id="sort-created_at" class="sort-indicator"></span></div>
                         <div>Actions</div>
                     </div>
                     <div id="fileListContent">
@@ -2017,25 +2043,30 @@
             
             if (confirm(`Are you sure you want to delete ${fileCount} selected file(s)?\n\nFiles to delete:\n${fileNames}\n\nThis action cannot be undone.`)) {
                 try {
+                    console.log('Deleting selected files...', Array.from(selectedFiles));
                     showMessage(`Deleting ${fileCount} files...`, 'info');
                     
                     // Delete each selected file
                     const deletePromises = Array.from(selectedFiles).map(async (fileId) => {
+                        console.log(`Deleting file ${fileId}...`);
                         const response = await fetch(`/.netlify/functions/xano-proxy/user_submission/${fileId}`, {
                             method: 'DELETE',
                             headers: { 'Content-Type': 'application/json' }
                         });
                         
                         if (!response.ok) {
-                            throw new Error(`Failed to delete file ${fileId}`);
+                            const errorText = await response.text();
+                            throw new Error(`Failed to delete file ${fileId}: ${response.status} - ${errorText}`);
                         }
                         
+                        console.log(`File ${fileId} deleted successfully`);
                         return fileId;
                     });
                     
                     // Wait for all deletions to complete
                     await Promise.all(deletePromises);
                     
+                    console.log(`Successfully deleted ${fileCount} files`);
                     showMessage(`Successfully deleted ${fileCount} files`, 'success');
                     
                     // Clear selections and refresh
@@ -2077,6 +2108,7 @@
             
             if (confirm(`Delete "${selectedFile.title}"?`)) {
                 try {
+                    console.log(`Deleting file ${selectedFile.id}...`);
                     showMessage('Deleting file...', 'info');
                     
                     const response = await fetch(`/.netlify/functions/xano-proxy/user_submission/${selectedFile.id}`, {
@@ -2085,9 +2117,11 @@
                     });
                     
                     if (!response.ok) {
-                        throw new Error(`Failed to delete file: ${response.status}`);
+                        const errorText = await response.text();
+                        throw new Error(`Failed to delete file: ${response.status} - ${errorText}`);
                     }
                     
+                    console.log('File deleted successfully');
                     showMessage('File deleted successfully', 'success');
                     
                     // Clear selection and refresh file list
@@ -2097,7 +2131,7 @@
                     
                 } catch (error) {
                     console.error('Delete error:', error);
-                    showMessage('Failed to delete file', 'error');
+                    showMessage(`Failed to delete file: ${error.message}`, 'error');
                 }
             }
         }
@@ -2313,6 +2347,58 @@
 
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('open');
+        }
+
+        // Sorting functionality
+        let currentSort = { field: null, direction: 'asc' };
+        
+        function sortFiles(field) {
+            // Toggle direction if clicking the same field
+            if (currentSort.field === field) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.direction = 'asc';
+            }
+            
+            // Update sort indicators
+            document.querySelectorAll('.sort-indicator').forEach(indicator => {
+                indicator.textContent = '';
+                indicator.classList.remove('active');
+            });
+            
+            const indicator = document.getElementById(`sort-${field}`);
+            if (indicator) {
+                indicator.textContent = currentSort.direction === 'asc' ? '▲' : '▼';
+                indicator.classList.add('active');
+            }
+            
+            // Sort the files array
+            allFiles.sort((a, b) => {
+                let aVal = a[field] || '';
+                let bVal = b[field] || '';
+                
+                // Handle different data types
+                if (field === 'file_size') {
+                    aVal = parseInt(aVal) || 0;
+                    bVal = parseInt(bVal) || 0;
+                } else if (field === 'created_at') {
+                    aVal = new Date(aVal);
+                    bVal = new Date(bVal);
+                } else {
+                    aVal = String(aVal).toLowerCase();
+                    bVal = String(bVal).toLowerCase();
+                }
+                
+                if (currentSort.direction === 'asc') {
+                    return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                } else {
+                    return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                }
+            });
+            
+            // Refresh the display
+            updateFileList();
         }
 
         // Keyboard shortcuts
