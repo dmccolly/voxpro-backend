@@ -929,18 +929,19 @@
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
+            const activeElement = document.activeElement;
+            const isInputField = activeElement.tagName === 'INPUT' || 
+                                activeElement.tagName === 'TEXTAREA';
+            
             // Number keys 1-5 for playing
             if (e.key >= '1' && e.key <= '5' && !e.ctrlKey && !e.altKey) {
-                const activeElement = document.activeElement;
-                const isInputField = activeElement.tagName === 'INPUT' || 
-                                    activeElement.tagName === 'TEXTAREA';
                 if (!isInputField) {
                     playForKey(e.key);
                 }
             }
             
             // Spacebar or ESC to stop
-            if (e.key === 'Escape' || (e.key === ' ' && document.activeElement.tagName !== 'INPUT')) {
+            if (e.key === 'Escape' || (e.key === ' ' && !isInputField)) {
                 e.preventDefault();
                 stopPlayback();
             }
