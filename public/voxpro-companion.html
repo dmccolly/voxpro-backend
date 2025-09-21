@@ -245,7 +245,14 @@ CUSTOMIZATION:
 
         .keys-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .keys-row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 6px;
             margin-bottom: 12px;
         }
@@ -404,11 +411,14 @@ CUSTOMIZATION:
         <div class="keys-section">
             <div class="keys-header">
                 <span class="keys-title">VoxPro Keys</span>
-                <button class="stop-btn" id="stopBtn">STOP</button>
             </div>
             
             <div class="keys-grid" id="keysGrid">
-                <!-- Keys will be populated by JavaScript -->
+                <!-- Keys 1-3 will be populated by JavaScript -->
+            </div>
+            
+            <div class="keys-row-2" id="keysRow2">
+                <!-- Keys 4-5 and STOP button will be populated by JavaScript -->
             </div>
 
             <div class="keys-list">
@@ -526,9 +536,12 @@ CUSTOMIZATION:
         // Render key buttons
         function renderKeys() {
             const keysGrid = elements.keysGrid;
+            const keysRow2 = document.getElementById('keysRow2');
             keysGrid.innerHTML = '';
+            keysRow2.innerHTML = '';
 
-            for (let i = 1; i <= 5; i++) {
+            // Render keys 1-3 in first row
+            for (let i = 1; i <= 3; i++) {
                 const assignment = state.assignments.find(a => parseInt(a.key_number) === i);
                 const keyButton = document.createElement('div');
                 keyButton.className = 'key-button';
@@ -547,6 +560,43 @@ CUSTOMIZATION:
                 keyButton.appendChild(keyTitle);
                 keysGrid.appendChild(keyButton);
             }
+
+            // Render keys 4-5 in second row
+            for (let i = 4; i <= 5; i++) {
+                const assignment = state.assignments.find(a => parseInt(a.key_number) === i);
+                const keyButton = document.createElement('div');
+                keyButton.className = 'key-button';
+                keyButton.id = `key${i}`;
+                keyButton.onclick = () => playForKey(i);
+
+                const keyNumber = document.createElement('div');
+                keyNumber.className = 'key-number';
+                keyNumber.textContent = i;
+
+                const keyTitle = document.createElement('div');
+                keyTitle.className = 'key-title';
+                keyTitle.textContent = assignment ? (assignment.title || 'Untitled') : 'Empty';
+
+                keyButton.appendChild(keyNumber);
+                keyButton.appendChild(keyTitle);
+                keysRow2.appendChild(keyButton);
+            }
+
+            // Add STOP button to second row
+            const stopButton = document.createElement('div');
+            stopButton.className = 'key-button stop-btn';
+            stopButton.id = 'stopBtnInGrid';
+            stopButton.onclick = () => stopPlayback();
+            stopButton.style.background = 'var(--error)';
+            stopButton.style.color = 'white';
+
+            const stopText = document.createElement('div');
+            stopText.className = 'key-number';
+            stopText.textContent = 'STOP';
+            stopText.style.fontSize = '0.7rem';
+
+            stopButton.appendChild(stopText);
+            keysRow2.appendChild(stopButton);
         }
 
         // Render keys assigned list
