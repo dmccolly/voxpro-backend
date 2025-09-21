@@ -440,7 +440,7 @@
 
         .file-list-header {
             display: grid;
-            grid-template-columns: 40px 1fr 80px 80px 100px 100px 120px 100px;
+            grid-template-columns: 40px 1fr 80px 100px 100px 120px 100px;
             gap: 16px;
             padding: 12px 24px;
             background: var(--bg-secondary);
@@ -480,7 +480,7 @@
 
         .file-item {
             display: grid;
-            grid-template-columns: 40px 1fr 80px 80px 100px 100px 120px 100px;
+            grid-template-columns: 40px 1fr 80px 100px 100px 120px 100px;
             gap: 16px;
             padding: 12px 24px;
             border-bottom: 1px solid var(--border);
@@ -1147,7 +1147,6 @@
                     <div class="file-list-header">
                         <div></div>
                         <div class="sortable-header" onclick="sortFiles('title')">Title <span id="sort-title" class="sort-indicator"></span></div>
-                        <div class="sortable-header" onclick="sortFiles('file_type')">Type <span id="sort-file_type" class="sort-indicator"></span></div>
                         <div class="sortable-header" onclick="sortFiles('file_size')">Size <span id="sort-file_size" class="sort-indicator"></span></div>
                         <div class="sortable-header" onclick="sortFiles('duration')">Duration <span id="sort-duration" class="sort-indicator"></span></div>
                         <div class="sortable-header" onclick="sortFiles('station')">Station <span id="sort-station" class="sort-indicator"></span></div>
