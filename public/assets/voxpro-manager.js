@@ -256,6 +256,7 @@
             return {
                 ...assignment,
                 title: assignment.title || mediaItem?.title || 'Unknown',
+                description: assignment.description || mediaItem?.description || '',
                 cloudinary_url: assignment.cloudinary_url || mediaItem?.cloudinary_url || mediaItem?.file_url || mediaItem?.database_url || mediaItem?.media_url,
                 file_type: assignment.file_type || mediaItem?.file_type
             };
@@ -417,17 +418,95 @@
             
         } else if (mediaUrl.toLowerCase().includes('.pdf')) {
             mediaElement = document.createElement('iframe');
-            mediaElement.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=1';
+            mediaElement.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=1&view=FitH';
             mediaElement.style.width = '100%';
-            mediaElement.style.height = '400px';
+            mediaElement.style.height = '500px';
             mediaElement.style.border = 'none';
+            mediaElement.style.borderRadius = '4px';
+            
+            const handlePdfFallback = () => {
+                const googleDocsElement = document.createElement('iframe');
+                googleDocsElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(mediaUrl)}&embedded=true`;
+                googleDocsElement.style.width = '100%';
+                googleDocsElement.style.height = '500px';
+                googleDocsElement.style.border = 'none';
+                googleDocsElement.style.borderRadius = '4px';
+                
+                const handleGoogleDocsFallback = () => {
+                    const fallbackElement = document.createElement('div');
+                    fallbackElement.style.cssText = `
+                        display: flex; flex-direction: column; align-items: center; justify-content: center;
+                        height: 400px; background: var(--bg-tertiary); border-radius: 4px;
+                        text-align: center; padding: 20px;
+                    `;
+                    fallbackElement.innerHTML = `
+                        <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
+                        <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${mediaItem.title || 'PDF Document'}</div>
+                        <button onclick="window.open('${mediaUrl}', '_blank')" style="padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+                            📥 Open PDF in New Tab
+                        </button>
+                    `;
+                    if (googleDocsElement.parentNode) {
+                        googleDocsElement.parentNode.replaceChild(fallbackElement, googleDocsElement);
+                    }
+                };
+                
+                googleDocsElement.onerror = handleGoogleDocsFallback;
+                setTimeout(handleGoogleDocsFallback, 10000);
+                
+                if (mediaElement.parentNode) {
+                    mediaElement.parentNode.replaceChild(googleDocsElement, mediaElement);
+                }
+            };
+            
+            mediaElement.onerror = handlePdfFallback;
+            setTimeout(handlePdfFallback, 5000);
             
         } else if (mediaUrl.toLowerCase().match(/\.(doc|docx|txt|rtf)$/)) {
             mediaElement = document.createElement('iframe');
-            mediaElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(mediaUrl)}&embedded=true`;
+            mediaElement.src = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(mediaUrl)}`;
             mediaElement.style.width = '100%';
-            mediaElement.style.height = '400px';
+            mediaElement.style.height = '500px';
             mediaElement.style.border = 'none';
+            mediaElement.style.borderRadius = '4px';
+            
+            const handleOfficeFallback = () => {
+                const googleDocsElement = document.createElement('iframe');
+                googleDocsElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(mediaUrl)}&embedded=true`;
+                googleDocsElement.style.width = '100%';
+                googleDocsElement.style.height = '500px';
+                googleDocsElement.style.border = 'none';
+                googleDocsElement.style.borderRadius = '4px';
+                
+                const handleGoogleDocsFallback = () => {
+                    const fallbackElement = document.createElement('div');
+                    fallbackElement.style.cssText = `
+                        display: flex; flex-direction: column; align-items: center; justify-content: center;
+                        height: 400px; background: var(--bg-tertiary); border-radius: 4px;
+                        text-align: center; padding: 20px;
+                    `;
+                    fallbackElement.innerHTML = `
+                        <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
+                        <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${mediaItem.title || 'Document'}</div>
+                        <button onclick="window.open('${mediaUrl}', '_blank')" style="padding: 12px 20px; background: var(--accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem;">
+                            📥 Open Document in New Tab
+                        </button>
+                    `;
+                    if (googleDocsElement.parentNode) {
+                        googleDocsElement.parentNode.replaceChild(fallbackElement, googleDocsElement);
+                    }
+                };
+                
+                googleDocsElement.onerror = handleGoogleDocsFallback;
+                setTimeout(handleGoogleDocsFallback, 10000);
+                
+                if (mediaElement.parentNode) {
+                    mediaElement.parentNode.replaceChild(googleDocsElement, mediaElement);
+                }
+            };
+            
+            mediaElement.onerror = handleOfficeFallback;
+            setTimeout(handleOfficeFallback, 5000);
             
         } else {
             previewContent.innerHTML = `
