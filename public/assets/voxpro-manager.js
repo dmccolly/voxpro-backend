@@ -1087,6 +1087,18 @@
                     previewWindow.style.cssText = '';
                     maximizeBtn.textContent = '□';
                     maximizeBtn.title = 'Maximize';
+                    
+                    if (previewContent) {
+                        previewContent.style.cssText = '';
+                        const video = previewContent.querySelector('video');
+                        const description = previewContent.querySelector('.description-overlay');
+                        if (video) {
+                            video.style.cssText = '';
+                        }
+                        if (description) {
+                            description.style.cssText = '';
+                        }
+                    }
                 } else {
                     previewWindow.classList.add('maximized');
                     previewWindow.style.cssText = `
@@ -1100,7 +1112,48 @@
                         z-index: 9999 !important;
                         background: var(--bg-secondary) !important;
                         border: 2px solid var(--accent) !important;
+                        display: flex !important;
+                        flex-direction: column !important;
                     `;
+                    
+                    if (previewContent) {
+                        previewContent.style.cssText = `
+                            flex: 1 !important;
+                            display: flex !important;
+                            flex-direction: column !important;
+                            padding: 20px !important;
+                            min-height: 0 !important;
+                        `;
+                        
+                        const video = previewContent.querySelector('video');
+                        const description = previewContent.querySelector('.description-overlay');
+                        
+                        if (video) {
+                            video.style.cssText = `
+                                width: 100% !important;
+                                height: auto !important;
+                                max-height: calc(100vh - 200px) !important;
+                                object-fit: contain !important;
+                                border-radius: 8px !important;
+                                margin-bottom: 15px !important;
+                            `;
+                        }
+                        
+                        if (description) {
+                            description.style.cssText = `
+                                background: rgba(0, 0, 0, 0.8) !important;
+                                color: white !important;
+                                padding: 15px 20px !important;
+                                border-radius: 8px !important;
+                                font-size: 1rem !important;
+                                line-height: 1.5 !important;
+                                margin-top: auto !important;
+                                max-height: 150px !important;
+                                overflow-y: auto !important;
+                            `;
+                        }
+                    }
+                    
                     maximizeBtn.textContent = '❐';
                     maximizeBtn.title = 'Restore';
                 }
