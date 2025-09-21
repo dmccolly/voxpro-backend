@@ -387,6 +387,10 @@
         
         previewContent.innerHTML = '';
         
+        // Create container for media and description
+        const mediaContainer = document.createElement('div');
+        mediaContainer.style.cssText = 'position: relative; width: 100%; height: 100%;';
+        
         let mediaElement;
         const fileType = (mediaItem.file_type || '').toLowerCase();
         
@@ -413,15 +417,17 @@
             
         } else if (mediaUrl.toLowerCase().includes('.pdf')) {
             mediaElement = document.createElement('iframe');
-            mediaElement.src = mediaUrl + '#toolbar=1&navpanes=1&scrollbar=1';
+            mediaElement.src = mediaUrl + '#toolbar=0&navpanes=0&scrollbar=1';
             mediaElement.style.width = '100%';
-            mediaElement.style.height = '300px';
+            mediaElement.style.height = '400px';
+            mediaElement.style.border = 'none';
             
         } else if (mediaUrl.toLowerCase().match(/\.(doc|docx|txt|rtf)$/)) {
             mediaElement = document.createElement('iframe');
             mediaElement.src = `https://docs.google.com/viewer?url=${encodeURIComponent(mediaUrl)}&embedded=true`;
             mediaElement.style.width = '100%';
-            mediaElement.style.height = '300px';
+            mediaElement.style.height = '400px';
+            mediaElement.style.border = 'none';
             
         } else {
             previewContent.innerHTML = `
@@ -449,7 +455,29 @@
                 `;
             };
             
-            previewContent.appendChild(mediaElement);
+            mediaContainer.appendChild(mediaElement);
+            
+            const description = mediaItem.description || mediaItem.asset?.description;
+            if (description && description.trim()) {
+                const descriptionOverlay = document.createElement('div');
+                descriptionOverlay.style.cssText = `
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(transparent, rgba(0,0,0,0.8));
+                    color: white;
+                    padding: 20px 16px 12px;
+                    font-size: 0.9rem;
+                    line-height: 1.4;
+                    border-radius: 0 0 8px 8px;
+                    pointer-events: none;
+                `;
+                descriptionOverlay.textContent = description;
+                mediaContainer.appendChild(descriptionOverlay);
+            }
+            
+            previewContent.appendChild(mediaContainer);
         }
         
         state.currentPreviewMedia = mediaItem;
@@ -644,11 +672,27 @@
             state.currentModal = null;
         }
         
+        const previewContent = elements.previewContent;
+        if (previewContent) {
+            const audioElement = previewContent.querySelector('audio');
+            const videoElement = previewContent.querySelector('video');
+            
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.currentTime = 0;
+            }
+            if (videoElement) {
+                videoElement.pause();
+                videoElement.currentTime = 0;
+            }
+        }
+        
         document.querySelectorAll('.key-button').forEach(btn => 
             btn.classList.remove('playing')
         );
         
         state.playing = null;
+        showMessage('info', 'Playback stopped');
     }
 
     // Initialization
