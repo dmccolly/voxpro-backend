@@ -789,19 +789,42 @@
         );
         document.getElementById(`key${keyNum}`)?.classList.add('playing');
         
-        showMediaPreview(assignment);
+        const fileType = (assignment.file_type || assignment.asset?.file_type || '').toLowerCase();
         
-        const previewContent = elements.previewContent;
-        if (previewContent) {
-            const audioElement = previewContent.querySelector('audio');
-            const videoElement = previewContent.querySelector('video');
+        console.log('DEBUG playForKey:', {
+            keyNum,
+            fileType,
+            mediaUrl,
+            urlMatch: mediaUrl.toLowerCase().match(/\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/),
+            isVideo: fileType === 'video' || fileType.includes('video') || mediaUrl.toLowerCase().match(/\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/)
+        });
+        
+        if (fileType === 'video' || fileType.includes('video') || mediaUrl.toLowerCase().match(/\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/)) {
+            console.log('DEBUG: Calling playVideo function');
+            console.log('DEBUG: playVideo function type:', typeof playVideo);
+            try {
+                playVideo(mediaUrl, keyNum);
+            } catch (error) {
+                console.error('ERROR calling playVideo:', error);
+                showMessage('error', 'Failed to open video modal: ' + error.message);
+            }
+        } else if (fileType === 'audio' || fileType.includes('audio') || mediaUrl.toLowerCase().match(/\.(mp3|wav|ogg|aac|flac|m4a)$/)) {
+            playAudio(mediaUrl, keyNum);
+        } else {
+            showMediaPreview(assignment);
             
-            if (audioElement) {
-                audioElement.play().catch(() => {
-                });
-            } else if (videoElement) {
-                videoElement.play().catch(() => {
-                });
+            const previewContent = elements.previewContent;
+            if (previewContent) {
+                const audioElement = previewContent.querySelector('audio');
+                const videoElement = previewContent.querySelector('video');
+                
+                if (audioElement) {
+                    audioElement.play().catch(() => {
+                    });
+                } else if (videoElement) {
+                    videoElement.play().catch(() => {
+                    });
+                }
             }
         }
         
@@ -823,28 +846,146 @@
 
     function playVideo(url, keyNum) {
         const modal = document.createElement('div');
+        modal.className = 'voxpro-modal';
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.9); display: flex; 
             align-items: center; justify-content: center; z-index: 9999;
         `;
         
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        modalContent.style.cssText = `
+            position: relative; background: #1a1a1a; border-radius: 8px;
+            max-width: 90%; max-height: 90%; display: flex; flex-direction: column;
+        `;
+        
+        const modalHeader = document.createElement('div');
+        modalHeader.className = 'modal-header';
+        modalHeader.style.cssText = `
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 16px; background: #2a2a2a; border-radius: 8px 8px 0 0;
+            border-bottom: 1px solid #333;
+        `;
+        
+        const modalTitle = document.createElement('span');
+        modalTitle.textContent = 'Video Player';
+        modalTitle.style.cssText = `color: white; font-weight: 600;`;
+        
+        const modalControls = document.createElement('div');
+        modalControls.style.cssText = `display: flex; gap: 8px;`;
+        
+        const minimizeBtn = document.createElement('button');
+        minimizeBtn.innerHTML = '−';
+        minimizeBtn.title = 'Minimize';
+        minimizeBtn.style.cssText = `
+            background: #4a4a4a; border: none; color: white; width: 24px; height: 24px;
+            border-radius: 4px; cursor: pointer; font-size: 16px; line-height: 1;
+        `;
+        
+        const maximizeBtn = document.createElement('button');
+        maximizeBtn.innerHTML = '□';
+        maximizeBtn.title = 'Maximize';
+        maximizeBtn.style.cssText = `
+            background: #4a4a4a; border: none; color: white; width: 24px; height: 24px;
+            border-radius: 4px; cursor: pointer; font-size: 14px; line-height: 1;
+        `;
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '×';
+        closeBtn.title = 'Close';
+        closeBtn.style.cssText = `
+            background: #e74c3c; border: none; color: white; width: 24px; height: 24px;
+            border-radius: 4px; cursor: pointer; font-size: 18px; line-height: 1;
+        `;
+        
         const video = document.createElement('video');
         video.src = url;
         video.controls = true;
         video.autoplay = true;
-        video.style.maxWidth = '90%';
-        video.style.maxHeight = '90%';
+        video.style.cssText = `
+            width: 100%; height: auto; max-width: 800px; max-height: 600px;
+            border-radius: 0 0 8px 8px;
+        `;
         
-        modal.appendChild(video);
-        document.body.appendChild(modal);
+        let isMaximized = false;
+        let isMinimized = false;
+        
+        minimizeBtn.addEventListener('click', () => {
+            if (isMinimized) {
+                modalContent.style.cssText = `
+                    position: relative; background: #1a1a1a; border-radius: 8px;
+                    max-width: 90%; max-height: 90%; display: flex; flex-direction: column;
+                `;
+                video.style.display = 'block';
+                minimizeBtn.innerHTML = '−';
+                minimizeBtn.title = 'Minimize';
+                isMinimized = false;
+            } else {
+                modalContent.style.cssText = `
+                    position: relative; background: #1a1a1a; border-radius: 8px;
+                    width: 300px; height: auto; display: flex; flex-direction: column;
+                `;
+                video.style.display = 'none';
+                minimizeBtn.innerHTML = '□';
+                minimizeBtn.title = 'Restore';
+                isMinimized = true;
+                isMaximized = false;
+            }
+        });
+        
+        maximizeBtn.addEventListener('click', () => {
+            if (isMaximized) {
+                modalContent.style.cssText = `
+                    position: relative; background: #1a1a1a; border-radius: 8px;
+                    max-width: 90%; max-height: 90%; display: flex; flex-direction: column;
+                `;
+                video.style.cssText = `
+                    width: 100%; height: auto; max-width: 800px; max-height: 600px;
+                    border-radius: 0 0 8px 8px;
+                `;
+                maximizeBtn.innerHTML = '□';
+                maximizeBtn.title = 'Maximize';
+                isMaximized = false;
+            } else {
+                modalContent.style.cssText = `
+                    position: relative; background: #1a1a1a; border-radius: 8px;
+                    width: 95vw; height: 95vh; display: flex; flex-direction: column;
+                `;
+                video.style.cssText = `
+                    width: 100%; height: calc(100% - 50px); border-radius: 0 0 8px 8px;
+                `;
+                maximizeBtn.innerHTML = '❐';
+                maximizeBtn.title = 'Restore';
+                isMaximized = true;
+                isMinimized = false;
+                video.style.display = 'block';
+            }
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            modal.remove();
+            document.getElementById(`key${keyNum}`)?.classList.remove('playing');
+            state.currentModal = null;
+        });
         
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
                 modal.remove();
                 document.getElementById(`key${keyNum}`)?.classList.remove('playing');
+                state.currentModal = null;
             }
         });
+        
+        modalControls.appendChild(minimizeBtn);
+        modalControls.appendChild(maximizeBtn);
+        modalControls.appendChild(closeBtn);
+        modalHeader.appendChild(modalTitle);
+        modalHeader.appendChild(modalControls);
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(video);
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
         
         state.currentModal = modal;
     }
@@ -934,14 +1075,12 @@
         
         if (elements.fullscreenBtn) {
             elements.fullscreenBtn.addEventListener('click', () => {
-                if (state.currentPreviewMedia) {
-                    if (state.currentModal) {
-                        const modalVideo = state.currentModal.querySelector('video');
-                        if (modalVideo) {
-                            modalVideo.pause();
-                        }
+                if (state.currentModal) {
+                    const maximizeBtn = state.currentModal.querySelector('.modal-header button[title="Maximize"], .modal-header button[title="Restore"]');
+                    if (maximizeBtn) {
+                        maximizeBtn.click();
                     }
-                    
+                } else if (state.currentPreviewMedia) {
                     const previewContent = elements.previewContent;
                     if (previewContent) {
                         const previewVideo = previewContent.querySelector('video');
