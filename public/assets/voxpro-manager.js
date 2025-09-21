@@ -935,6 +935,21 @@
         if (elements.fullscreenBtn) {
             elements.fullscreenBtn.addEventListener('click', () => {
                 if (state.currentPreviewMedia) {
+                    if (state.currentModal) {
+                        const modalVideo = state.currentModal.querySelector('video');
+                        if (modalVideo) {
+                            modalVideo.pause();
+                        }
+                    }
+                    
+                    const previewContent = elements.previewContent;
+                    if (previewContent) {
+                        const previewVideo = previewContent.querySelector('video');
+                        if (previewVideo) {
+                            previewVideo.pause();
+                        }
+                    }
+                    
                     const mediaUrl = state.currentPreviewMedia.cloudinary_url || 
                                    state.currentPreviewMedia.file_url || 
                                    state.currentPreviewMedia.database_url || 
