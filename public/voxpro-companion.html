@@ -647,7 +647,7 @@ CUSTOMIZATION:
             } else if (fileType === 'pdf' || mediaUrl.toLowerCase().includes('.pdf')) {
                 // PDF display using proxy
                 try {
-                    await renderPDF(mediaUrl, modalContent);
+                    await renderPDF(mediaUrl, modalContent, assignment);
                 } catch (error) {
                     console.error('PDF rendering failed:', error);
                     // Fallback to iframe
@@ -658,7 +658,7 @@ CUSTOMIZATION:
             } else if (fileType === 'docx' || mediaUrl.toLowerCase().match(/\.(docx?|doc)$/)) {
                 // DOCX display
                 try {
-                    await renderDOCX(mediaUrl, modalContent);
+                    await renderDOCX(mediaUrl, modalContent, assignment);
                 } catch (error) {
                     console.error('DOCX rendering failed:', error);
                     // Fallback to iframe
@@ -689,23 +689,71 @@ CUSTOMIZATION:
         }
 
         // Render PDF using PDF.js
-        async function renderPDF(url, container) {
+        async function renderPDF(url, container, assignment) {
             try {
-                // Use proxy for Cloudinary PDFs
-                const proxyUrl = url.includes('res.cloudinary.com') ? 
-                    `/.netlify/functions/fetch-media?url=${encodeURIComponent(url)}` : url;
+                // Configure PDF.js worker
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+                }
                 
-                const loadingTask = pdfjsLib.getDocument(proxyUrl);
+                const proxyUrl = `/.netlify/functions/fetch-media?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Proxy fetch failed: ${response.status} ${response.statusText}`);
+                }
+                
+                const contentType = response.headers.get('content-type') || '';
+                console.log('Received content type:', contentType);
+                
+                // Check if we received image data (from Cloudinary f_auto transformation)
+                if (contentType.startsWith('image/')) {
+                    console.log('Received image data, displaying as image instead of PDF');
+                    
+                    container.innerHTML = '';
+                    container.style.cssText = `
+                        width: 100%; height: 300px; border: none; border-radius: 4px;
+                        overflow: auto; background: #f5f5f5; padding: 10px; display: flex;
+                        flex-direction: column; align-items: center;
+                    `;
+                    
+                    const img = document.createElement('img');
+                    img.style.cssText = 'max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+                    img.src = proxyUrl;
+                    img.alt = 'Document preview';
+                    
+                    container.appendChild(img);
+                    
+                    const info = document.createElement('div');
+                    info.style.cssText = 'text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;';
+                    info.textContent = `${assignment.title || 'PDF Document'} - Converted to image for preview`;
+                    container.appendChild(info);
+                    
+                    console.log('Document displayed as image successfully');
+                    return;
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
                 const pdf = await loadingTask.promise;
+                
+                container.innerHTML = '';
+                container.style.cssText = `
+                    width: 100%; height: 300px; border: none; border-radius: 4px;
+                    overflow-y: auto; background: #f5f5f5; padding: 10px;
+                `;
+                
                 const page = await pdf.getPage(1);
+                const scale = 1.2;
+                const viewport = page.getViewport({ scale: scale });
                 
-                const scale = 1.5;
-                const viewport = page.getViewport({ scale });
-                
+                // Create canvas for PDF rendering
                 const canvas = document.createElement('canvas');
                 const context = canvas.getContext('2d');
                 canvas.height = viewport.height;
                 canvas.width = viewport.width;
+                canvas.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 0 auto;';
                 
                 const renderContext = {
                     canvasContext: context,
@@ -715,41 +763,60 @@ CUSTOMIZATION:
                 await page.render(renderContext).promise;
                 container.appendChild(canvas);
                 
-                console.log('PDF rendered successfully');
+                const pageInfo = document.createElement('div');
+                pageInfo.style.cssText = 'text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;';
+                pageInfo.textContent = `${assignment.title || 'PDF Document'} - Page 1 of ${pdf.numPages}`;
+                container.appendChild(pageInfo);
+                
             } catch (error) {
                 console.error('PDF rendering error:', error);
-                throw error;
+                
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
+                        <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${assignment.title || 'PDF Document'}</div>
+                        <div style="color: var(--text-secondary);">Unable to display PDF</div>
+                    </div>
+                `;
             }
         }
 
         // Render DOCX using Mammoth.js
-        async function renderDOCX(url, container) {
+        async function renderDOCX(url, container, assignment) {
             try {
-                // Use proxy for Cloudinary DOCX files
-                const proxyUrl = url.includes('res.cloudinary.com') ? 
-                    `/.netlify/functions/fetch-media?url=${encodeURIComponent(url)}` : url;
-                
+                const proxyUrl = `/.netlify/functions/fetch-media?url=${encodeURIComponent(url)}`;
                 const response = await fetch(proxyUrl);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Proxy fetch failed: ${response.status} ${response.statusText}`);
+                }
                 
                 const arrayBuffer = await response.arrayBuffer();
-                const result = await mammoth.convertToHtml({ arrayBuffer });
                 
-                const docDiv = document.createElement('div');
-                docDiv.innerHTML = result.value;
-                docDiv.style.padding = '10px';
-                docDiv.style.backgroundColor = 'white';
-                docDiv.style.color = 'black';
-                docDiv.style.borderRadius = '6px';
-                docDiv.style.maxHeight = '200px';
-                docDiv.style.overflowY = 'auto';
+                const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
                 
-                container.appendChild(docDiv);
+                container.innerHTML = `
+                    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6;">
+                        <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                            ${assignment.title || 'Document'}
+                        </h3>
+                        <div style="background: white; padding: 20px; border-radius: 6px; max-height: 300px; overflow-y: auto; color: black;">
+                            ${result.value}
+                        </div>
+                    </div>
+                `;
                 
                 console.log('DOCX rendered successfully');
             } catch (error) {
                 console.error('DOCX rendering error:', error);
-                throw error;
+                
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
+                        <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${assignment.title || 'Document'}</div>
+                        <div style="color: var(--text-secondary);">Unable to display document</div>
+                    </div>
+                `;
             }
         }
 
