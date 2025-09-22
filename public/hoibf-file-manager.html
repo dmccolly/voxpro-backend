@@ -2060,18 +2060,24 @@
             // Step 1: Try to delete from Cloudinary if URL exists
             if (fileUrl) {
                 const publicId = extractCloudinaryPublicId(fileUrl);
+                console.log(`Attempting Cloudinary deletion for file: ${fileName}, URL: ${fileUrl}, publicId: ${publicId}`);
                 if (publicId) {
                     try {
                         const cloudinaryResponse = await fetch(`/.netlify/functions/blog-media-delete?id=${encodeURIComponent(publicId)}`, {
                             method: 'DELETE',
                             headers: { 'Content-Type': 'application/json' }
                         });
+                        console.log(`Cloudinary deletion response status: ${cloudinaryResponse.status}`);
                         
                         if (cloudinaryResponse.ok) {
                             const cloudinaryResult = await cloudinaryResponse.json();
                             results.cloudinary = cloudinaryResult.deleted || false;
                             if (!results.cloudinary) {
-                                results.errors.push('Cloudinary deletion failed or file not found');
+                                if (cloudinaryResult.error && cloudinaryResult.error.includes('not_found')) {
+                                    results.errors.push('File not found in Cloudinary (orphaned record)');
+                                } else {
+                                    results.errors.push('Cloudinary deletion failed or file not found');
+                                }
                             }
                         } else {
                             results.errors.push(`Cloudinary deletion failed: ${cloudinaryResponse.status}`);
@@ -2163,10 +2169,17 @@
                     
                     // Show comprehensive results
                     let message = `Deletion complete: ${successCount} successful`;
-                    if (partialCount > 0) message += `, ${partialCount} partial (database only)`;
+                    if (partialCount > 0) {
+                        const orphanedCount = results.filter(r => r.errors && r.errors.some(e => e.includes('orphaned record'))).length;
+                        if (orphanedCount === partialCount) {
+                            message += `, ${partialCount} orphaned files cleaned up`;
+                        } else {
+                            message += `, ${partialCount} partial (database only)`;
+                        }
+                    }
                     if (failureCount > 0) message += `, ${failureCount} failed`;
                     
-                    const messageType = failureCount > 0 ? 'error' : (partialCount > 0 ? 'warning' : 'success');
+                    const messageType = failureCount > 0 ? 'error' : 'success';
                     showMessage(message, messageType);
                     
                     if (errors.length > 0) {
@@ -2224,7 +2237,12 @@
                         showMessage('File deleted successfully', 'success');
                     } else if (results.database && !results.cloudinary) {
                         console.log('File deleted from database but Cloudinary deletion failed');
-                        showMessage('File deleted from database, but Cloudinary deletion failed. File may still exist in storage.', 'warning');
+                        const isOrphaned = results.errors.some(error => error.includes('orphaned record'));
+                        if (isOrphaned) {
+                            showMessage('File deleted successfully (was orphaned - only existed in database)', 'success');
+                        } else {
+                            showMessage('File deleted from database, but Cloudinary deletion failed. File may still exist in storage.', 'warning');
+                        }
                     } else if (!results.database) {
                         throw new Error('Database deletion failed: ' + results.errors.join(', '));
                     }
