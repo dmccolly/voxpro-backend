@@ -1027,6 +1027,16 @@
             font-size: 14px;
             margin: 16px 0;
         }
+
+        .warning-message {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 12px;
+            color: #d97706;
+            font-size: 14px;
+            margin: 16px 0;
+        }
     </style>
 </head>
 <body>
@@ -2013,7 +2023,13 @@
         function showMessage(text, type) {
             // Create and show message
             const message = document.createElement('div');
-            message.className = type === 'error' ? 'error-message' : 'success-message';
+            if (type === 'error') {
+                message.className = 'error-message';
+            } else if (type === 'warning') {
+                message.className = 'warning-message';
+            } else {
+                message.className = 'success-message';
+            }
             message.textContent = text;
             
             document.body.appendChild(message);
@@ -2026,6 +2042,66 @@
         // Other functions
         function refreshFiles() {
             loadFiles();
+        }
+
+        // Utility function to extract Cloudinary public_id from URL
+        function extractCloudinaryPublicId(url) {
+            if (!url || !url.includes('cloudinary.com')) return null;
+            
+            // Match pattern: https://res.cloudinary.com/cloud_name/resource_type/upload/version/public_id.extension
+            const match = url.match(/\/upload\/(?:v\d+\/)?([^\/]+?)(?:\.[^.]+)?$/);
+            return match ? match[1] : null;
+        }
+
+        // Synchronized deletion function - deletes from both Cloudinary and database
+        async function deleteSynchronized(fileId, fileUrl, fileName) {
+            const results = { cloudinary: false, database: false, errors: [] };
+            
+            // Step 1: Try to delete from Cloudinary if URL exists
+            if (fileUrl) {
+                const publicId = extractCloudinaryPublicId(fileUrl);
+                if (publicId) {
+                    try {
+                        const cloudinaryResponse = await fetch(`/.netlify/functions/blog-media-delete?id=${encodeURIComponent(publicId)}`, {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        if (cloudinaryResponse.ok) {
+                            const cloudinaryResult = await cloudinaryResponse.json();
+                            results.cloudinary = cloudinaryResult.deleted || false;
+                            if (!results.cloudinary) {
+                                results.errors.push('Cloudinary deletion failed or file not found');
+                            }
+                        } else {
+                            results.errors.push(`Cloudinary deletion failed: ${cloudinaryResponse.status}`);
+                        }
+                    } catch (error) {
+                        results.errors.push(`Cloudinary deletion error: ${error.message}`);
+                    }
+                } else {
+                    results.errors.push('Could not extract public_id from Cloudinary URL');
+                }
+            }
+            
+            // Step 2: Delete from database
+            try {
+                const response = await fetch(`/.netlify/functions/xano-proxy/user_submission/${fileId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    results.database = true;
+                } else {
+                    const errorText = await response.text();
+                    results.errors.push(`Database deletion failed: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                results.errors.push(`Database deletion error: ${error.message}`);
+            }
+            
+            return results;
         }
 
         async function deleteSelected() {
@@ -2045,28 +2121,57 @@
                     console.log('Deleting selected files...', Array.from(selectedFiles));
                     showMessage(`Deleting ${fileCount} files...`, 'info');
                     
-                    // Delete each selected file
-                    const deletePromises = Array.from(selectedFiles).map(async (fileId) => {
-                        console.log(`Deleting file ${fileId}...`);
-                        const response = await fetch(`/.netlify/functions/xano-proxy/user_submission/${fileId}`, {
-                            method: 'DELETE',
-                            headers: { 'Content-Type': 'application/json' }
-                        });
+                    let successCount = 0;
+                    let partialCount = 0;
+                    let failureCount = 0;
+                    const errors = [];
+                    
+                    // Process deletions in parallel for better performance
+                    const deletionPromises = Array.from(selectedFiles).map(async (fileId) => {
+                        const file = allFiles.find(f => f.id === fileId);
+                        if (!file) return { type: 'failure', error: 'File not found' };
                         
-                        if (!response.ok) {
-                            const errorText = await response.text();
-                            throw new Error(`Failed to delete file ${fileId}: ${response.status} - ${errorText}`);
+                        const fileUrl = file.attachment || file.media_url;
+                        const results = await deleteSynchronized(fileId, fileUrl, file.title);
+                        
+                        if (results.database && (results.cloudinary || !fileUrl)) {
+                            return { type: 'success' };
+                        } else if (results.database && !results.cloudinary) {
+                            return { type: 'partial', errors: results.errors };
+                        } else {
+                            return { type: 'failure', errors: results.errors };
                         }
-                        
-                        console.log(`File ${fileId} deleted successfully`);
-                        return fileId;
                     });
                     
-                    // Wait for all deletions to complete
-                    await Promise.all(deletePromises);
+                    const results = await Promise.all(deletionPromises);
                     
-                    console.log(`Successfully deleted ${fileCount} files`);
-                    showMessage(`Successfully deleted ${fileCount} files`, 'success');
+                    results.forEach(result => {
+                        switch (result.type) {
+                            case 'success':
+                                successCount++;
+                                break;
+                            case 'partial':
+                                partialCount++;
+                                errors.push(...(result.errors || []));
+                                break;
+                            case 'failure':
+                                failureCount++;
+                                errors.push(...(result.errors || []));
+                                break;
+                        }
+                    });
+                    
+                    // Show comprehensive results
+                    let message = `Deletion complete: ${successCount} successful`;
+                    if (partialCount > 0) message += `, ${partialCount} partial (database only)`;
+                    if (failureCount > 0) message += `, ${failureCount} failed`;
+                    
+                    const messageType = failureCount > 0 ? 'error' : (partialCount > 0 ? 'warning' : 'success');
+                    showMessage(message, messageType);
+                    
+                    if (errors.length > 0) {
+                        console.error('Deletion errors:', errors);
+                    }
                     
                     // Clear selections and refresh
                     selectedFiles.clear();
@@ -2110,18 +2215,19 @@
                     console.log(`Deleting file ${selectedFile.id}...`);
                     showMessage('Deleting file...', 'info');
                     
-                    const response = await fetch(`/.netlify/functions/xano-proxy/user_submission/${selectedFile.id}`, {
-                        method: 'DELETE',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
+                    const fileUrl = selectedFile.attachment || selectedFile.media_url;
+                    const results = await deleteSynchronized(selectedFile.id, fileUrl, selectedFile.title);
                     
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`Failed to delete file: ${response.status} - ${errorText}`);
+                    // Show results to user
+                    if (results.database && (results.cloudinary || !fileUrl)) {
+                        console.log('File deleted successfully from all locations');
+                        showMessage('File deleted successfully', 'success');
+                    } else if (results.database && !results.cloudinary) {
+                        console.log('File deleted from database but Cloudinary deletion failed');
+                        showMessage('File deleted from database, but Cloudinary deletion failed. File may still exist in storage.', 'warning');
+                    } else if (!results.database) {
+                        throw new Error('Database deletion failed: ' + results.errors.join(', '));
                     }
-                    
-                    console.log('File deleted successfully');
-                    showMessage('File deleted successfully', 'success');
                     
                     // Clear selection and refresh file list
                     selectedFile = null;
