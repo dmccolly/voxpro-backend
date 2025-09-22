@@ -695,6 +695,12 @@
             submittedByInput.value = selectedMedia.submitted_by || '';
         }
 
+        // Helper function to resolve media item from assignment
+        function getMediaForAssignment(assignment) {
+            if (!assignment || !assignment.asset_id) return null;
+            return mediaList.find(media => media.id === assignment.asset_id);
+        }
+
         // Assignment functions
         async function loadAssignments() {
             try {
@@ -713,12 +719,16 @@
                 return;
             }
 
-            assignmentsList.innerHTML = assignments.map(assignment => `
-                <div class="assignment-item">
-                    <span class="assignment-key">Key ${assignment.key_number} — ${assignment.asset?.title || assignment.title || 'Unknown'}</span>
-                    <button class="remove-button" onclick="deleteAssignment(${assignment.id})">×</button>
-                </div>
-            `).join('');
+            assignmentsList.innerHTML = assignments.map(assignment => {
+                const mediaItem = getMediaForAssignment(assignment);
+                const title = mediaItem?.title || assignment.title || 'Unknown';
+                return `
+                    <div class="assignment-item">
+                        <span class="assignment-key">Key ${assignment.key_number} — ${title}</span>
+                        <button class="remove-button" onclick="deleteAssignment(${assignment.id})">×</button>
+                    </div>
+                `;
+            }).join('');
         }
 
         function updateKeyButtons() {
@@ -795,10 +805,11 @@
                 return;
             }
             
-            // Get the media URL
-            const mediaUrl = assignment.asset?.cloudinary_url || 
-                           assignment.asset?.file_url || 
-                           assignment.asset?.media_url ||
+            // Get the media item and URL
+            const mediaItem = getMediaForAssignment(assignment);
+            const mediaUrl = mediaItem?.cloudinary_url || 
+                           mediaItem?.file_url || 
+                           mediaItem?.media_url ||
                            assignment.cloudinary_url ||
                            assignment.file_url;
             
@@ -813,11 +824,11 @@
             
             // Update current info
             currentInfo.style.display = 'block';
-            currentTitle.textContent = assignment.title || assignment.asset?.title || 'Untitled';
-            currentMeta.textContent = `${assignment.station || 'Unknown'} • Key ${keyNum}`;
+            currentTitle.textContent = mediaItem?.title || assignment.title || 'Untitled';
+            currentMeta.textContent = `${mediaItem?.station || assignment.station || 'Unknown'} • Key ${keyNum}`;
             
             // Create media element based on type
-            const fileType = (assignment.file_type || assignment.asset?.file_type || '').toLowerCase();
+            const fileType = (mediaItem?.file_type || assignment.file_type || '').toLowerCase();
             let mediaElement;
             
             if (fileType.includes('audio')) {
@@ -848,7 +859,7 @@
             
             playing = { key: keyNum, assignmentId: assignment.id };
             
-            showMessage('success', `Playing: ${assignment.title || assignment.asset?.title || 'Unknown'}`);
+            showMessage('success', `Playing: ${mediaItem?.title || assignment.title || 'Unknown'}`);
         }
 
         function stopPlayback() {
