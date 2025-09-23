@@ -347,22 +347,21 @@
             padding: 20px;
         }
 
-        /* Media Modal */
-        .media-modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
+        /* Preview Player Section */
+        .preview-player-section {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
         }
-
-        .media-modal.show {
-            display: flex;
+        
+        .preview-player-section h4 {
+            margin: 0 0 10px 0;
+            color: var(--text-primary);
+        }
+        
+        .preview-player-section #mediaPlayer {
+            margin-bottom: 10px;
         }
 
         .modal-content {
@@ -452,6 +451,15 @@
                     <div class="empty-state">No assignments yet</div>
                 </div>
             </div>
+            
+            <!-- Preview Player Section -->
+            <div class="preview-player-section" id="previewPlayerSection" style="display: none; margin-top: 20px; padding: 15px; background: var(--bg-tertiary); border-radius: 8px;">
+                <h4 style="margin: 0 0 10px 0; color: var(--text-primary);">Now Playing</h4>
+                <div id="mediaPlayer">
+                    <div style="color: var(--text-secondary);">No media playing</div>
+                </div>
+                <button class="stop-button" id="stopPreviewButton" style="margin-top: 10px;">Stop</button>
+            </div>
         </div>
 
         <!-- VoxPro Manager -->
@@ -520,15 +528,6 @@
         </div>
     </div>
 
-    <!-- Media Modal -->
-    <div class="media-modal" id="mediaModal">
-        <div class="modal-content">
-            <button class="modal-close" id="modalClose">&times;</button>
-            <div id="mediaPlayer">
-                <div style="color: var(--text-secondary);">Media stopped</div>
-            </div>
-        </div>
-    </div>
 
     <script>
         // Configuration
@@ -545,7 +544,7 @@
         // DOM elements
         let connectionStatus, connectionText, messageBox;
         let searchInput, mediaBrowser, keySelect, titleInput, descriptionInput, stationInput, tagsInput, submittedByInput;
-        let assignButton, assignmentsList, keyButtons, stopButton, mediaModal, modalClose, mediaPlayer, currentInfo, currentTitle, currentMeta;
+        let assignButton, assignmentsList, keyButtons, stopButton, previewPlayerSection, stopPreviewButton, mediaPlayer, currentInfo, currentTitle, currentMeta;
 
         // Utility functions
         function showMessage(type, message) {
@@ -852,10 +851,10 @@
             
             mediaElement.src = mediaUrl;
             
-            // Show in modal
+            // Show in embedded preview player
             mediaPlayer.innerHTML = '';
             mediaPlayer.appendChild(mediaElement);
-            mediaModal.classList.add('show');
+            previewPlayerSection.style.display = 'block';
             
             playing = { key: keyNum, assignmentId: assignment.id };
             
@@ -865,7 +864,7 @@
         function stopPlayback() {
             playing = null;
             keyButtons.forEach(btn => btn.classList.remove('playing'));
-            mediaModal.classList.remove('show');
+            previewPlayerSection.style.display = 'none';
             
             // Stop all media elements
             mediaPlayer.querySelectorAll('audio, video').forEach(el => {
@@ -875,7 +874,7 @@
                 } catch (e) {}
             });
             
-            mediaPlayer.innerHTML = '<div style="color: var(--text-secondary);">Media stopped</div>';
+            mediaPlayer.innerHTML = '<div style="color: var(--text-secondary);">No media playing</div>';
             currentInfo.style.display = 'none';
         }
 
@@ -897,8 +896,8 @@
             assignmentsList = document.getElementById('assignmentsList');
             keyButtons = document.querySelectorAll('.key-button');
             stopButton = document.getElementById('stopButton');
-            mediaModal = document.getElementById('mediaModal');
-            modalClose = document.getElementById('modalClose');
+            previewPlayerSection = document.getElementById('previewPlayerSection');
+            stopPreviewButton = document.getElementById('stopPreviewButton');
             mediaPlayer = document.getElementById('mediaPlayer');
             currentInfo = document.getElementById('currentInfo');
             currentTitle = document.getElementById('currentTitle');
@@ -915,10 +914,7 @@
             });
             
             stopButton.addEventListener('click', stopPlayback);
-            modalClose.addEventListener('click', stopPlayback);
-            mediaModal.addEventListener('click', (e) => {
-                if (e.target === mediaModal) stopPlayback();
-            });
+            stopPreviewButton.addEventListener('click', stopPlayback);
 
             assignButton.addEventListener('click', createAssignment);
 
