@@ -54,18 +54,32 @@ async function getXanoRecords() {
     }
 }
 
-// Helper function to get Webflow CMS items
+// Helper function to get Webflow CMS items - FIXED VERSION
 async function getWebflowItems() {
     try {
-        const response = await fetch(`https://api.webflow.com/collections/${WEBFLOW_COLLECTION_ID}/items`, {
+        // Use the correct Webflow API v2 format
+        const response = await fetch(`https://api.webflow.com/v2/collections/${WEBFLOW_COLLECTION_ID}/items`, {
             headers: {
                 'Authorization': `Bearer ${WEBFLOW_API_TOKEN}`,
-                'Accept-Version': '1.0.0'
+                'Accept': 'application/json'
             }
         });
         
         if (!response.ok) {
-            throw new Error(`Webflow API error: ${response.status}`);
+            // If v2 fails, try v1 format
+            const v1Response = await fetch(`https://api.webflow.com/collections/${WEBFLOW_COLLECTION_ID}/items`, {
+                headers: {
+                    'Authorization': `Bearer ${WEBFLOW_API_TOKEN}`,
+                    'Accept-Version': '1.0.0'
+                }
+            });
+            
+            if (!v1Response.ok) {
+                throw new Error(`Webflow API error: ${v1Response.status}`);
+            }
+            
+            const v1Data = await v1Response.json();
+            return v1Data.items || [];
         }
         
         const data = await response.json();
@@ -93,16 +107,35 @@ exports.handler = async (event, context) => {
     try {
         console.log('Starting comprehensive media sync...');
         
-        // Get data from all systems
-        const [cloudinaryAssets, xanoRecords, webflowItems] = await Promise.all([
-            getCloudinaryAssets(),
-            getXanoRecords(),
-            getWebflowItems()
-        ]);
+        // Get data from all systems with error handling
+        let cloudinaryAssets = [];
+        let xanoRecords = [];
+        let webflowItems = [];
+        let errors = [];
         
-        console.log(`Found ${cloudinaryAssets.length} Cloudinary assets`);
-        console.log(`Found ${xanoRecords.length} XANO records`);
-        console.log(`Found ${webflowItems.length} Webflow items`);
+        try {
+            cloudinaryAssets = await getCloudinaryAssets();
+            console.log(`Found ${cloudinaryAssets.length} Cloudinary assets`);
+        } catch (error) {
+            console.error('Cloudinary error:', error);
+            errors.push(`Cloudinary: ${error.message}`);
+        }
+        
+        try {
+            xanoRecords = await getXanoRecords();
+            console.log(`Found ${xanoRecords.length} XANO records`);
+        } catch (error) {
+            console.error('XANO error:', error);
+            errors.push(`XANO: ${error.message}`);
+        }
+        
+        try {
+            webflowItems = await getWebflowItems();
+            console.log(`Found ${webflowItems.length} Webflow items`);
+        } catch (error) {
+            console.error('Webflow error:', error);
+            errors.push(`Webflow: ${error.message}`);
+        }
         
         let syncResults = {
             cloudinary_total: cloudinaryAssets.length,
@@ -110,7 +143,7 @@ exports.handler = async (event, context) => {
             webflow_total: webflowItems.length,
             synced_to_xano: 0,
             synced_to_webflow: 0,
-            errors: []
+            errors: errors
         };
         
         return {
