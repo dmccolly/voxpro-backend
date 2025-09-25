@@ -1023,6 +1023,11 @@ CUSTOMIZATION:
                     const shouldBreakout = true; // Always break out when maximizing
                     
                     if (shouldBreakout) {
+                        // Debug logging
+                        console.log('Creating breakout modal...');
+                        console.log('Window self !== top:', window.self !== window.top);
+                        console.log('Window parent !== window:', window.parent !== window);
+                        
                         // Create breakout modal directly in current window
                         const currentAssignment = state.assignments.find(a => a.key === state.playing);
                         const mediaElements = modalContent.querySelectorAll('video, audio');
@@ -1045,6 +1050,7 @@ CUSTOMIZATION:
                         state.modalState = 'breakout';
                         isMaximized = true;
                         maximizeBtn.textContent = '❐';
+                        console.log('Breakout modal created and appended to body');
                     } else {
                         // Store original styles
                         originalStyles.modal = modal.style.cssText;
