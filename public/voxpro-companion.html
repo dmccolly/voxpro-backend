@@ -1018,10 +1018,11 @@ CUSTOMIZATION:
                     isMaximized = false;
                     state.modalState = 'normal';
                 } else {
-                    // Check if we're in an iframe
+                    // Check if we're in an iframe or constrained container
                     const isInIframe = window.self !== window.top;
+                    const isConstrained = checkIfConstrained();
                     
-                    if (isInIframe) {
+                    if (isInIframe || isConstrained) {
                         // Send breakout request to parent window
                         const currentAssignment = state.assignments.find(a => a.key === state.playing);
                         const mediaElements = modalContent.querySelectorAll('video, audio');
@@ -1101,6 +1102,31 @@ CUSTOMIZATION:
                     }
                 }
             });
+        }
+
+        // Check if player is in a constrained container (even if not iframe)
+        function checkIfConstrained() {
+            try {
+                // Check if the player container is smaller than viewport
+                const playerContainer = document.querySelector('.voxpro-companion');
+                if (!playerContainer) return false;
+                
+                const containerRect = playerContainer.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                
+                // If container is significantly smaller than viewport, consider it constrained
+                const isWidthConstrained = containerRect.width < (viewportWidth * 0.8);
+                const isHeightConstrained = containerRect.height < (viewportHeight * 0.8);
+                
+                // Also check if we can access parent window (indicates embedding)
+                const hasParentAccess = window.parent && window.parent !== window;
+                
+                return (isWidthConstrained || isHeightConstrained) && hasParentAccess;
+            } catch (error) {
+                console.log('Constraint check failed:', error);
+                return false;
+            }
         }
 
         // Parent window breakout modal handler
@@ -1235,13 +1261,23 @@ CUSTOMIZATION:
                 })();
             `;
             
-            // Inject script into parent window
-            if (window.parent && window.parent !== window) {
-                window.parent.postMessage({
-                    type: 'voxpro-inject-handler',
-                    source: 'voxpro-companion',
-                    script: script
-                }, '*');
+            // Inject script into parent window if available
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'voxpro-inject-handler',
+                        source: 'voxpro-companion',
+                        script: script
+                    }, '*');
+                } else {
+                    // If no parent window, execute the script in current window
+                    // This handles cases where the player is embedded but not in iframe
+                    const scriptElement = document.createElement('script');
+                    scriptElement.textContent = script;
+                    document.head.appendChild(scriptElement);
+                }
+            } catch (error) {
+                console.error('Failed to inject breakout handler:', error);
             }
         }
 
