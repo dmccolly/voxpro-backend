@@ -1023,34 +1023,69 @@ CUSTOMIZATION:
                     const shouldBreakout = true; // Always break out when maximizing
                     
                     if (shouldBreakout) {
-                        // Debug logging
-                        console.log('Creating breakout modal...');
-                        console.log('Window self !== top:', window.self !== window.top);
-                        console.log('Window parent !== window:', window.parent !== window);
+                        // Check if we're in an iframe
+                        const isInIframe = window.self !== window.top;
                         
-                        // Create breakout modal directly in current window
-                        const currentAssignment = state.assignments.find(a => a.key === state.playing);
-                        const mediaElements = modalContent.querySelectorAll('video, audio');
-                        let currentTime = 0;
-                        let wasPlaying = false;
-                        if (mediaElements.length > 0) {
-                            currentTime = mediaElements[0].currentTime || 0;
-                            wasPlaying = !mediaElements[0].paused;
+                        if (isInIframe) {
+                            // Send breakout request to parent window
+                            const currentAssignment = state.assignments.find(a => a.key === state.playing);
+                            const mediaElements = modalContent.querySelectorAll('video, audio');
+                            let currentTime = 0;
+                            let wasPlaying = false;
+                            if (mediaElements.length > 0) {
+                                currentTime = mediaElements[0].currentTime || 0;
+                                wasPlaying = !mediaElements[0].paused;
+                            }
+                            
+                            const breakoutData = {
+                                type: 'voxpro-breakout-modal',
+                                source: 'voxpro-companion',
+                                data: {
+                                    assignment: currentAssignment,
+                                    modalTitle: elements.modalTitle.textContent,
+                                    modalContent: modalContent.innerHTML,
+                                    currentTime: currentTime,
+                                    wasPlaying: wasPlaying,
+                                    mediaUrl: currentAssignment?.cloudinary_url
+                                }
+                            };
+                            
+                            console.log('Sending breakout request to parent window:', breakoutData);
+                            
+                            if (window.parent && window.parent !== window) {
+                                window.parent.postMessage(breakoutData, '*');
+                            }
+                            
+                            // Hide the iframe modal
+                            modal.style.display = 'none';
+                            
+                            state.modalState = 'breakout';
+                            isMaximized = true;
+                            maximizeBtn.textContent = '❐';
+                        } else {
+                            // Create breakout modal directly in current window (standalone mode)
+                            const currentAssignment = state.assignments.find(a => a.key === state.playing);
+                            const mediaElements = modalContent.querySelectorAll('video, audio');
+                            let currentTime = 0;
+                            let wasPlaying = false;
+                            if (mediaElements.length > 0) {
+                                currentTime = mediaElements[0].currentTime || 0;
+                                wasPlaying = !mediaElements[0].paused;
+                            }
+                            
+                            createBreakoutModal({
+                                assignment: currentAssignment,
+                                modalTitle: elements.modalTitle.textContent,
+                                modalContent: modalContent.innerHTML,
+                                currentTime: currentTime,
+                                wasPlaying: wasPlaying,
+                                mediaUrl: currentAssignment?.cloudinary_url
+                            });
+                            
+                            state.modalState = 'breakout';
+                            isMaximized = true;
+                            maximizeBtn.textContent = '❐';
                         }
-                        
-                        createBreakoutModal({
-                            assignment: currentAssignment,
-                            modalTitle: elements.modalTitle.textContent,
-                            modalContent: modalContent.innerHTML,
-                            currentTime: currentTime,
-                            wasPlaying: wasPlaying,
-                            mediaUrl: currentAssignment?.cloudinary_url
-                        });
-                        
-                        state.modalState = 'breakout';
-                        isMaximized = true;
-                        maximizeBtn.textContent = '❐';
-                        console.log('Breakout modal created and appended to body');
                     } else {
                         // Store original styles
                         originalStyles.modal = modal.style.cssText;
@@ -1357,20 +1392,27 @@ CUSTOMIZATION:
             // Inject script into parent window if available
             try {
                 if (window.parent && window.parent !== window) {
-                    window.parent.postMessage({
-                        type: 'voxpro-inject-handler',
-                        source: 'voxpro-companion',
-                        script: script
-                    }, '*');
+                    // Use eval to directly execute script in parent window
+                    window.parent.eval(script);
+                    console.log('Parent window breakout handler injected successfully');
                 } else {
                     // If no parent window, execute the script in current window
                     // This handles cases where the player is embedded but not in iframe
                     const scriptElement = document.createElement('script');
                     scriptElement.textContent = script;
                     document.head.appendChild(scriptElement);
+                    console.log('Breakout handler executed in current window');
                 }
             } catch (error) {
                 console.error('Failed to inject breakout handler:', error);
+                // Fallback: try postMessage approach
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'voxpro-inject-handler',
+                        source: 'voxpro-companion',
+                        script: script
+                    }, '*');
+                }
             }
         }
 
