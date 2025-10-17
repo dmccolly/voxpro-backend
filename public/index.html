@@ -1,36 +1,125 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>Blog Manager Redirect</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Automatically redirect to the blog manager interface.  If you want to
-       display another home page instead, update the href below. -->
-  <meta http-equiv="refresh" content="0; url=/blog-manager-professional.html">
+  <meta charset="utf-8"/>
+  <title>VoxPro</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+
+  <!-- YOUR EXISTING CSS/LINK TAGS STAY HERE -->
+
   <style>
-    html, body { height: 100%; margin: 0; font-family: sans-serif; }
-    body { display: flex; align-items: center; justify-content: center; background: #f3f4f6; color: #1f2937; }
-    .card { padding: 2rem; border-radius: 0.5rem; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }
-    a { color: #2563eb; text-decoration: none; }
+    /* Pop-out renders the SAME widget in the browser top layer (no column clipping) */
+    #voxpro-widget-root[popover]:popover-open {
+      position: fixed;
+      left: 4vw;
+      top: 6vh;
+      width: min(96vw, 1200px);
+      height: min(90vh, 800px);
+      margin: 0;
+      border: 1px solid #2a3441;
+      border-radius: 12px;
+      background: #0b1220;        /* keep your theme */
+      box-shadow: 0 24px 80px rgba(0,0,0,.45);
+      overflow: auto;
+      resize: both;                /* native resizer in the corner */
+      z-index: 2147483647;         /* above site chrome */
+    }
+    /* Dim the page behind the popped widget */
+    #voxpro-widget-root::backdrop { background: rgba(0,0,0,.55); }
+
+    /* Let your existing header act as the drag handle */
+    #voxpro-widget-root .vp-header,
+    #voxpro-widget-root .player-header {
+      cursor: move;
+      user-select: none;
+    }
+
+    /* Tiny buttons added into the header */
+    .vp-popout-btn, .vp-popclose-btn{
+      appearance:none;border:0;border-radius:8px;
+      background:#667eea;color:#fff;padding:6px 10px;
+      font:500 13px/1 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      cursor:pointer
+    }
+    .vp-popclose-btn{background:#3b4a60}
+    .vp-popout-bar{display:flex;gap:8px;align-items:center}
   </style>
-  <script>
-    // Fallback JavaScript redirect if meta refresh fails or is blocked.
-    (function() {
-      var target = '/blog-manager-professional.html';
-      if (window.location.pathname !== target) {
-        window.location.replace(target);
-      }
-    })();
-  </script>
 </head>
 <body>
-  <div class="card">
-    <h1>Redirecting…</h1>
-    <p>If you are not automatically redirected, please <a href="/blog-manager-professional.html">click here</a> to open the Blog Manager.</p>
-    <p style="font-size: 0.875rem; color: #6b7280;">
-      Looking for the public website? Return to the main site at
-      <a href="https://streamofdan.com">streamofdan.com</a>.
-    </p>
+  <!-- WRAPPER that becomes a popover. We keep your app untouched inside it. -->
+  <div id="voxpro-widget-root" popover="manual">
+    <!-- Your existing mount element stays as-is inside this wrapper -->
+    <div id="app"></div> <!-- ← if your mount is #root instead, change to id="root" -->
   </div>
+
+  <!-- YOUR EXISTING BUNDLES: KEEP THESE AS THEY ARE IN YOUR PROJECT -->
+  <!-- Examples (leave whatever you already have): -->
+  <!-- <script src="/static/js/bundle.js" defer></script> -->
+  <!-- <script src="/assets/voxpro.js" defer></script> -->
+
+  <script>
+  (function(){
+    const root = document.getElementById('voxpro-widget-root');
+    if (!root) return;
+
+    // ensure manual popover
+    root.setAttribute('popover','manual');
+
+    // Find your header; use either .vp-header or .player-header
+    let header = root.querySelector('.vp-header, .player-header');
+
+    // Add Pop-out/Close buttons tucked to the right of the header
+    const bar = document.createElement('div');
+    bar.className = 'vp-popout-bar';
+    bar.style.marginLeft = 'auto';
+    const popBtn   = Object.assign(document.createElement('button'), { className:'vp-popout-btn',   type:'button', textContent:'Pop-out' });
+    const closeBtn = Object.assign(document.createElement('button'), { className:'vp-popclose-btn', type:'button', textContent:'Close' });
+
+    if (header) {
+      header.style.display = header.style.display || 'flex';
+      header.style.alignItems = header.style.alignItems || 'center';
+      header.appendChild(bar);
+    } else {
+      // If your widget has no header element, we add a small control bar at the top
+      header = document.createElement('div');
+      header.style.cssText='display:flex;justify-content:flex-end;gap:8px;padding:8px;';
+      root.insertBefore(header, root.firstChild);
+      header.appendChild(bar);
+    }
+    bar.append(popBtn, closeBtn);
+
+    function open(){ if (!root.matches(':popover-open')) root.showPopover(); }
+    function close(){ if (root.matches(':popover-open')) root.hidePopover(); }
+    popBtn.addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+
+    // Dragging when popped out — header is the handle (ignore button drags)
+    let drag=null;
+    header.addEventListener('mousedown', e=>{
+      if (!root.matches(':popover-open')) return;
+      if (e.button!==0) return;
+      if (e.target.closest('button')) return;
+      const r=root.getBoundingClientRect();
+      drag={dx:e.clientX-r.left, dy:e.clientY-r.top};
+      document.body.style.userSelect='none';
+    });
+    window.addEventListener('mousemove', e=>{
+      if (!drag || !root.matches(':popover-open')) return;
+      const x=Math.max(0,Math.min(window.innerWidth -root.offsetWidth,  e.clientX-drag.dx));
+      const y=Math.max(0,Math.min(window.innerHeight-root.offsetHeight, e.clientY-drag.dy));
+      root.style.left=x+'px'; root.style.top=y+'px';
+    });
+    window.addEventListener('mouseup', ()=>{
+      if (drag) document.body.style.userSelect='';
+      drag=null;
+    });
+
+    // ESC closes
+    window.addEventListener('keydown', e=>{ if (e.key==='Escape') close(); });
+
+    // OPTIONAL: auto-open if page is already constrained by a column — comment out if not desired
+    // root.showPopover();
+  })();
+  </script>
 </body>
 </html>
