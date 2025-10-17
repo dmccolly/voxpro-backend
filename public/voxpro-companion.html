@@ -172,3 +172,18 @@
   </script>
 </body>
 </html>
+<!-- VoxPro fullscreen trigger (adds a floating Pop-out button) -->
+<button id="vp-pop"
+  style="position:fixed;top:12px;right:12px;z-index:2147483647;padding:8px 12px;border:0;border-radius:8px;background:#667eea;color:#fff;cursor:pointer">
+  Pop-out
+</button>
+<script>
+  (function () {
+    const btn = document.getElementById('vp-pop');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      // Ask the parent (Webflow) to fullscreen the iframe
+      try { window.parent && window.parent.postMessage({ type: 'VOXPRO_FULLSCREEN' }, '*'); } catch (_) {}
+    });
+  })();
+</script>
