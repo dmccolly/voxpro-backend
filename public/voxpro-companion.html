@@ -37,16 +37,18 @@
             line-height: 1.6;
         }
 
-        .companion-player {
-            width: 400px;
-            max-width: 100%;
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            border: 1px solid var(--bg-tertiary);
-            /* Allow breakout modal to escape container */
-            overflow: visible;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
+/* Companion player container styles.  Ensure the breakout modal
+   can escape the 400 px frame by allowing overflow to be visible. */
+.companion-player {
+    width: 400px;
+    max-width: 100%;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--bg-tertiary);
+    /* Allow breakout modal to escape container */
+    overflow: visible;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
 
         /* Modal Player Section */
         .modal-section {
