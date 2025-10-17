@@ -5,67 +5,52 @@
   <title>VoxPro Companion</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
-    :root{
-      --bg0:#0b1220; --bg1:#172033; --bg2:#0f1728;
-      --ink:#e6eef7; --muted:#a9b6c6; --line:#2a3441; --accent:#667eea;
-    }
+    :root{--bg0:#0b1220;--bg1:#172033;--bg2:#0f1728;--ink:#e6eef7;--muted:#a9b6c6;--line:#2a3441;--accent:#667eea}
     html,body{height:100%;margin:0;background:var(--bg0);color:var(--ink);
       font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    .wrap{max-width:1200px;margin:0 auto;padding:12px}
-    .bar{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-    .title{font-weight:600}
-    .spacer{flex:1}
-    .btn{appearance:none;border:0;border-radius:8px;background:var(--accent);color:#fff;padding:8px 12px;cursor:pointer}
-    .btn.secondary{background:#3b4a60}
-    .note{font-size:12px;color:var(--muted)}
 
-    /* Widget frame */
-    #vp-widget-shell{
-      position:relative;
-      background:var(--bg1);
-      border:1px solid var(--line);
-      border-radius:12px;
-      overflow:hidden;
-    }
+    /* Shell that wraps the EXISTING widget (don’t change the widget’s code) */
+    #vp-widget-shell{position:relative;background:var(--bg1);border:1px solid var(--line);
+      border-radius:12px;overflow:hidden;margin:12px}
 
-    /* Fallback window (only if fullscreen not permitted) */
+    /* Floating pop controls overlay (always visible, no dependency on widget DOM) */
+    .vp-fab{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:5}
+    .vp-btn{appearance:none;border:0;border-radius:8px;background:var(--accent);color:#fff;
+      padding:6px 10px;cursor:pointer}
+    .vp-btn.secondary{background:#3b4a60}
+
+    /* Fallback “windowed” modal (used when fullscreen is blocked) */
     #vp-fallback-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147483647;display:none}
-    #vp-fallback-win{
-      position:fixed;top:8vh;left:8vw;width:min(84vw,1200px);height:min(84vh,800px);
-      background:var(--bg2);border:1px solid var(--line);border-radius:12px;
-      box-shadow:0 24px 80px rgba(0,0,0,.45);overflow:hidden;display:none;z-index:2147483648;
-    }
-    #vp-fb-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
-      padding:10px 12px;background:var(--bg1);border-bottom:1px solid var(--line);cursor:move;user-select:none}
+    #vp-fallback-win{position:fixed;top:8vh;left:8vw;width:min(84vw,1200px);height:min(84vh,800px);
+      background:var(--bg2);border:1px solid var(--line);border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,.45);
+      overflow:hidden;display:none;z-index:2147483648}
+    #vp-fb-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;
+      background:var(--bg1);border-bottom:1px solid var(--line);cursor:move;user-select:none}
     #vp-fb-title{font-weight:600}
     #vp-fb-body{position:relative;height:calc(100% - 46px);overflow:auto;background:var(--bg2)}
     #vp-fb-resize{position:absolute;right:6px;bottom:6px;width:16px;height:16px;cursor:nwse-resize;opacity:.85}
     #vp-fb-resize:before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 0 50%,#fff 50% 100%);opacity:.35}
 
-    /* Embed area for your existing widget UI */
-    #voxpro-widget-root{ }
+    /* Where your current widget already renders */
+    #voxpro-widget-root{}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="bar">
-      <div class="title">VoxPro Companion</div>
-      <div class="spacer"></div>
-      <button class="btn" id="btnPop">Pop-out</button>
-      <button class="btn secondary" id="btnCloseFS">Close</button>
+  <!-- Wrap the EXISTING widget; don’t change your widget render logic -->
+  <div id="vp-widget-shell">
+    <!-- Always-visible overlay controls -->
+    <div class="vp-fab" id="vp-fab">
+      <button class="vp-btn" id="btnPop">Pop-out</button>
+      <button class="vp-btn secondary" id="btnCloseFS">Close</button>
     </div>
-    <div class="note">Pop-out uses native Fullscreen from inside an iframe. Esc exits. If a browser blocks it, you’ll get a movable, resizable window instead.</div>
 
-    <!-- Your widget stays exactly as-is, mounted INSIDE this shell -->
-    <div id="vp-widget-shell">
-      <div id="voxpro-widget-root">
-        <!-- your existing widget renders here via your bundle(s) -->
-      </div>
+    <div id="voxpro-widget-root">
+      <!-- Your current widget renders here via your bundle(s) exactly as before -->
     </div>
   </div>
 
-  <!-- keep whatever bundles you already use to render the widget -->
-  <!-- e.g.: <script src="/static/js/bundle.js" defer></script> -->
+  <!-- Keep your existing widget bundles below (unchanged)
+       e.g. <script src="/static/js/bundle.js" defer></script> -->
 
   <!-- Fallback modal DOM -->
   <div id="vp-fallback-mask"></div>
@@ -73,12 +58,13 @@
     <div id="vp-fb-head">
       <div id="vp-fb-title">VoxPro</div>
       <div style="display:flex;gap:6px">
-        <button class="btn secondary" id="fbMin">−</button>
-        <button class="btn secondary" id="fbMax">□</button>
-        <button class="btn" id="fbClose">×</button>
+        <button class="vp-btn secondary" id="fbMin">−</button>
+        <button class="vp-btn secondary" id="fbMax">□</button>
+        <button class="vp-btn" id="fbClose">×</button>
       </div>
     </div>
     <div id="vp-fb-body">
+      <!-- mirror view so we don’t mutate your widget -->
       <iframe id="fbMirror" title="VoxPro (fallback view)" style="width:100%;height:100%;border:0"></iframe>
       <div id="vp-fb-resize" aria-hidden="true"></div>
     </div>
@@ -86,42 +72,44 @@
 
   <script>
   (function(){
-    const shell = document.getElementById('vp-widget-shell');
-    const pop = document.getElementById('btnPop');
-    const closeFS = document.getElementById('btnCloseFS');
+    const shell=document.getElementById('vp-widget-shell');
+    const pop=document.getElementById('btnPop');
+    const closeFS=document.getElementById('btnCloseFS');
 
-    const fbMask  = document.getElementById('vp-fallback-mask');
-    const fbWin   = document.getElementById('vp-fallback-win');
-    const fbHead  = document.getElementById('vp-fb-head');
-    const fbBody  = document.getElementById('vp-fb-body');
-    const fbClose = document.getElementById('fbClose');
-    const fbMin   = document.getElementById('fbMin');
-    const fbMax   = document.getElementById('fbMax');
-    const fbMirror= document.getElementById('fbMirror');
-    const fbResize= document.getElementById('vp-fb-resize');
+    // Fallback bits
+    const fbMask=document.getElementById('vp-fallback-mask');
+    const fbWin=document.getElementById('vp-fallback-win');
+    const fbHead=document.getElementById('vp-fb-head');
+    const fbBody=document.getElementById('vp-fb-body');
+    const fbClose=document.getElementById('fbClose');
+    const fbMin=document.getElementById('fbMin');
+    const fbMax=document.getElementById('fbMax');
+    const fbMirror=document.getElementById('fbMirror');
+    const fbResize=document.getElementById('vp-fb-resize');
 
+    // Fullscreen helpers
     function canFS(){return !!(document.fullscreenEnabled||document.webkitFullscreenEnabled||document.mozFullScreenEnabled||document.msFullscreenEnabled)}
     function reqFS(el){return el.requestFullscreen?.()||el.webkitRequestFullscreen?.()||el.mozRequestFullScreen?.()||el.msRequestFullscreen?.()}
     function exitFS(){return document.exitFullscreen?.()||document.webkitExitFullscreen?.()||document.mozCancelFullScreen?.()||document.msExitFullscreen?.()}
     function isFS(){return !!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement||document.msFullscreenElement)}
 
     async function openPopout(){
-      try{
-        if(canFS()){ await reqFS(shell); return; }
-      }catch(_){}
-      openFallback();
+      // Prefer native Fullscreen to break iframe column constraints (requires allowfullscreen on parent iframe)
+      try{ if(canFS()){ await reqFS(shell); return; } }catch(_){}
+      openFallback(); // if FS blocked
     }
     function closePopout(){
       if(isFS()){ try{ exitFS(); }catch(_){} }
       closeFallback();
     }
+
     pop.addEventListener('click', openPopout);
     closeFS.addEventListener('click', closePopout);
     document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePopout(); });
 
-    // Fallback window (in-iframe)
+    // Fallback “windowed” modal (inside iframe bounds)
     function openFallback(){
-      try{ fbMirror.src = window.location.href; }catch(_){}
+      try{ fbMirror.src=window.location.href; }catch(_){}
       fbMask.style.display='block'; fbWin.style.display='flex';
     }
     function closeFallback(){
@@ -147,8 +135,7 @@
 
     // resize
     fbResize.addEventListener('mousedown', e=>{
-      if(e.button!==0) return;
-      e.stopPropagation();
+      if(e.button!==0) return; e.stopPropagation();
       const r=fbWin.getBoundingClientRect();
       const start={w:r.width,h:r.height,x:e.clientX,y:e.clientY};
       function move(ev){
