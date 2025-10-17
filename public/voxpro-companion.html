@@ -28,7 +28,7 @@
       overflow:hidden;
     }
 
-    /* Fallback “windowed” modal (only used if fullscreen not permitted) */
+    /* Fallback window (only if fullscreen not permitted) */
     #vp-fallback-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147483647;display:none}
     #vp-fallback-win{
       position:fixed;top:8vh;left:8vw;width:min(84vw,1200px);height:min(84vh,800px);
@@ -43,7 +43,7 @@
     #vp-fb-resize:before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 0 50%,#fff 50% 100%);opacity:.35}
 
     /* Embed area for your existing widget UI */
-    #voxpro-widget-root{ /* your actual widget container lives INSIDE this */ }
+    #voxpro-widget-root{ }
   </style>
 </head>
 <body>
@@ -54,24 +54,20 @@
       <button class="btn" id="btnPop">Pop-out</button>
       <button class="btn secondary" id="btnCloseFS">Close</button>
     </div>
-    <div class="note">Pop-out uses native Fullscreen when embedded on other sites; Esc exits. If fullscreen is blocked, a movable, resizable window appears as a fallback (within the iframe bounds).</div>
+    <div class="note">Pop-out uses native Fullscreen from inside an iframe. Esc exits. If a browser blocks it, you’ll get a movable, resizable window instead.</div>
 
-    <!-- Your existing widget stays exactly as-is, mounted INSIDE this shell -->
+    <!-- Your widget stays exactly as-is, mounted INSIDE this shell -->
     <div id="vp-widget-shell">
       <div id="voxpro-widget-root">
-        <!-- ⤵️ DO NOT change your widget markup; it already renders here today -->
-        <!-- If a bundle mounts it, keep your existing script tags below -->
+        <!-- your existing widget renders here via your bundle(s) -->
       </div>
     </div>
   </div>
 
-  <!-- If your widget relies on bundles, keep them here as they already are -->
-  <!-- Example:
-  <script src="/static/js/bundle.js" defer></script>
-  <script src="/assets/voxpro.js" defer></script>
-  -->
+  <!-- keep whatever bundles you already use to render the widget -->
+  <!-- e.g.: <script src="/static/js/bundle.js" defer></script> -->
 
-  <!-- Fallback modal DOM (only used if fullscreen not allowed) -->
+  <!-- Fallback modal DOM -->
   <div id="vp-fallback-mask"></div>
   <div id="vp-fallback-win" aria-modal="true" role="dialog">
     <div id="vp-fb-head">
@@ -83,7 +79,6 @@
       </div>
     </div>
     <div id="vp-fb-body">
-      <!-- We DO NOT move your DOM. We mirror the shell using a cloned CSS box. -->
       <iframe id="fbMirror" title="VoxPro (fallback view)" style="width:100%;height:100%;border:0"></iframe>
       <div id="vp-fb-resize" aria-hidden="true"></div>
     </div>
@@ -95,80 +90,98 @@
     const pop = document.getElementById('btnPop');
     const closeFS = document.getElementById('btnCloseFS');
 
-    // Fallback modal bits
     const fbMask  = document.getElementById('vp-fallback-mask');
     const fbWin   = document.getElementById('vp-fallback-win');
     const fbHead  = document.getElementById('vp-fb-head');
     const fbBody  = document.getElementById('vp-fb-body');
-    const fbTitle = document.getElementById('vp-fb-title');
     const fbClose = document.getElementById('fbClose');
     const fbMin   = document.getElementById('fbMin');
     const fbMax   = document.getElementById('fbMax');
     const fbMirror= document.getElementById('fbMirror');
     const fbResize= document.getElementById('vp-fb-resize');
 
-    // ---- Fullscreen helpers ----
-    function canFullscreen() {
-      // In iframes, browser requires allowfullscreen/allow="fullscreen" on the iframe element.
-      // We try anyway; if it throws/rejects, we fall back.
-      return !!(document.fullscreenEnabled || document.webkitFullscreenEnabled || document.mozFullScreenEnabled || document.msFullscreenEnabled);
-    }
-    function requestFS(el){
-      return (el.requestFullscreen?.() || el.webkitRequestFullscreen?.() || el.mozRequestFullScreen?.() || el.msRequestFullscreen?.()) ?? Promise.reject();
-    }
-    function exitFS(){
-      return (document.exitFullscreen?.() || document.webkitExitFullscreen?.() || document.mozCancelFullScreen?.() || document.msExitFullscreen?.());
-    }
-    function isFS(){
-      return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
-    }
+    function canFS(){return !!(document.fullscreenEnabled||document.webkitFullscreenEnabled||document.mozFullScreenEnabled||document.msFullscreenEnabled)}
+    function reqFS(el){return el.requestFullscreen?.()||el.webkitRequestFullscreen?.()||el.mozRequestFullScreen?.()||el.msRequestFullscreen?.()}
+    function exitFS(){return document.exitFullscreen?.()||document.webkitExitFullscreen?.()||document.mozCancelFullScreen?.()||document.msExitFullscreen?.()}
+    function isFS(){return !!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement||document.msFullscreenElement)}
 
     async function openPopout(){
-      // Prefer native fullscreen for a true “escape the column/iframe” result
-      try {
-        if (canFullscreen()) {
-          await requestFS(shell);
-          return;
-        }
-      } catch(_) { /* fall through to fallback */ }
+      try{
+        if(canFS()){ await reqFS(shell); return; }
+      }catch(_){}
       openFallback();
     }
-
     function closePopout(){
-      if (isFS()) { try{ exitFS(); }catch(_){} }
+      if(isFS()){ try{ exitFS(); }catch(_){} }
       closeFallback();
     }
-
     pop.addEventListener('click', openPopout);
     closeFS.addEventListener('click', closePopout);
-    document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') closePopout(); });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePopout(); });
 
-    // ---- Fallback movable/resizable window (within iframe bounds) ----
+    // Fallback window (in-iframe)
     function openFallback(){
-      // Mirror the current page into an iframe so your widget looks the same without touching DOM
-      // (Same-origin: it’s our own file; the iframe just points to the current URL.)
-      try { fbMirror.src = window.location.href; } catch(_) {}
-      fbMask.style.display = 'block';
-      fbWin.style.display  = 'flex';
+      try{ fbMirror.src = window.location.href; }catch(_){}
+      fbMask.style.display='block'; fbWin.style.display='flex';
     }
     function closeFallback(){
-      fbMask.style.display = 'none';
-      fbWin.style.display  = 'none';
-      try { fbMirror.src = 'about:blank'; } catch(_){}
+      fbMask.style.display='none'; fbWin.style.display='none';
+      try{ fbMirror.src='about:blank'; }catch(_){}
     }
 
     // drag
     let drag=null, maxed=false, prevRect=null;
-    fbHead.addEventListener('mousedown', (e)=>{
-      if (e.button!==0) return;
+    fbHead.addEventListener('mousedown', e=>{
+      if(e.button!==0) return;
       const r=fbWin.getBoundingClientRect();
       drag={dx:e.clientX-r.left, dy:e.clientY-r.top};
       document.body.style.userSelect='none';
     });
-    window.addEventListener('mousemove',(e)=>{
-      if(!drag || maxed) return;
+    window.addEventListener('mousemove', e=>{
+      if(!drag||maxed) return;
       const x=Math.max(0,Math.min(window.innerWidth - fbWin.offsetWidth,  e.clientX-drag.dx));
       const y=Math.max(0,Math.min(window.innerHeight- fbWin.offsetHeight, e.clientY-drag.dy));
       fbWin.style.left=x+'px'; fbWin.style.top=y+'px';
     });
-    window.addEventListener('mouseup',()=>{ if(drag) document.body.style.userSelect=''; drag
+    window.addEventListener('mouseup', ()=>{ if(drag) document.body.style.userSelect=''; drag=null; });
+
+    // resize
+    fbResize.addEventListener('mousedown', e=>{
+      if(e.button!==0) return;
+      e.stopPropagation();
+      const r=fbWin.getBoundingClientRect();
+      const start={w:r.width,h:r.height,x:e.clientX,y:e.clientY};
+      function move(ev){
+        const dx=ev.clientX-start.x, dy=ev.clientY-start.y;
+        fbWin.style.width=Math.max(560,start.w+dx)+'px';
+        fbWin.style.height=Math.max(360,start.h+dy)+'px';
+      }
+      function up(){ window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',up); }
+      window.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
+    });
+
+    // controls
+    fbClose.addEventListener('click', closeFallback);
+    fbMin.addEventListener('click', ()=>{ fbBody.style.display=(fbBody.style.display==='none'?'block':'none'); });
+    fbMax.addEventListener('click', ()=>{
+      if(!maxed){
+        const r=fbWin.getBoundingClientRect();
+        prevRect={left:r.left,top:r.top,width:r.width,height:r.height};
+        fbWin.style.left='2vw'; fbWin.style.top='2vh';
+        fbWin.style.width='96vw'; fbWin.style.height='96vh';
+        maxed=true; fbMax.textContent='❐';
+      } else {
+        if(prevRect){
+          fbWin.style.left=prevRect.left+'px';
+          fbWin.style.top=prevRect.top+'px';
+          fbWin.style.width=prevRect.width+'px';
+          fbWin.style.height=prevRect.height+'px';
+        }
+        maxed=false; fbMax.textContent='□';
+      }
+      fbBody.style.display='block';
+    });
+  })();
+  </script>
+</body>
+</html>
