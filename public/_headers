@@ -1,4 +1,4 @@
 /*
-  Content-Security-Policy: default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; frame-ancestors 'self' https://*.webflow.io https://*.webflow.com https://preview.webflow.com https://design.webflow.com https://history-of-idaho-broadcasting--717ee2.webflow.io;
+  Content-Security-Policy: default-src 'self' data: blob: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' data: blob: https://fonts.gstatic.com https://fonts.googleapis.com; media-src 'self' https:; connect-src 'self' https:; frame-ancestors 'self' https://*.webflow.io https://*.webflow.com https://preview.webflow.com https://design.webflow.com https://history-of-idaho-broadcasting--717ee2.webflow.io https://www.streamofdan.com https://*.streamofdan.com https://*.netlify.app;
   X-Frame-Options: SAMEORIGIN
   Permissions-Policy: fullscreen=(self "https://*.webflow.io" "https://*.webflow.com")
