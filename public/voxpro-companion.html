@@ -1,189 +1,942 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>VoxPro Companion</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    :root{--bg0:#0b1220;--bg1:#172033;--bg2:#0f1728;--ink:#e6eef7;--muted:#a9b6c6;--line:#2a3441;--accent:#667eea}
-    html,body{height:100%;margin:0;background:var(--bg0);color:var(--ink);
-      font:14px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxPro Manager</title>
+    <style>
+        :root {
+            --bg-primary: #0b1220;
+            --bg-secondary: #0f172a;
+            --bg-tertiary: #1f2937;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --text-accent: #10b981;
+            --accent: #667eea;
+            --accent-secondary: #764ba2;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
 
-    /* Shell that wraps the EXISTING widget (don’t change the widget’s code) */
-    #vp-widget-shell{position:relative;background:var(--bg1);border:1px solid var(--line);
-      border-radius:12px;overflow:hidden;margin:12px}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    /* Floating pop controls overlay (always visible, no dependency on widget DOM) */
-    .vp-fab{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:5}
-    .vp-btn{appearance:none;border:0;border-radius:8px;background:var(--accent);color:#fff;
-      padding:6px 10px;cursor:pointer}
-    .vp-btn.secondary{background:#3b4a60}
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
 
-    /* Fallback “windowed” modal (used when fullscreen is blocked) */
-    #vp-fallback-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147483647;display:none}
-    #vp-fallback-win{position:fixed;top:8vh;left:8vw;width:min(84vw,1200px);height:min(84vh,800px);
-      background:var(--bg2);border:1px solid var(--line);border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,.45);
-      overflow:hidden;display:none;z-index:2147483648}
-    #vp-fb-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;
-      background:var(--bg1);border-bottom:1px solid var(--line);cursor:move;user-select:none}
-    #vp-fb-title{font-weight:600}
-    #vp-fb-body{position:relative;height:calc(100% - 46px);overflow:auto;background:var(--bg2)}
-    #vp-fb-resize{position:absolute;right:6px;bottom:6px;width:16px;height:16px;cursor:nwse-resize;opacity:.85}
-    #vp-fb-resize:before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 0 50%,#fff 50% 100%);opacity:.35}
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            min-height: 100vh;
+        }
 
-    /* Where your current widget already renders */
-    #voxpro-widget-root{}
-  </style>
+        .panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 12px;
+            padding: 20px;
+            height: fit-content;
+        }
+
+        .panel h2 {
+            color: var(--text-accent);
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        /* Media Player Styles */
+        .key-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .key-button {
+            padding: 20px;
+            border: 2px solid var(--bg-tertiary);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .key-button:hover {
+            border-color: var(--accent);
+        }
+
+        .key-button.assigned {
+            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+            border-color: var(--accent);
+            color: white;
+        }
+
+        .key-button.playing {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .key-5 {
+            grid-column: 1 / -1;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        .stop-button {
+            grid-column: 1 / -1;
+            padding: 15px;
+            background: var(--error);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+
+        .connection-status.connected {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+        }
+
+        .connection-status.disconnected {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* Manager Styles */
+        .search-section {
+            margin-bottom: 25px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--bg-primary);
+            border: 2px solid var(--bg-tertiary);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .search-input::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .media-browser {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 25px;
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 8px;
+        }
+
+        .media-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px;
+            border-bottom: 1px solid var(--bg-tertiary);
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .media-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .media-item.selected {
+            background: rgba(102, 126, 234, 0.2);
+            border-left: 4px solid var(--accent);
+        }
+
+        .media-item:last-child {
+            border-bottom: none;
+        }
+
+        .media-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+
+        .media-info {
+            flex: 1;
+        }
+
+        .media-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+        }
+
+        .media-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .form-section {
+            margin-bottom: 25px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 2px solid var(--bg-tertiary);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .assign-button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--success), #059669);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .assign-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .assign-button:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .assignments-section h3 {
+            color: var(--text-accent);
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .assignment-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+
+        .assignment-key {
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .remove-button {
+            padding: 4px 8px;
+            background: var(--error);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .message.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .message.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-secondary);
+            font-style: italic;
+            padding: 20px;
+        }
+
+        /* Media Modal */
+        .media-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .media-modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 80%;
+            max-height: 80%;
+            overflow: auto;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .current-info {
+            background: var(--bg-tertiary);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .current-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 5px;
+        }
+
+        .current-meta {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 10px;
+            }
+            
+            .key-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .key-5 {
+                grid-column: 1;
+            }
+        }
+    </style>
 </head>
 <body>
-  <!-- Wrap the EXISTING widget; don’t change your widget render logic -->
-  <div id="vp-widget-shell">
-    <!-- Always-visible overlay controls -->
-    <div class="vp-fab" id="vp-fab">
-      <button class="vp-btn" id="btnPop">Pop-out</button>
-      <button class="vp-btn secondary" id="btnCloseFS">Close</button>
+    <div class="container">
+        <!-- VoxPro Media Player -->
+        <div class="panel">
+            <h2>VoxPro Media Player</h2>
+            
+            <div class="connection-status connected" id="connectionStatus">
+                <div class="status-dot"></div>
+                <span id="connectionText">Connected</span>
+            </div>
+
+            <div class="key-grid">
+                <button class="key-button" data-key="1" id="key1">KEY 1</button>
+                <button class="key-button" data-key="2" id="key2">KEY 2</button>
+                <button class="key-button" data-key="3" id="key3">KEY 3</button>
+                <button class="key-button" data-key="4" id="key4">KEY 4</button>
+                <button class="key-button key-5" data-key="5" id="key5">KEY 5</button>
+                <button class="stop-button" id="stopButton">STOP</button>
+            </div>
+
+            <div class="current-info" id="currentInfo">
+                <div class="current-title" id="currentTitle"></div>
+                <div class="current-meta" id="currentMeta"></div>
+            </div>
+
+            <div class="assignments-section">
+                <h3>Current Key Assignments</h3>
+                <div id="assignmentsList">
+                    <div class="empty-state">No assignments yet</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VoxPro Manager -->
+        <div class="panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">VoxPro Manager</h2>
+                <a href="/file-manager.html" target="_blank" 
+                   style="padding: 8px 16px; background: linear-gradient(135deg, var(--accent), var(--accent-secondary)); 
+                          color: white; text-decoration: none; border-radius: 6px; font-weight: 500; 
+                          transition: transform 0.2s ease;">
+                    📁 Upload Files
+                </a>
+            </div>
+            
+            <div class="message" id="messageBox"></div>
+
+            <div class="search-section">
+                <label class="form-label">Search Media (title, description, station, tags)</label>
+                <input type="text" class="search-input" id="searchInput" placeholder="Type to search... or leave empty for recent">
+            </div>
+
+            <div class="media-browser" id="mediaBrowser">
+                <div class="empty-state">Loading media...</div>
+            </div>
+
+            <div class="form-section">
+                <div class="form-group">
+                    <label class="form-label">Select Key Slot</label>
+                    <select class="form-select" id="keySelect">
+                        <option value="">Choose a key...</option>
+                        <option value="1">Key 1</option>
+                        <option value="2">Key 2</option>
+                        <option value="3">Key 3</option>
+                        <option value="4">Key 4</option>
+                        <option value="5">Key 5</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-input" id="titleInput" placeholder="Title">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-textarea" id="descriptionInput" placeholder="Description"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Station</label>
+                    <input type="text" class="form-input" id="stationInput" placeholder="Station">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Tags</label>
+                    <input type="text" class="form-input" id="tagsInput" placeholder="Comma-separated">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Submitted By</label>
+                    <input type="text" class="form-input" id="submittedByInput" placeholder="Name or initials">
+                </div>
+
+                <button class="assign-button" id="assignButton">Assign / Update Key</button>
+            </div>
+        </div>
     </div>
 
-    <div id="voxpro-widget-root">
-      <!-- Your current widget renders here via your bundle(s) exactly as before -->
+    <!-- Media Modal -->
+    <div class="media-modal" id="mediaModal">
+        <div class="modal-content">
+            <button class="modal-close" id="modalClose">&times;</button>
+            <div id="mediaPlayer">
+                <div style="color: var(--text-secondary);">Media stopped</div>
+            </div>
+        </div>
     </div>
-  </div>
 
-  <!-- Keep your existing widget bundles below (unchanged)
-       e.g. <script src="/static/js/bundle.js" defer></script> -->
+    <script>
+        // Configuration
+        const XANO_PROXY_BASE = '/.netlify/functions/xano-proxy';
+        const LIST_MEDIA_ENDPOINT = '/.netlify/functions/list-media';
+        const ASSIGNMENTS_REFRESH_MS = 30000;
 
-  <!-- Fallback modal DOM -->
-  <div id="vp-fallback-mask"></div>
-  <div id="vp-fallback-win" aria-modal="true" role="dialog">
-    <div id="vp-fb-head">
-      <div id="vp-fb-title">VoxPro</div>
-      <div style="display:flex;gap:6px">
-        <button class="vp-btn secondary" id="fbMin">−</button>
-        <button class="vp-btn secondary" id="fbMax">□</button>
-        <button class="vp-btn" id="fbClose">×</button>
-      </div>
-    </div>
-    <div id="vp-fb-body">
-      <!-- mirror view so we don’t mutate your widget -->
-      <iframe id="fbMirror" title="VoxPro (fallback view)" style="width:100%;height:100%;border:0"></iframe>
-      <div id="vp-fb-resize" aria-hidden="true"></div>
-    </div>
-  </div>
+        // Global variables
+        let selectedMedia = null;
+        let mediaList = [];
+        let assignments = [];
+        let playing = null;
 
-  <script>
-  (function(){
-    const shell=document.getElementById('vp-widget-shell');
-    const pop=document.getElementById('btnPop');
-    const closeFS=document.getElementById('btnCloseFS');
+        // DOM elements
+        let connectionStatus, connectionText, messageBox;
+        let searchInput, mediaBrowser, keySelect, titleInput, descriptionInput, stationInput, tagsInput, submittedByInput;
+        let assignButton, assignmentsList, keyButtons, stopButton, mediaModal, modalClose, mediaPlayer, currentInfo, currentTitle, currentMeta;
 
-    // Fallback bits
-    const fbMask=document.getElementById('vp-fallback-mask');
-    const fbWin=document.getElementById('vp-fallback-win');
-    const fbHead=document.getElementById('vp-fb-head');
-    const fbBody=document.getElementById('vp-fb-body');
-    const fbClose=document.getElementById('fbClose');
-    const fbMin=document.getElementById('fbMin');
-    const fbMax=document.getElementById('fbMax');
-    const fbMirror=document.getElementById('fbMirror');
-    const fbResize=document.getElementById('vp-fb-resize');
-
-    // Fullscreen helpers
-    function canFS(){return !!(document.fullscreenEnabled||document.webkitFullscreenEnabled||document.mozFullScreenEnabled||document.msFullscreenEnabled)}
-    function reqFS(el){return el.requestFullscreen?.()||el.webkitRequestFullscreen?.()||el.mozRequestFullScreen?.()||el.msRequestFullscreen?.()}
-    function exitFS(){return document.exitFullscreen?.()||document.webkitExitFullscreen?.()||document.mozCancelFullScreen?.()||document.msExitFullscreen?.()}
-    function isFS(){return !!(document.fullscreenElement||document.webkitFullscreenElement||document.mozFullScreenElement||document.msFullscreenElement)}
-
-    async function openPopout(){
-      // Prefer native Fullscreen to break iframe column constraints (requires allowfullscreen on parent iframe)
-      try{ if(canFS()){ await reqFS(shell); return; } }catch(_){}
-      openFallback(); // if FS blocked
-    }
-    function closePopout(){
-      if(isFS()){ try{ exitFS(); }catch(_){} }
-      closeFallback();
-    }
-
-    pop.addEventListener('click', openPopout);
-    closeFS.addEventListener('click', closePopout);
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape') closePopout(); });
-
-    // Fallback “windowed” modal (inside iframe bounds)
-    function openFallback(){
-      try{ fbMirror.src=window.location.href; }catch(_){}
-      fbMask.style.display='block'; fbWin.style.display='flex';
-    }
-    function closeFallback(){
-      fbMask.style.display='none'; fbWin.style.display='none';
-      try{ fbMirror.src='about:blank'; }catch(_){}
-    }
-
-    // drag
-    let drag=null, maxed=false, prevRect=null;
-    fbHead.addEventListener('mousedown', e=>{
-      if(e.button!==0) return;
-      const r=fbWin.getBoundingClientRect();
-      drag={dx:e.clientX-r.left, dy:e.clientY-r.top};
-      document.body.style.userSelect='none';
-    });
-    window.addEventListener('mousemove', e=>{
-      if(!drag||maxed) return;
-      const x=Math.max(0,Math.min(window.innerWidth - fbWin.offsetWidth,  e.clientX-drag.dx));
-      const y=Math.max(0,Math.min(window.innerHeight- fbWin.offsetHeight, e.clientY-drag.dy));
-      fbWin.style.left=x+'px'; fbWin.style.top=y+'px';
-    });
-    window.addEventListener('mouseup', ()=>{ if(drag) document.body.style.userSelect=''; drag=null; });
-
-    // resize
-    fbResize.addEventListener('mousedown', e=>{
-      if(e.button!==0) return; e.stopPropagation();
-      const r=fbWin.getBoundingClientRect();
-      const start={w:r.width,h:r.height,x:e.clientX,y:e.clientY};
-      function move(ev){
-        const dx=ev.clientX-start.x, dy=ev.clientY-start.y;
-        fbWin.style.width=Math.max(560,start.w+dx)+'px';
-        fbWin.style.height=Math.max(360,start.h+dy)+'px';
-      }
-      function up(){ window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',up); }
-      window.addEventListener('mousemove',move); window.addEventListener('mouseup',up);
-    });
-
-    // controls
-    fbClose.addEventListener('click', closeFallback);
-    fbMin.addEventListener('click', ()=>{ fbBody.style.display=(fbBody.style.display==='none'?'block':'none'); });
-    fbMax.addEventListener('click', ()=>{
-      if(!maxed){
-        const r=fbWin.getBoundingClientRect();
-        prevRect={left:r.left,top:r.top,width:r.width,height:r.height};
-        fbWin.style.left='2vw'; fbWin.style.top='2vh';
-        fbWin.style.width='96vw'; fbWin.style.height='96vh';
-        maxed=true; fbMax.textContent='❐';
-      } else {
-        if(prevRect){
-          fbWin.style.left=prevRect.left+'px';
-          fbWin.style.top=prevRect.top+'px';
-          fbWin.style.width=prevRect.width+'px';
-          fbWin.style.height=prevRect.height+'px';
+        // Utility functions
+        function showMessage(type, message) {
+            messageBox.textContent = message;
+            messageBox.className = `message ${type}`;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 5000);
         }
-        maxed=false; fbMax.textContent='□';
-      }
-      fbBody.style.display='block';
-    });
-  })();
-  </script>
+
+        function setConnectionStatus(connected) {
+            connectionStatus.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
+            connectionText.textContent = connected ? 'Connected' : 'Disconnected';
+        }
+
+        async function xanoRequest(endpoint, opts = {}) {
+            try {
+                const response = await fetch(`${XANO_PROXY_BASE}${endpoint}`, {
+                    headers: { 'Content-Type': 'application/json' },
+                    ...opts
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`${response.status} ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                setConnectionStatus(true);
+                return data;
+            } catch (error) {
+                setConnectionStatus(false);
+                showMessage('error', `API Error: ${error.message}`);
+                return null;
+            }
+        }
+
+        // Media functions - Filter out test data
+        async function loadMedia(query = '') {
+            try {
+                // Use list-media endpoint with cache busting
+                const cacheBuster = `?t=${Date.now()}&_r=${Math.random()}`;
+                const response = await fetch(`${LIST_MEDIA_ENDPOINT}${cacheBuster}`, {
+                    cache: 'no-cache',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                let data = await response.json();
+                
+                // FILTER OUT EMPTY/TEST DATA
+                mediaList = data.filter(item => {
+                    // Must have actual file size
+                    if (!item.file_size || item.file_size === 0 || item.file_size < 100) {
+                        console.log(`Filtering out: ${item.title || 'Untitled'} - No/small file size`);
+                        return false;
+                    }
+                    
+                    // Must have a media URL (Cloudinary or file_url)
+                    if (!item.cloudinary_url && !item.file_url && !item.media_url) {
+                        console.log(`Filtering out: ${item.title || 'Untitled'} - No media URL`);
+                        return false;
+                    }
+                    
+                    return true;
+                });
+                
+                console.log(`Loaded ${data.length} total items, kept ${mediaList.length} valid media files`);
+                
+                // Filter by search query if provided
+                if (query) {
+                    mediaList = mediaList.filter(item => {
+                        const searchText = [
+                            item.title || '',
+                            item.description || '',
+                            item.station || '',
+                            item.tags || '',
+                            item.submitted_by || ''
+                        ].join(' ').toLowerCase();
+                        
+                        return searchText.includes(query.toLowerCase());
+                    });
+                }
+                
+                renderMediaBrowser();
+                setConnectionStatus(true);
+            } catch (error) {
+                console.error('Load media error:', error);
+                showMessage('error', 'Failed to load media');
+                setConnectionStatus(false);
+            }
+        }
+
+        function renderMediaBrowser() {
+            if (!mediaList || mediaList.length === 0) {
+                mediaBrowser.innerHTML = '<div class="empty-state">No media found</div>';
+                return;
+            }
+
+            mediaBrowser.innerHTML = mediaList.map(item => {
+                const icon = getMediaIcon(item.file_type || item.category || '');
+                return `
+                    <div class="media-item" data-id="${item.id}" onclick="selectMedia(${item.id})">
+                        <div class="media-icon">${icon}</div>
+                        <div class="media-info">
+                            <div class="media-title">${item.title || 'Untitled'}</div>
+                            <div class="media-meta">${item.station || 'Unknown'} • ${item.category || 'Media'}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getMediaIcon(fileType) {
+            const type = (fileType || '').toLowerCase();
+            if (type.includes('audio')) return '🎵';
+            if (type.includes('video')) return '🎬';
+            if (type.includes('image')) return '🖼️';
+            if (type.includes('photo')) return '📷';
+            return '📁';
+        }
+
+        function selectMedia(id) {
+            selectedMedia = mediaList.find(m => m.id === id);
+            if (!selectedMedia) return;
+
+            // Remove previous selection
+            document.querySelectorAll('.media-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+
+            // Add selection to clicked item
+            const selectedItem = document.querySelector(`[data-id="${id}"]`);
+            if (selectedItem) {
+                selectedItem.classList.add('selected');
+            }
+
+            // Populate form
+            titleInput.value = selectedMedia.title || '';
+            descriptionInput.value = selectedMedia.description || '';
+            stationInput.value = selectedMedia.station || '';
+            tagsInput.value = selectedMedia.tags || '';
+            submittedByInput.value = selectedMedia.submitted_by || '';
+        }
+
+        // Assignment functions
+        async function loadAssignments() {
+            try {
+                const data = await xanoRequest('/voxpro_assignments');
+                assignments = Array.isArray(data) ? data : [];
+                renderAssignments();
+                updateKeyButtons();
+            } catch (error) {
+                console.error('Load assignments error:', error);
+            }
+        }
+
+        function renderAssignments() {
+            if (!assignments || assignments.length === 0) {
+                assignmentsList.innerHTML = '<div class="empty-state">No assignments yet</div>';
+                return;
+            }
+
+            assignmentsList.innerHTML = assignments.map(assignment => `
+                <div class="assignment-item">
+                    <span class="assignment-key">Key ${assignment.key_number} — ${assignment.asset?.title || assignment.title || 'Unknown'}</span>
+                    <button class="remove-button" onclick="deleteAssignment(${assignment.id})">×</button>
+                </div>
+            `).join('');
+        }
+
+        function updateKeyButtons() {
+            keyButtons.forEach(button => {
+                const keyNum = parseInt(button.dataset.key);
+                const assignment = assignments.find(a => parseInt(a.key_number) === keyNum);
+                
+                if (assignment) {
+                    button.classList.add('assigned');
+                } else {
+                    button.classList.remove('assigned');
+                }
+            });
+        }
+
+        async function createAssignment() {
+            if (!selectedMedia) {
+                showMessage('error', 'Please select a media item first');
+                return;
+            }
+            
+            const keySlot = keySelect.value;
+            if (!keySlot) {
+                showMessage('error', 'Please select a key slot');
+                return;
+            }
+            
+            try {
+                const assignmentData = {
+                    asset_id: selectedMedia.id,
+                    key_number: parseInt(keySlot),
+                    title: titleInput.value || selectedMedia.title,
+                    description: descriptionInput.value || selectedMedia.description,
+                    station: stationInput.value || selectedMedia.station,
+                    tags: tagsInput.value || selectedMedia.tags,
+                    submitted_by: submittedByInput.value || selectedMedia.submitted_by
+                };
+                
+                await xanoRequest('/voxpro_assignments', {
+                    method: 'POST',
+                    body: JSON.stringify(assignmentData)
+                });
+                
+                showMessage('success', 'Assignment created successfully!');
+                await loadAssignments();
+                
+                // Clear form
+                keySelect.value = '';
+                
+            } catch (error) {
+                console.error('Create assignment failed:', error);
+                showMessage('error', `Assignment failed: ${error.message}`);
+            }
+        }
+
+        async function deleteAssignment(assignmentId) {
+            if (!confirm('Are you sure you want to remove this assignment?')) return;
+            
+            try {
+                await xanoRequest(`/voxpro_assignments/${assignmentId}`, { method: 'DELETE' });
+                showMessage('success', 'Assignment removed successfully!');
+                await loadAssignments();
+            } catch (error) {
+                console.error('Delete assignment failed:', error);
+                showMessage('error', `Delete failed: ${error.message}`);
+            }
+        }
+
+        // Media playback functions
+        async function playForKey(keyNum) {
+            const assignment = assignments.find(a => parseInt(a.key_number) === parseInt(keyNum));
+            if (!assignment) {
+                showMessage('error', `No media assigned to Key ${keyNum}`);
+                return;
+            }
+            
+            // Get the media URL
+            const mediaUrl = assignment.asset?.cloudinary_url || 
+                           assignment.asset?.file_url || 
+                           assignment.asset?.media_url ||
+                           assignment.cloudinary_url ||
+                           assignment.file_url;
+            
+            if (!mediaUrl) {
+                showMessage('error', 'No media URL found for this assignment');
+                return;
+            }
+            
+            // Show playing state
+            keyButtons.forEach(btn => btn.classList.remove('playing'));
+            document.getElementById(`key${keyNum}`).classList.add('playing');
+            
+            // Update current info
+            currentInfo.style.display = 'block';
+            currentTitle.textContent = assignment.title || assignment.asset?.title || 'Untitled';
+            currentMeta.textContent = `${assignment.station || 'Unknown'} • Key ${keyNum}`;
+            
+            // Create media element based on type
+            const fileType = (assignment.file_type || assignment.asset?.file_type || '').toLowerCase();
+            let mediaElement;
+            
+            if (fileType.includes('audio')) {
+                mediaElement = document.createElement('audio');
+                mediaElement.controls = true;
+                mediaElement.autoplay = true;
+            } else if (fileType.includes('video')) {
+                mediaElement = document.createElement('video');
+                mediaElement.controls = true;
+                mediaElement.autoplay = true;
+                mediaElement.style.width = '100%';
+            } else if (fileType.includes('image') || fileType.includes('photo')) {
+                mediaElement = document.createElement('img');
+                mediaElement.style.width = '100%';
+            } else {
+                // Default to audio
+                mediaElement = document.createElement('audio');
+                mediaElement.controls = true;
+                mediaElement.autoplay = true;
+            }
+            
+            mediaElement.src = mediaUrl;
+            
+            // Show in modal
+            mediaPlayer.innerHTML = '';
+            mediaPlayer.appendChild(mediaElement);
+            mediaModal.classList.add('show');
+            
+            playing = { key: keyNum, assignmentId: assignment.id };
+            
+            showMessage('success', `Playing: ${assignment.title || assignment.asset?.title || 'Unknown'}`);
+        }
+
+        function stopPlayback() {
+            playing = null;
+            keyButtons.forEach(btn => btn.classList.remove('playing'));
+            mediaModal.classList.remove('show');
+            
+            // Stop all media elements
+            mediaPlayer.querySelectorAll('audio, video').forEach(el => {
+                try {
+                    el.pause();
+                    el.currentTime = 0;
+                } catch (e) {}
+            });
+            
+            mediaPlayer.innerHTML = '<div style="color: var(--text-secondary);">Media stopped</div>';
+            currentInfo.style.display = 'none';
+        }
+
+        // Initialization function
+        async function init() {
+            // Get DOM elements
+            connectionStatus = document.getElementById('connectionStatus');
+            connectionText = document.getElementById('connectionText');
+            messageBox = document.getElementById('messageBox');
+            searchInput = document.getElementById('searchInput');
+            mediaBrowser = document.getElementById('mediaBrowser');
+            keySelect = document.getElementById('keySelect');
+            titleInput = document.getElementById('titleInput');
+            descriptionInput = document.getElementById('descriptionInput');
+            stationInput = document.getElementById('stationInput');
+            tagsInput = document.getElementById('tagsInput');
+            submittedByInput = document.getElementById('submittedByInput');
+            assignButton = document.getElementById('assignButton');
+            assignmentsList = document.getElementById('assignmentsList');
+            keyButtons = document.querySelectorAll('.key-button');
+            stopButton = document.getElementById('stopButton');
+            mediaModal = document.getElementById('mediaModal');
+            modalClose = document.getElementById('modalClose');
+            mediaPlayer = document.getElementById('mediaPlayer');
+            currentInfo = document.getElementById('currentInfo');
+            currentTitle = document.getElementById('currentTitle');
+            currentMeta = document.getElementById('currentMeta');
+
+            // Set initial connection status
+            setConnectionStatus(false);
+
+            // Attach event listeners
+            searchInput.addEventListener('input', e => loadMedia(e.target.value.trim()));
+            
+            keyButtons.forEach(btn => {
+                btn.addEventListener('click', () => playForKey(btn.dataset.key));
+            });
+            
+            stopButton.addEventListener('click', stopPlayback);
+            modalClose.addEventListener('click', stopPlayback);
+            mediaModal.addEventListener('click', (e) => {
+                if (e.target === mediaModal) stopPlayback();
+            });
+
+            assignButton.addEventListener('click', createAssignment);
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key >= '1' && e.key <= '5') {
+                    const button = document.querySelector(`[data-key="${e.key}"]`);
+                    if (button) button.click();
+                }
+                if (e.key === 'Escape' || e.key === ' ') {
+                    e.preventDefault();
+                    stopPlayback();
+                }
+            });
+
+            // Load initial data
+            await loadMedia();
+            await loadAssignments();
+            
+            // Set up periodic refresh
+            setInterval(loadAssignments, ASSIGNMENTS_REFRESH_MS);
+        }
+
+        // Make functions available globally for onclick handlers
+        window.selectMedia = selectMedia;
+        window.deleteAssignment = deleteAssignment;
+
+        // Start the application
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
 </body>
 </html>
-<!-- VoxPro fullscreen trigger (adds a floating Pop-out button) -->
-<button id="vp-pop"
-  style="position:fixed;top:12px;right:12px;z-index:2147483647;padding:8px 12px;border:0;border-radius:8px;background:#667eea;color:#fff;cursor:pointer">
-  Pop-out
-</button>
-<script>
-  (function () {
-    const btn = document.getElementById('vp-pop');
-    if (!btn) return;
-    btn.addEventListener('click', function () {
-      // Ask the parent (Webflow) to fullscreen the iframe
-      try { window.parent && window.parent.postMessage({ type: 'VOXPRO_FULLSCREEN' }, '*'); } catch (_) {}
-    });
-  })();
-</script>
