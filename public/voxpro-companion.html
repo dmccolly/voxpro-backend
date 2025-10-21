@@ -955,11 +955,11 @@
             maximizeBtn.removeEventListener('click', maximizeBtn.onclick);
             maximizeBtn.addEventListener('click', () => {
                 const modalContent = elements.modalContent;
-                
+
+                // If currently maximized (either iframe expansion or breakout overlay), restore to normal
                 if (isMaximized) {
-                    // Check if we're in iframe breakout mode
+                    // If breakout overlay is active, send message to parent to close
                     if (state.modalState === 'breakout') {
-                        // Send message to parent to close breakout modal
                         if (window.parent && window.parent !== window) {
                             window.parent.postMessage({
                                 type: 'voxpro-close-breakout',
@@ -971,8 +971,23 @@
                         maximizeBtn.textContent = '□';
                         return;
                     }
-                    
-                    // Restore to normal size
+                    // If the iframe itself was expanded, restore its original styles
+                    if (state.modalState === 'iframeMaximized' && originalStyles.iframe) {
+                        const iframe = window.frameElement;
+                        if (iframe) {
+                            Object.assign(iframe.style, originalStyles.iframe);
+                        }
+                        // Restore modal styles if they were adjusted
+                        modal.style.cssText = originalStyles.modal || '';
+                        modalContent.style.cssText = originalStyles.content || '';
+                        modalContent.style.display = 'block';
+                        minimizeBtn.style.display = 'inline-block';
+                        state.modalState = 'normal';
+                        isMaximized = false;
+                        maximizeBtn.textContent = '□';
+                        return;
+                    }
+                    // Generic restore for local maximization
                     modal.style.cssText = originalStyles.modal || '';
                     modalContent.style.cssText = originalStyles.content || '';
                     modalContent.style.display = 'block';
@@ -981,8 +996,7 @@
                     isMaximized = false;
                     state.modalState = 'normal';
                 } else {
-                    // Always create breakout modal to escape container constraints.
-                    // Determine current playback state and pause any playing media.
+                    // Determine current playback state and pause any playing media
                     const currentAssignment = state.assignments.find(a => a.key === state.playing?.key);
                     const mediaElements = modalContent.querySelectorAll('video, audio');
                     let currentTime = 0;
@@ -991,9 +1005,55 @@
                         const firstMedia = mediaElements[0];
                         currentTime = firstMedia.currentTime || 0;
                         wasPlaying = !firstMedia.paused;
+                        // Pause all media to avoid duplicate playback when maximizing
                         mediaElements.forEach(el => el.pause());
                     }
 
+                    // If the player is embedded in an iframe, expand the iframe itself to full screen
+                    const iframe = window.frameElement;
+                    if (iframe) {
+                        // Save the original iframe styles if not already stored
+                        if (!originalStyles.iframe) {
+                            originalStyles.iframe = {
+                                position: iframe.style.position || '',
+                                top: iframe.style.top || '',
+                                left: iframe.style.left || '',
+                                width: iframe.style.width || '',
+                                height: iframe.style.height || '',
+                                maxWidth: iframe.style.maxWidth || '',
+                                maxHeight: iframe.style.maxHeight || '',
+                                zIndex: iframe.style.zIndex || '',
+                                margin: iframe.style.margin || ''
+                            };
+                        }
+                        // Make iframe take over the viewport
+                        iframe.style.position = 'fixed';
+                        iframe.style.top = '0';
+                        iframe.style.left = '0';
+                        iframe.style.width = '100vw';
+                        iframe.style.height = '100vh';
+                        iframe.style.maxWidth = '100vw';
+                        iframe.style.maxHeight = '100vh';
+                        iframe.style.zIndex = '2147483647';
+                        iframe.style.margin = '0';
+                        // Adjust modal within iframe to occupy full space
+                        originalStyles.modal = modal.style.cssText;
+                        originalStyles.content = modalContent.style.cssText;
+                        modal.style.position = 'absolute';
+                        modal.style.top = '0';
+                        modal.style.left = '0';
+                        modal.style.width = '100%';
+                        modal.style.height = '100%';
+                        modalContent.style.flex = '1';
+                        modalContent.style.overflow = 'auto';
+                        minimizeBtn.style.display = 'inline-block';
+                        maximizeBtn.textContent = '❐';
+                        state.modalState = 'iframeMaximized';
+                        isMaximized = true;
+                        return;
+                    }
+
+                    // Build breakout data for parent overlay or local modal
                     const breakoutData = {
                         assignment: currentAssignment,
                         modalTitle: elements.modalTitle.textContent,
@@ -1004,20 +1064,20 @@
                     };
 
                     console.log('Creating breakout modal with data:', breakoutData);
-
-                    // If this widget is running inside an iframe, instruct the parent window
-                    // to open the breakout modal. Otherwise, open it in the current window.
+                    
+                    // If this widget is running inside an iframe, instruct the parent window to open the breakout modal
                     if (window.parent && window.parent !== window) {
                         window.parent.postMessage({
                             type: 'voxpro-breakout-modal',
                             data: breakoutData,
                             source: 'voxpro-companion'
                         }, '*');
+                        state.modalState = 'breakout';
                     } else {
+                        // Otherwise, open the breakout modal within the current page
                         createBreakoutModal(breakoutData);
+                        state.modalState = 'breakout';
                     }
-
-                    state.modalState = 'breakout';
                     isMaximized = true;
                     maximizeBtn.textContent = '❐';
                 }
