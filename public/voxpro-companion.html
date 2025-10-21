@@ -423,6 +423,13 @@
         };
 
         // Initialize the companion player
+        // Determine if this page is opened in fullscreen mode. When
+        // fullscreen=1 is present in the URL query parameters, the player
+        // will expand and optionally auto‑play a specific key.
+        const urlParams = new URLSearchParams(window.location.search);
+        const fullscreenMode = urlParams.get('fullscreen') === '1';
+        const autoPlayKey = urlParams.get('key');
+
         async function initCompanionPlayer() {
             try {
                 console.log('Initializing VoxPro Companion Player...');
@@ -437,8 +444,29 @@
                 
                 // Set up parent window handler for iframe breakout
                 createParentWindowHandler();
-                
+
                 showMessage('success', 'VoxPro Companion Player Ready');
+
+                // If in fullscreen mode, adjust sizing and optionally auto‑play a key
+                if (fullscreenMode) {
+                    const playerContainer = document.querySelector('.companion-player');
+                    if (playerContainer) {
+                        playerContainer.style.width = '90vw';
+                        playerContainer.style.maxWidth = '90vw';
+                        playerContainer.style.height = '90vh';
+                        playerContainer.style.maxHeight = '90vh';
+                    }
+                    // Auto‑play the specified key if provided
+                    if (autoPlayKey) {
+                        // Wait a brief moment to ensure assignments and media list are loaded
+                        setTimeout(() => {
+                            const keyNum = parseInt(autoPlayKey, 10);
+                            if (!isNaN(keyNum)) {
+                                playForKey(keyNum);
+                            }
+                        }, 300);
+                    }
+                }
             } catch (error) {
                 console.error('Failed to initialize companion player:', error);
                 showMessage('error', 'Failed to load VoxPro data');
@@ -951,26 +979,25 @@
                 state.modalState = 'minimized';
             });
             
-            // Override maximize functionality
+            // Override maximize functionality: open a fullscreen companion page in a new window
             maximizeBtn.removeEventListener('click', maximizeBtn.onclick);
             maximizeBtn.addEventListener('click', () => {
                 const modalContent = elements.modalContent;
-
-                // Pause any playing media before opening in a new window
+                // Pause any playing media to prevent duplicate audio
                 const mediaElements = modalContent.querySelectorAll('video, audio');
                 if (mediaElements.length > 0) {
                     mediaElements.forEach(el => el.pause());
                 }
-
+                // Build URL for fullscreen companion page. Preserve pathname but add fullscreen and key params.
                 const currentAssignment = state.assignments.find(a => a.key === state.playing?.key);
-                const mediaUrl = currentAssignment?.cloudinary_url || currentAssignment?.asset?.cloudinary_url;
-                if (mediaUrl) {
-                    // Open the media file directly in a new browser window/tab
-                    window.open(mediaUrl, '_blank');
-                } else {
-                    // Fallback: open a simple modal that indicates no media URL available
-                    alert('No media available to open in new window.');
+                const currentKey = state.playing?.key;
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('fullscreen', '1');
+                if (currentKey !== undefined && currentKey !== null) {
+                    currentUrl.searchParams.set('key', currentKey);
                 }
+                // Open the fullscreen version in a new tab/window. Use '_blank' to ensure a new window.
+                window.open(currentUrl.toString(), '_blank');
             });
             
             // Enhanced escape key support
