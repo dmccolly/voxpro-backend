@@ -1,23 +1,52 @@
+# =========================
+# Netlify configuration
+# =========================
+
 [build]
   publish   = "public"
   functions = "netlify/functions"
 
-# Deployment trigger Thu Sep 19 21:54:06 UTC 2025 - Force redeploy for URL mapping fix
-
+# Lock Node version for functions/runtime consistency
 [build.environment]
   NODE_VERSION = "18"
 
-# Frontend calls like /api/blog-posts-list → serverless functions
+# Map /api/* to serverless functions
 [[redirects]]
-  from = "/api/*"
-  to   = "/.netlify/functions/:splat"
+  from   = "/api/*"
+  to     = "/.netlify/functions/:splat"
   status = 200
   force  = true
 
-# CSP so TinyMCE loads
+# -------------------------------------------------
+# Default security headers for the whole site
+# (safe baseline; does NOT allow framing globally)
+# -------------------------------------------------
 [[headers]]
   for = "/*"
   [headers.values]
-  Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com https://cdn.tiny.cloud; img-src 'self' data: blob: https://res.cloudinary.com https://sp.tinymce.com https://cdn.tiny.cloud; media-src 'self' https://res.cloudinary.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://app.streamofdan.com https://*.netlify.app https://*.netlify/functions https://cdn.tiny.cloud https://api.webflow.com https://api.cloudinary.com; frame-src 'self' https://res.cloudinary.com https://docs.google.com; object-src 'none'; base-uri 'self'; form-action 'self'"
-  X-Content-Type-Options = "nosniff"
-  Referrer-Policy = "strict-origin-when-cross-origin"
+    # Default CSP baseline — NO framing here by default
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com https://cdn.tiny.cloud; img-src 'self' data: blob: https://res.cloudinary.com https://sp.tinymce.com https://cdn.tiny.cloud; media-src 'self' https://res.cloudinary.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.netlify.app https://*.netlify/functions https://cdn.tiny.cloud https://api.webflow.com https://api.cloudinary.com; object-src 'none'; base-uri 'self'; form-action 'self'"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy        = "strict-origin-when-cross-origin"
+
+# =================================================================
+# OVERRIDES for the player pages so they can be embedded anywhere
+# =================================================================
+
+# 1) Companion widget: allow framing anywhere and remove X-Frame-Options
+[[headers]]
+  for = "/voxpro-companion.html"
+  [headers.values]
+    # Remove legacy frame header so CSP controls framing
+    X-Frame-Options = ""
+    # Allow the companion to be embedded by ANY origin (no placeholders)
+    Content-Security-Policy = "default-src 'self'; frame-ancestors *; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com https://cdn.tiny.cloud; img-src 'self' data: blob: https://res.cloudinary.com https://sp.tinymce.com https://cdn.tiny.cloud; media-src 'self' https://res.cloudinary.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.netlify.app https://*.netlify/functions https://cdn.tiny.cloud https://api.webflow.com https://api.cloudinary.com; object-src 'none'; base-uri 'self'; form-action 'self'"
+
+# 2) Main player: identical override (if you embed voxpro.html too)
+[[headers]]
+  for = "/voxpro.html"
+  [headers.values]
+    X-Frame-Options = ""
+    Content-Security-Policy = "default-src 'self'; frame-ancestors *; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://cdn.tiny.cloud; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com https://cdn.tiny.cloud; img-src 'self' data: blob: https://res.cloudinary.com https://sp.tinymce.com https://cdn.tiny.cloud; media-src 'self' https://res.cloudinary.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.netlify.app https://*.netlify/functions https://cdn.tiny.cloud https://api.webflow.com https://api.cloudinary.com; object-src 'none'; base-uri 'self'; form-action 'self'"
+
+# (Optional) If you use other embed entry points, repeat an override block for them.
