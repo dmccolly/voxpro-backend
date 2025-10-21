@@ -1,22 +1,27 @@
-<!DOCTYPE html>
-<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoxPro Manager</title>
+    <title>VoxPro Companion Player</title>
+    
+    <!-- PDF.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    
+    <!-- Mammoth.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    
     <style>
         :root {
             --bg-primary: #0b1220;
-            --bg-secondary: #0f172a;
-            --bg-tertiary: #1f2937;
-            --text-primary: #e5e7eb;
-            --text-secondary: #9ca3af;
-            --text-accent: #10b981;
+            --bg-secondary: #1a2332;
+            --bg-tertiary: #2a3441;
             --accent: #667eea;
             --accent-secondary: #764ba2;
-            --success: #10b981;
-            --error: #ef4444;
-            --warning: #f59e0b;
+            --text-primary: #ffffff;
+            --text-secondary: #b0bec5;
+            --text-accent: #667eea;
+            --success: #4caf50;
+            --error: #f44336;
+            --warning: #ff9800;
         }
 
         * {
@@ -26,917 +31,1325 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
-            min-height: 100vh;
+            line-height: 1.6;
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+/* Companion player container styles.  Ensure the breakout modal
+   can escape the 400 px frame by allowing overflow to be visible. */
+.companion-player {
+    width: 400px;
+    max-width: 100%;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--bg-tertiary);
+    /* Allow breakout modal to escape container */
+    overflow: visible;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+        /* Modal Player Section */
+        .modal-section {
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--bg-primary);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--bg-tertiary);
+        }
+
+        .modal-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .modal-controls {
+            display: flex;
+            gap: 4px;
+        }
+
+        .modal-btn {
+            padding: 4px 8px;
+            background: var(--accent);
+            border: none;
+            border-radius: 3px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            min-width: 24px;
+        }
+
+        .modal-btn:hover {
+            background: var(--accent-secondary);
+        }
+
+        .modal-content {
+            padding: 12px;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-placeholder {
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .placeholder-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .placeholder-text {
+            font-size: 0.85rem;
+        }
+
+        .modal-content video,
+        .modal-content audio {
+            width: 100%;
+            max-height: 200px;
+            border-radius: 6px;
+        }
+
+        .modal-content img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 6px;
+        }
+
+        .modal-content iframe {
+            width: 100%;
+            height: 200px;
+            border: none;
+            border-radius: 6px;
+        }
+
+        .description-overlay {
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            width: 100%;
+            text-align: left;
+        }
+
+        /* Maximized state */
+        .modal-section.maximized {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
+            z-index: 1000;
+            border-radius: 8px;
+            background: var(--bg-primary);
+        }
+
+        .modal-section.maximized .modal-content {
+            height: calc(100% - 40px);
             padding: 20px;
-            min-height: 100vh;
         }
 
-        .panel {
-            background: var(--bg-secondary);
-            border: 1px solid var(--bg-tertiary);
-            border-radius: 12px;
-            padding: 20px;
-            height: fit-content;
+        .modal-section.maximized .modal-content video {
+            max-height: none;
+            height: calc(100% - 60px);
         }
 
-        .panel h2 {
+        /* Minimized state */
+        .modal-section.minimized .modal-content {
+            display: none;
+        }
+
+        /* Keys Section */
+        .keys-section {
+            padding: 12px;
+        }
+
+        .keys-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .keys-title {
+            font-size: 1rem;
+            font-weight: 600;
             color: var(--text-accent);
-            margin-bottom: 20px;
-            font-size: 1.5rem;
+        }
+
+        .stop-btn {
+            padding: 6px 12px;
+            background: var(--error);
+            border: none;
+            border-radius: 4px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
             font-weight: 600;
         }
 
-        /* Media Player Styles */
-        .key-grid {
+        .stop-btn:hover {
+            background: #d32f2f;
+        }
+
+        .keys-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-bottom: 20px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .keys-row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 12px;
         }
 
         .key-button {
-            padding: 20px;
-            border: 2px solid var(--bg-tertiary);
-            border-radius: 8px;
             background: var(--bg-tertiary);
-            color: var(--text-primary);
-            font-size: 1.1rem;
-            font-weight: 600;
+            border: 2px solid var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 8px 4px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
+            transition: all 0.2s ease;
+            text-align: center;
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
         .key-button:hover {
             border-color: var(--accent);
-        }
-
-        .key-button.assigned {
-            background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
-            border-color: var(--accent);
-            color: white;
+            background: rgba(102, 126, 234, 0.1);
         }
 
         .key-button.playing {
-            animation: pulse 2s infinite;
+            border-color: var(--success);
+            background: rgba(76, 175, 80, 0.1);
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-
-        .key-5 {
-            grid-column: 1 / -1;
-            max-width: 300px;
-            margin: 0 auto;
-        }
-
-        .stop-button {
-            grid-column: 1 / -1;
-            padding: 15px;
-            background: var(--error);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-
-        .connection-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 12px;
-            border-radius: 20px;
+        .key-number {
             font-size: 0.9rem;
-            font-weight: 500;
-            margin-bottom: 20px;
+            font-weight: bold;
+            color: var(--text-accent);
+            margin-bottom: 2px;
         }
 
-        .connection-status.connected {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
-        }
-
-        .connection-status.disconnected {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--error);
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-        }
-
-        /* Manager Styles */
-        .search-section {
-            margin-bottom: 25px;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 12px 16px;
-            background: var(--bg-primary);
-            border: 2px solid var(--bg-tertiary);
-            border-radius: 8px;
-            color: var(--text-primary);
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
-        .search-input::placeholder {
+        .key-title {
+            font-size: 0.7rem;
             color: var(--text-secondary);
+            line-height: 1.2;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
         }
 
-        .media-browser {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-bottom: 25px;
-            border: 1px solid var(--bg-tertiary);
-            border-radius: 8px;
+        /* Keys Assigned List */
+        .keys-list {
+            background: var(--bg-primary);
+            border-radius: 6px;
+            padding: 8px;
         }
 
-        .media-item {
+        .keys-list-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-accent);
+            margin-bottom: 6px;
+        }
+
+        .key-item {
             display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 4px 0;
             border-bottom: 1px solid var(--bg-tertiary);
-            cursor: pointer;
-            transition: background-color 0.2s ease;
         }
 
-        .media-item:hover {
-            background: var(--bg-tertiary);
-        }
-
-        .media-item.selected {
-            background: rgba(102, 126, 234, 0.2);
-            border-left: 4px solid var(--accent);
-        }
-
-        .media-item:last-child {
+        .key-item:last-child {
             border-bottom: none;
         }
 
-        .media-icon {
-            width: 40px;
-            height: 40px;
+        .key-item-number {
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: var(--text-accent);
+            min-width: 20px;
+            text-align: center;
             background: var(--bg-tertiary);
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
+            border-radius: 3px;
+            padding: 2px 4px;
         }
 
-        .media-info {
+        .key-item-content {
             flex: 1;
         }
 
-        .media-title {
+        .key-item-title {
+            font-size: 0.75rem;
             font-weight: 600;
             color: var(--text-primary);
             margin-bottom: 2px;
         }
 
-        .media-meta {
-            font-size: 0.85rem;
+        .key-item-description {
+            font-size: 0.7rem;
             color: var(--text-secondary);
+            line-height: 1.3;
         }
 
-        .form-section {
-            margin-bottom: 25px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 500;
-            color: var(--text-primary);
-        }
-
-        .form-input, .form-select, .form-textarea {
-            width: 100%;
-            padding: 10px 12px;
-            background: var(--bg-primary);
-            border: 2px solid var(--bg-tertiary);
-            border-radius: 6px;
-            color: var(--text-primary);
-            font-size: 0.95rem;
-            transition: border-color 0.3s ease;
-        }
-
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
-        .form-textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        .assign-button {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, var(--success), #059669);
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-bottom: 20px;
-        }
-
-        .assign-button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-
-        .assign-button:disabled {
-            background: var(--text-secondary);
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .assignments-section h3 {
-            color: var(--text-accent);
-            margin-bottom: 15px;
-            font-size: 1.2rem;
-        }
-
-        .assignment-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px;
-            background: var(--bg-primary);
-            border: 1px solid var(--bg-tertiary);
-            border-radius: 6px;
-            margin-bottom: 8px;
-        }
-
-        .assignment-key {
-            font-weight: 600;
-            color: var(--accent);
-        }
-
-        .remove-button {
-            padding: 4px 8px;
-            background: var(--error);
-            border: none;
-            border-radius: 4px;
-            color: white;
-            font-size: 0.8rem;
-            cursor: pointer;
-        }
-
-        .message {
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 15px;
-            font-weight: 500;
-            display: none;
-        }
-
-        .message.success {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .message.error {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--error);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-
-        .empty-state {
-            text-align: center;
-            color: var(--text-secondary);
-            font-style: italic;
-            padding: 20px;
-        }
-
-        /* Media Modal */
-        .media-modal {
-            display: none;
+        /* Status Messages */
+        .status-message {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .media-modal.show {
-            display: flex;
-        }
-
-        .modal-content {
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            padding: 20px;
-            max-width: 80%;
-            max-height: 80%;
-            overflow: auto;
-            position: relative;
-        }
-
-        .modal-close {
-            position: absolute;
-            top: 10px;
-            right: 15px;
-            background: none;
-            border: none;
-            color: var(--text-primary);
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-
-        .current-info {
-            background: var(--bg-tertiary);
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .current-title {
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 5px;
-        }
-
-        .current-meta {
-            color: var(--text-secondary);
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            color: white;
             font-size: 0.9rem;
+            z-index: 1001;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
         }
 
-        @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr;
-                padding: 10px;
-            }
-            
-            .key-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .key-5 {
-                grid-column: 1;
-            }
+        .status-message.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .status-message.success {
+            background: var(--success);
+        }
+
+        .status-message.error {
+            background: var(--error);
+        }
+
+        .status-message.warning {
+            background: var(--warning);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- VoxPro Media Player -->
-        <div class="panel">
-            <h2>VoxPro Media Player</h2>
-            
-            <div class="connection-status connected" id="connectionStatus">
-                <div class="status-dot"></div>
-                <span id="connectionText">Connected</span>
+    <div class="companion-player" id="companionPlayer">
+        <!-- Modal Player Section -->
+        <div class="modal-section" id="modalSection">
+            <div class="modal-header">
+                <span class="modal-title" id="modalTitle">VoxPro Player</span>
+                <div class="modal-controls">
+                    <button class="modal-btn" id="minimizeBtn" title="Minimize">−</button>
+                    <button class="modal-btn" id="maximizeBtn" title="Maximize">□</button>
+                    <button class="modal-btn" id="closeBtn" title="Close">×</button>
+                </div>
             </div>
-
-            <div class="key-grid">
-                <button class="key-button" data-key="1" id="key1">KEY 1</button>
-                <button class="key-button" data-key="2" id="key2">KEY 2</button>
-                <button class="key-button" data-key="3" id="key3">KEY 3</button>
-                <button class="key-button" data-key="4" id="key4">KEY 4</button>
-                <button class="key-button key-5" data-key="5" id="key5">KEY 5</button>
-                <button class="stop-button" id="stopButton">STOP</button>
-            </div>
-
-            <div class="current-info" id="currentInfo">
-                <div class="current-title" id="currentTitle"></div>
-                <div class="current-meta" id="currentMeta"></div>
-            </div>
-
-            <div class="assignments-section">
-                <h3>Current Key Assignments</h3>
-                <div id="assignmentsList">
-                    <div class="empty-state">No assignments yet</div>
+            <div class="modal-content" id="modalContent">
+                <div class="modal-placeholder">
+                    <div class="placeholder-icon">🎵</div>
+                    <div class="placeholder-text">Press a key to play media</div>
                 </div>
             </div>
         </div>
 
-        <!-- VoxPro Manager -->
-        <div class="panel">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0;">VoxPro Manager</h2>
-                <a href="/file-manager.html" target="_blank" 
-                   style="padding: 8px 16px; background: linear-gradient(135deg, var(--accent), var(--accent-secondary)); 
-                          color: white; text-decoration: none; border-radius: 6px; font-weight: 500; 
-                          transition: transform 0.2s ease;">
-                    📁 Upload Files
-                </a>
+        <!-- Keys Section -->
+        <div class="keys-section">
+            <div class="keys-header">
+                <span class="keys-title">VoxPro Keys</span>
             </div>
             
-            <div class="message" id="messageBox"></div>
-
-            <div class="search-section">
-                <label class="form-label">Search Media (title, description, station, tags)</label>
-                <input type="text" class="search-input" id="searchInput" placeholder="Type to search... or leave empty for recent">
+            <div class="keys-grid" id="keysGrid">
+                <!-- Keys 1-3 will be populated by JavaScript -->
+            </div>
+            
+            <div class="keys-row-2" id="keysRow2">
+                <!-- Keys 4-5 and STOP button will be populated by JavaScript -->
             </div>
 
-            <div class="media-browser" id="mediaBrowser">
-                <div class="empty-state">Loading media...</div>
-            </div>
-
-            <div class="form-section">
-                <div class="form-group">
-                    <label class="form-label">Select Key Slot</label>
-                    <select class="form-select" id="keySelect">
-                        <option value="">Choose a key...</option>
-                        <option value="1">Key 1</option>
-                        <option value="2">Key 2</option>
-                        <option value="3">Key 3</option>
-                        <option value="4">Key 4</option>
-                        <option value="5">Key 5</option>
-                    </select>
+            <div class="keys-list">
+                <div class="keys-list-title">Keys Assigned</div>
+                <div id="keysList">
+                    <!-- Key assignments will be populated by JavaScript -->
                 </div>
-
-                <div class="form-group">
-                    <label class="form-label">Title</label>
-                    <input type="text" class="form-input" id="titleInput" placeholder="Title">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Description</label>
-                    <textarea class="form-textarea" id="descriptionInput" placeholder="Description"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Station</label>
-                    <input type="text" class="form-input" id="stationInput" placeholder="Station">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Tags</label>
-                    <input type="text" class="form-input" id="tagsInput" placeholder="Comma-separated">
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Submitted By</label>
-                    <input type="text" class="form-input" id="submittedByInput" placeholder="Name or initials">
-                </div>
-
-                <button class="assign-button" id="assignButton">Assign / Update Key</button>
             </div>
         </div>
     </div>
 
-    <!-- Media Modal -->
-    <div class="media-modal" id="mediaModal">
-        <div class="modal-content">
-            <button class="modal-close" id="modalClose">&times;</button>
-            <div id="mediaPlayer">
-                <div style="color: var(--text-secondary);">Media stopped</div>
-            </div>
-        </div>
-    </div>
+    <!-- Status Messages -->
+    <div class="status-message" id="statusMessage"></div>
 
     <script>
-        // Configuration
-        const XANO_PROXY_BASE = '/.netlify/functions/xano-proxy';
-        const LIST_MEDIA_ENDPOINT = '/.netlify/functions/list-media';
-        const ASSIGNMENTS_REFRESH_MS = 30000;
+        // VoxPro Companion Player JavaScript
+        const state = {
+            assignments: [],
+            mediaList: [],
+            playing: null,
+            currentModal: null,
+            modalState: 'normal' // normal, minimized, maximized, breakout
+        };
 
-        // Global variables
-        let selectedMedia = null;
-        let mediaList = [];
-        let assignments = [];
-        let playing = null;
+        const elements = {
+            modalSection: document.getElementById('modalSection'),
+            modalTitle: document.getElementById('modalTitle'),
+            modalContent: document.getElementById('modalContent'),
+            minimizeBtn: document.getElementById('minimizeBtn'),
+            maximizeBtn: document.getElementById('maximizeBtn'),
+            closeBtn: document.getElementById('closeBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            keysGrid: document.getElementById('keysGrid'),
+            keysList: document.getElementById('keysList'),
+            statusMessage: document.getElementById('statusMessage')
+        };
 
-        // DOM elements
-        let connectionStatus, connectionText, messageBox;
-        let searchInput, mediaBrowser, keySelect, titleInput, descriptionInput, stationInput, tagsInput, submittedByInput;
-        let assignButton, assignmentsList, keyButtons, stopButton, mediaModal, modalClose, mediaPlayer, currentInfo, currentTitle, currentMeta;
-
-        // Utility functions
-        function showMessage(type, message) {
-            messageBox.textContent = message;
-            messageBox.className = `message ${type}`;
-            messageBox.style.display = 'block';
-            setTimeout(() => {
-                messageBox.style.display = 'none';
-            }, 5000);
-        }
-
-        function setConnectionStatus(connected) {
-            connectionStatus.className = `connection-status ${connected ? 'connected' : 'disconnected'}`;
-            connectionText.textContent = connected ? 'Connected' : 'Disconnected';
-        }
-
-        async function xanoRequest(endpoint, opts = {}) {
+        // Initialize the companion player
+        async function initCompanionPlayer() {
             try {
-                const response = await fetch(`${XANO_PROXY_BASE}${endpoint}`, {
-                    headers: { 'Content-Type': 'application/json' },
-                    ...opts
+                console.log('Initializing VoxPro Companion Player...');
+                
+                // Load media list first, then assignments
+                await loadMediaList();
+                await loadAssignments();
+                
+                renderKeys();
+                renderKeysList();
+                attachEventListeners();
+                
+                // Set up parent window handler for iframe breakout
+                createParentWindowHandler();
+                
+                showMessage('success', 'VoxPro Companion Player Ready');
+            } catch (error) {
+                console.error('Failed to initialize companion player:', error);
+                showMessage('error', 'Failed to load VoxPro data');
+            }
+        }
+
+        // Load assignments from API
+        async function loadAssignments() {
+            try {
+                console.log('Loading assignments...');
+                
+                const response = await fetch('/.netlify/functions/xano-proxy/voxpro_assignments', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`${response.status} ${response.statusText}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
                 const data = await response.json();
-                setConnectionStatus(true);
-                return data;
-            } catch (error) {
-                setConnectionStatus(false);
-                showMessage('error', `API Error: ${error.message}`);
-                return null;
-            }
-        }
-
-        // Media functions - Filter out test data
-        async function loadMedia(query = '') {
-            try {
-                // Use list-media endpoint with cache busting
-                const cacheBuster = `?t=${Date.now()}&_r=${Math.random()}`;
-                const response = await fetch(`${LIST_MEDIA_ENDPOINT}${cacheBuster}`, {
-                    cache: 'no-cache',
-                    headers: {
-                        'Cache-Control': 'no-cache',
-                        'Pragma': 'no-cache'
-                    }
+                let assignments = Array.isArray(data) ? data : [];
+                
+                // Enrich assignments with media data
+                const enrichedAssignments = assignments.map(assignment => {
+                    const mediaItem = state.mediaList.find(media => media.id === assignment.asset_id);
+                    return {
+                        ...assignment,
+                        title: assignment.title || mediaItem?.title || 'Unknown',
+                        description: assignment.description || mediaItem?.description || '',
+                        cloudinary_url: assignment.cloudinary_url || mediaItem?.cloudinary_url || mediaItem?.file_url || mediaItem?.database_url || mediaItem?.media_url,
+                        file_type: assignment.file_type || mediaItem?.file_type
+                    };
                 });
                 
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                
-                let data = await response.json();
-                
-                // FILTER OUT EMPTY/TEST DATA
-                mediaList = data.filter(item => {
-                    // Must have actual file size
-                    if (!item.file_size || item.file_size === 0 || item.file_size < 100) {
-                        console.log(`Filtering out: ${item.title || 'Untitled'} - No/small file size`);
-                        return false;
-                    }
-                    
-                    // Must have a media URL (Cloudinary or file_url)
-                    if (!item.cloudinary_url && !item.file_url && !item.media_url) {
-                        console.log(`Filtering out: ${item.title || 'Untitled'} - No media URL`);
-                        return false;
-                    }
-                    
-                    return true;
-                });
-                
-                console.log(`Loaded ${data.length} total items, kept ${mediaList.length} valid media files`);
-                
-                // Filter by search query if provided
-                if (query) {
-                    mediaList = mediaList.filter(item => {
-                        const searchText = [
-                            item.title || '',
-                            item.description || '',
-                            item.station || '',
-                            item.tags || '',
-                            item.submitted_by || ''
-                        ].join(' ').toLowerCase();
-                        
-                        return searchText.includes(query.toLowerCase());
-                    });
-                }
-                
-                renderMediaBrowser();
-                setConnectionStatus(true);
-            } catch (error) {
-                console.error('Load media error:', error);
-                showMessage('error', 'Failed to load media');
-                setConnectionStatus(false);
-            }
-        }
-
-        function renderMediaBrowser() {
-            if (!mediaList || mediaList.length === 0) {
-                mediaBrowser.innerHTML = '<div class="empty-state">No media found</div>';
-                return;
-            }
-
-            mediaBrowser.innerHTML = mediaList.map(item => {
-                const icon = getMediaIcon(item.file_type || item.category || '');
-                return `
-                    <div class="media-item" data-id="${item.id}" onclick="selectMedia(${item.id})">
-                        <div class="media-icon">${icon}</div>
-                        <div class="media-info">
-                            <div class="media-title">${item.title || 'Untitled'}</div>
-                            <div class="media-meta">${item.station || 'Unknown'} • ${item.category || 'Media'}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function getMediaIcon(fileType) {
-            const type = (fileType || '').toLowerCase();
-            if (type.includes('audio')) return '🎵';
-            if (type.includes('video')) return '🎬';
-            if (type.includes('image')) return '🖼️';
-            if (type.includes('photo')) return '📷';
-            return '📁';
-        }
-
-        function selectMedia(id) {
-            selectedMedia = mediaList.find(m => m.id === id);
-            if (!selectedMedia) return;
-
-            // Remove previous selection
-            document.querySelectorAll('.media-item').forEach(item => {
-                item.classList.remove('selected');
-            });
-
-            // Add selection to clicked item
-            const selectedItem = document.querySelector(`[data-id="${id}"]`);
-            if (selectedItem) {
-                selectedItem.classList.add('selected');
-            }
-
-            // Populate form
-            titleInput.value = selectedMedia.title || '';
-            descriptionInput.value = selectedMedia.description || '';
-            stationInput.value = selectedMedia.station || '';
-            tagsInput.value = selectedMedia.tags || '';
-            submittedByInput.value = selectedMedia.submitted_by || '';
-        }
-
-        // Assignment functions
-        async function loadAssignments() {
-            try {
-                const data = await xanoRequest('/voxpro_assignments');
-                assignments = Array.isArray(data) ? data : [];
-                renderAssignments();
-                updateKeyButtons();
+                state.assignments = enrichedAssignments;
+                console.log('Assignments loaded and enriched:', state.assignments);
             } catch (error) {
                 console.error('Load assignments error:', error);
+                state.assignments = [];
             }
         }
 
-        function renderAssignments() {
-            if (!assignments || assignments.length === 0) {
-                assignmentsList.innerHTML = '<div class="empty-state">No assignments yet</div>';
-                return;
-            }
-
-            assignmentsList.innerHTML = assignments.map(assignment => `
-                <div class="assignment-item">
-                    <span class="assignment-key">Key ${assignment.key_number} — ${assignment.asset?.title || assignment.title || 'Unknown'}</span>
-                    <button class="remove-button" onclick="deleteAssignment(${assignment.id})">×</button>
-                </div>
-            `).join('');
-        }
-
-        function updateKeyButtons() {
-            keyButtons.forEach(button => {
-                const keyNum = parseInt(button.dataset.key);
-                const assignment = assignments.find(a => parseInt(a.key_number) === keyNum);
-                
-                if (assignment) {
-                    button.classList.add('assigned');
-                } else {
-                    button.classList.remove('assigned');
-                }
-            });
-        }
-
-        async function createAssignment() {
-            if (!selectedMedia) {
-                showMessage('error', 'Please select a media item first');
-                return;
-            }
-            
-            const keySlot = keySelect.value;
-            if (!keySlot) {
-                showMessage('error', 'Please select a key slot');
-                return;
-            }
-            
+        // Load media list from API
+        async function loadMediaList() {
             try {
-                const assignmentData = {
-                    asset_id: selectedMedia.id,
-                    key_number: parseInt(keySlot),
-                    title: titleInput.value || selectedMedia.title,
-                    description: descriptionInput.value || selectedMedia.description,
-                    station: stationInput.value || selectedMedia.station,
-                    tags: tagsInput.value || selectedMedia.tags,
-                    submitted_by: submittedByInput.value || selectedMedia.submitted_by
-                };
+                console.log('Loading media list...');
                 
-                await xanoRequest('/voxpro_assignments', {
-                    method: 'POST',
-                    body: JSON.stringify(assignmentData)
+                const response = await fetch('/.netlify/functions/xano-proxy/user_submission', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
                 });
                 
-                showMessage('success', 'Assignment created successfully!');
-                await loadAssignments();
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
                 
-                // Clear form
-                keySelect.value = '';
+                const data = await response.json();
+                state.mediaList = Array.isArray(data) ? data.map(item => ({
+                    ...item,
+                    title: item.title || item.name || 'Untitled',
+                    description: item.description || '',
+                    file_type: item.file_type || 'unknown'
+                })) : [];
                 
+                console.log('Media list loaded:', state.mediaList);
             } catch (error) {
-                console.error('Create assignment failed:', error);
-                showMessage('error', `Assignment failed: ${error.message}`);
+                console.error('Error loading media list:', error);
+                state.mediaList = [];
             }
         }
 
-        async function deleteAssignment(assignmentId) {
-            if (!confirm('Are you sure you want to remove this assignment?')) return;
+        // Render key buttons
+        function renderKeys() {
+            const keysGrid = elements.keysGrid;
+            const keysRow2 = document.getElementById('keysRow2');
+            keysGrid.innerHTML = '';
+            keysRow2.innerHTML = '';
             
-            try {
-                await xanoRequest(`/voxpro_assignments/${assignmentId}`, { method: 'DELETE' });
-                showMessage('success', 'Assignment removed successfully!');
-                await loadAssignments();
-            } catch (error) {
-                console.error('Delete assignment failed:', error);
-                showMessage('error', `Delete failed: ${error.message}`);
+            // Render keys 1-3 in first row
+            for (let i = 1; i <= 3; i++) {
+                const assignment = state.assignments.find(a => parseInt(a.key_number) === i);
+                const keyButton = document.createElement('div');
+                keyButton.className = 'key-button';
+                keyButton.id = `key${i}`;
+                keyButton.onclick = () => playForKey(i);
+                
+                const keyNumber = document.createElement('div');
+                keyNumber.className = 'key-number';
+                keyNumber.textContent = i;
+                
+                const keyTitle = document.createElement('div');
+                keyTitle.className = 'key-title';
+                keyTitle.textContent = assignment ? (assignment.title || 'Untitled') : 'Empty';
+                
+                keyButton.appendChild(keyNumber);
+                keyButton.appendChild(keyTitle);
+                keysGrid.appendChild(keyButton);
+            }
+            
+            // Render keys 4-5 in second row
+            for (let i = 4; i <= 5; i++) {
+                const assignment = state.assignments.find(a => parseInt(a.key_number) === i);
+                const keyButton = document.createElement('div');
+                keyButton.className = 'key-button';
+                keyButton.id = `key${i}`;
+                keyButton.onclick = () => playForKey(i);
+                
+                const keyNumber = document.createElement('div');
+                keyNumber.className = 'key-number';
+                keyNumber.textContent = i;
+                
+                const keyTitle = document.createElement('div');
+                keyTitle.className = 'key-title';
+                keyTitle.textContent = assignment ? (assignment.title || 'Untitled') : 'Empty';
+                
+                keyButton.appendChild(keyNumber);
+                keyButton.appendChild(keyTitle);
+                keysRow2.appendChild(keyButton);
+            }
+            
+            // Add STOP button to second row
+            const stopButton = document.createElement('div');
+            stopButton.className = 'key-button stop-btn';
+            stopButton.id = 'stopBtn';
+            stopButton.onclick = () => stopPlayback();
+            stopButton.style.background = 'var(--error)';
+            stopButton.style.color = 'white';
+            
+            const stopText = document.createElement('div');
+            stopText.className = 'key-number';
+            stopText.textContent = 'STOP';
+            stopText.style.fontSize = '0.7rem';
+            
+            stopButton.appendChild(stopText);
+            keysRow2.appendChild(stopButton);
+        }
+
+        // Render keys assigned list
+        function renderKeysList() {
+            const keysList = elements.keysList;
+            keysList.innerHTML = '';
+            
+            for (let i = 1; i <= 5; i++) {
+                const assignment = state.assignments.find(a => parseInt(a.key_number) === i);
+                
+                const keyItem = document.createElement('div');
+                keyItem.className = 'key-item';
+                
+                const keyNumber = document.createElement('div');
+                keyNumber.className = 'key-item-number';
+                keyNumber.textContent = i;
+                
+                const keyContent = document.createElement('div');
+                keyContent.className = 'key-item-content';
+                
+                const keyTitle = document.createElement('div');
+                keyTitle.className = 'key-item-title';
+                keyTitle.textContent = assignment ? (assignment.title || 'Untitled') : 'Empty';
+                
+                const keyDescription = document.createElement('div');
+                keyDescription.className = 'key-item-description';
+                keyDescription.textContent = assignment ? (assignment.description || 'No description') : 'No assignment';
+                
+                keyContent.appendChild(keyTitle);
+                keyContent.appendChild(keyDescription);
+                keyItem.appendChild(keyNumber);
+                keyItem.appendChild(keyContent);
+                keysList.appendChild(keyItem);
             }
         }
 
-        // Media playback functions
+        // Play media for specific key
         async function playForKey(keyNum) {
-            const assignment = assignments.find(a => parseInt(a.key_number) === parseInt(keyNum));
+            const assignment = state.assignments.find(a => parseInt(a.key_number) === parseInt(keyNum));
+            
             if (!assignment) {
                 showMessage('error', `No media assigned to Key ${keyNum}`);
                 return;
             }
             
-            // Get the media URL
-            const mediaUrl = assignment.asset?.cloudinary_url || 
-                           assignment.asset?.file_url || 
-                           assignment.asset?.media_url ||
-                           assignment.cloudinary_url ||
-                           assignment.file_url;
+            const mediaUrl = assignment.cloudinary_url ||
+                            assignment.asset?.cloudinary_url ||
+                            assignment.asset?.file_url ||
+                            assignment.asset?.database_url;
             
             if (!mediaUrl) {
-                showMessage('error', 'No media URL found for this assignment');
+                showMessage('error', 'No media URL found');
                 return;
             }
             
-            // Show playing state
-            keyButtons.forEach(btn => btn.classList.remove('playing'));
-            document.getElementById(`key${keyNum}`).classList.add('playing');
+            // Visual feedback
+            document.querySelectorAll('.key-button').forEach(btn => btn.classList.remove('playing'));
+            document.getElementById(`key${keyNum}`)?.classList.add('playing');
             
-            // Update current info
-            currentInfo.style.display = 'block';
-            currentTitle.textContent = assignment.title || assignment.asset?.title || 'Untitled';
-            currentMeta.textContent = `${assignment.station || 'Unknown'} • Key ${keyNum}`;
+            // Show media in modal
+            showMediaInModal(assignment, mediaUrl);
             
-            // Create media element based on type
+            state.playing = { key: keyNum, assignmentId: assignment.id };
+            showMessage('success', `Playing: ${assignment.title || 'Media'}`);
+        }
+
+        // Show media in modal
+        async function showMediaInModal(assignment, mediaUrl) {
+            const modalContent = elements.modalContent;
+            const modalTitle = elements.modalTitle;
+            
+            modalTitle.textContent = assignment.title || 'Media Player';
+            modalContent.innerHTML = '';
+            
+            // Determine media type
             const fileType = (assignment.file_type || assignment.asset?.file_type || '').toLowerCase();
-            let mediaElement;
             
-            if (fileType.includes('audio')) {
-                mediaElement = document.createElement('audio');
-                mediaElement.controls = true;
-                mediaElement.autoplay = true;
-            } else if (fileType.includes('video')) {
-                mediaElement = document.createElement('video');
-                mediaElement.controls = true;
-                mediaElement.autoplay = true;
-                mediaElement.style.width = '100%';
-            } else if (fileType.includes('image') || fileType.includes('photo')) {
-                mediaElement = document.createElement('img');
-                mediaElement.style.width = '100%';
+            if (fileType === 'video' || fileType.includes('video') || mediaUrl.toLowerCase().match(/\.(mp4|webm|ogg|avi|mov|wmv|flv|mkv)$/)) {
+                // Video playback
+                const video = document.createElement('video');
+                video.src = mediaUrl;
+                video.controls = true;
+                video.autoplay = true;
+                modalContent.appendChild(video);
+            } else if (fileType === 'audio' || fileType.includes('audio') || mediaUrl.toLowerCase().match(/\.(mp3|wav|ogg|aac|flac|m4a)$/)) {
+                // Audio playback
+                const audio = document.createElement('audio');
+                audio.src = mediaUrl;
+                audio.controls = true;
+                audio.autoplay = true;
+                modalContent.appendChild(audio);
+            } else if (fileType === 'image' || fileType.includes('image') || mediaUrl.toLowerCase().match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) {
+                // Image display
+                const img = document.createElement('img');
+                img.src = mediaUrl;
+                img.alt = assignment.title || 'Image';
+                modalContent.appendChild(img);
+            } else if (fileType === 'pdf' || mediaUrl.toLowerCase().includes('.pdf')) {
+                // PDF display using proxy
+                try {
+                    await renderPDF(mediaUrl, modalContent, assignment);
+                } catch (error) {
+                    console.error('PDF rendering failed:', error);
+                    // Fallback to iframe
+                    const iframe = document.createElement('iframe');
+                    iframe.src = mediaUrl;
+                    modalContent.appendChild(iframe);
+                }
+            } else if (fileType === 'docx' || mediaUrl.toLowerCase().match(/\.(docx?|doc)$/)) {
+                // DOCX display
+                try {
+                    await renderDOCX(mediaUrl, modalContent, assignment);
+                } catch (error) {
+                    console.error('DOCX rendering failed:', error);
+                    // Fallback to iframe
+                    const iframe = document.createElement('iframe');
+                    iframe.src = mediaUrl;
+                    modalContent.appendChild(iframe);
+                }
             } else {
-                // Default to audio
-                mediaElement = document.createElement('audio');
-                mediaElement.controls = true;
-                mediaElement.autoplay = true;
+                // Generic document display
+                const iframe = document.createElement('iframe');
+                iframe.src = mediaUrl;
+                modalContent.appendChild(iframe);
             }
             
-            mediaElement.src = mediaUrl;
+            // Add description if available
+            if (assignment.description) {
+                const description = document.createElement('div');
+                description.className = 'description-overlay';
+                description.textContent = assignment.description;
+                modalContent.appendChild(description);
+            }
             
-            // Show in modal
-            mediaPlayer.innerHTML = '';
-            mediaPlayer.appendChild(mediaElement);
-            mediaModal.classList.add('show');
+            // Reset modal state
+            state.modalState = 'normal';
+            elements.modalSection.classList.remove('minimized', 'maximized');
+            elements.maximizeBtn.textContent = '□';
+            elements.maximizeBtn.title = 'Maximize';
             
-            playing = { key: keyNum, assignmentId: assignment.id };
-            
-            showMessage('success', `Playing: ${assignment.title || assignment.asset?.title || 'Unknown'}`);
+            // Setup modal controls after media is loaded
+            setupModalControls();
         }
 
+        // Render PDF using PDF.js
+        async function renderPDF(url, container, assignment) {
+            try {
+                // Configure PDF.js worker
+                if (typeof pdfjsLib !== 'undefined') {
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+                }
+                
+                const proxyUrl = `/.netlify/functions/fetch-media?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Proxy fetch failed: ${response.status} ${response.statusText}`);
+                }
+                
+                const contentType = response.headers.get('content-type') || '';
+                console.log('Received content type:', contentType);
+                
+                // Check if we received image data (from Cloudinary f_auto transformation)
+                if (contentType.startsWith('image/')) {
+                    console.log('Received image data, displaying as image instead of PDF');
+                    
+                    container.innerHTML = '';
+                    container.style.cssText = `
+                        width: 100%; height: 300px; border: none; border-radius: 4px;
+                        overflow: auto; background: #f5f5f5; padding: 10px; display: flex;
+                        flex-direction: column; align-items: center;
+                    `;
+                    
+                    const img = document.createElement('img');
+                    img.style.cssText = 'max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
+                    img.src = proxyUrl;
+                    img.alt = 'Document preview';
+                    
+                    container.appendChild(img);
+                    
+                    const info = document.createElement('div');
+                    info.style.cssText = 'text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;';
+                    info.textContent = `${assignment.title || 'PDF Document'} - Converted to image for preview`;
+                    container.appendChild(info);
+                    
+                    console.log('Document displayed as image successfully');
+                    return;
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                
+                const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+                const pdf = await loadingTask.promise;
+                
+                container.innerHTML = '';
+                container.style.cssText = `
+                    width: 100%; height: 300px; border: none; border-radius: 4px;
+                    overflow-y: auto; background: #f5f5f5; padding: 10px;
+                `;
+                
+                const page = await pdf.getPage(1);
+                const scale = 1.2;
+                const viewport = page.getViewport({ scale: scale });
+                
+                // Create canvas for PDF rendering
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                canvas.style.cssText = 'max-width: 100%; height: auto; display: block; margin: 0 auto;';
+                
+                const renderContext = {
+                    canvasContext: context,
+                    viewport: viewport
+                };
+                
+                await page.render(renderContext).promise;
+                container.appendChild(canvas);
+                
+                const pageInfo = document.createElement('div');
+                pageInfo.style.cssText = 'text-align: center; margin-top: 10px; color: var(--text-secondary); font-size: 0.9rem;';
+                pageInfo.textContent = `${assignment.title || 'PDF Document'} - Page 1 of ${pdf.numPages}`;
+                container.appendChild(pageInfo);
+            } catch (error) {
+                console.error('PDF rendering error:', error);
+                
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
+                        <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${assignment.title || 'PDF Document'}</div>
+                        <div style="color: var(--text-secondary);">Unable to display PDF</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Render DOCX using Mammoth.js
+        async function renderDOCX(url, container, assignment) {
+            try {
+                const proxyUrl = `/.netlify/functions/fetch-media?url=${encodeURIComponent(url)}`;
+                const response = await fetch(proxyUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Proxy fetch failed: ${response.status} ${response.statusText}`);
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                
+                const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+                
+                container.innerHTML = `
+                    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6;">
+                        <h3 style="margin-top: 0; color: var(--text-primary); border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                            ${assignment.title || 'Document'}
+                        </h3>
+                        <div style="background: white; padding: 20px; border-radius: 6px; max-height: 300px; overflow-y: auto; color: black;">
+                            ${result.value}
+                        </div>
+                    </div>
+                `;
+                
+                console.log('DOCX rendered successfully');
+            } catch (error) {
+                console.error('DOCX rendering error:', error);
+                
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div style="font-size: 3rem; margin-bottom: 16px;">📄</div>
+                        <div style="font-size: 1.1rem; margin-bottom: 12px; color: var(--text-primary);">${assignment.title || 'Document'}</div>
+                        <div style="color: var(--text-secondary);">Unable to display document</div>
+                    </div>
+                `;
+            }
+        }
+
+        // Stop playback
         function stopPlayback() {
-            playing = null;
-            keyButtons.forEach(btn => btn.classList.remove('playing'));
-            mediaModal.classList.remove('show');
-            
             // Stop all media elements
-            mediaPlayer.querySelectorAll('audio, video').forEach(el => {
-                try {
-                    el.pause();
-                    el.currentTime = 0;
-                } catch (e) {}
+            const mediaElements = elements.modalContent.querySelectorAll('video, audio');
+            mediaElements.forEach(element => {
+                element.pause();
+                element.currentTime = 0;
             });
             
-            mediaPlayer.innerHTML = '<div style="color: var(--text-secondary);">Media stopped</div>';
-            currentInfo.style.display = 'none';
+            // Clear visual feedback
+            document.querySelectorAll('.key-button').forEach(btn => btn.classList.remove('playing'));
+            
+            // Reset modal
+            elements.modalTitle.textContent = 'VoxPro Player';
+            elements.modalContent.innerHTML = `
+                <div class="modal-placeholder">
+                    <div class="placeholder-icon">🎵</div>
+                    <div class="placeholder-text">Press a key to play media</div>
+                </div>
+            `;
+            
+            state.playing = null;
+            state.modalState = 'normal';
+            elements.modalSection.classList.remove('minimized', 'maximized');
+            elements.maximizeBtn.textContent = '□';
+            elements.maximizeBtn.title = 'Maximize';
+            
+            showMessage('success', 'Playback stopped');
         }
 
-        // Initialization function
-        async function init() {
-            // Get DOM elements
-            connectionStatus = document.getElementById('connectionStatus');
-            connectionText = document.getElementById('connectionText');
-            messageBox = document.getElementById('messageBox');
-            searchInput = document.getElementById('searchInput');
-            mediaBrowser = document.getElementById('mediaBrowser');
-            keySelect = document.getElementById('keySelect');
-            titleInput = document.getElementById('titleInput');
-            descriptionInput = document.getElementById('descriptionInput');
-            stationInput = document.getElementById('stationInput');
-            tagsInput = document.getElementById('tagsInput');
-            submittedByInput = document.getElementById('submittedByInput');
-            assignButton = document.getElementById('assignButton');
-            assignmentsList = document.getElementById('assignmentsList');
-            keyButtons = document.querySelectorAll('.key-button');
-            stopButton = document.getElementById('stopButton');
-            mediaModal = document.getElementById('mediaModal');
-            modalClose = document.getElementById('modalClose');
-            mediaPlayer = document.getElementById('mediaPlayer');
-            currentInfo = document.getElementById('currentInfo');
-            currentTitle = document.getElementById('currentTitle');
-            currentMeta = document.getElementById('currentMeta');
-
-            // Set initial connection status
-            setConnectionStatus(false);
-
-            // Attach event listeners
-            searchInput.addEventListener('input', e => loadMedia(e.target.value.trim()));
+        // Show status message
+        function showMessage(type, message) {
+            const statusMessage = elements.statusMessage;
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.classList.add('show');
             
-            keyButtons.forEach(btn => {
-                btn.addEventListener('click', () => playForKey(btn.dataset.key));
-            });
-            
-            stopButton.addEventListener('click', stopPlayback);
-            modalClose.addEventListener('click', stopPlayback);
-            mediaModal.addEventListener('click', (e) => {
-                if (e.target === mediaModal) stopPlayback();
-            });
+            setTimeout(() => {
+                statusMessage.classList.remove('show');
+            }, 3000);
+        }
 
-            assignButton.addEventListener('click', createAssignment);
+        // Attach event listeners
+        function attachEventListeners() {
+            // Update elements cache to include dynamically created elements
+            elements.stopBtn = document.getElementById('stopBtn');
+            
+            // Modal controls
+            if (elements.closeBtn) {
+                elements.closeBtn.addEventListener('click', () => {
+                    stopPlayback();
+                });
+            }
+            
+            if (elements.stopBtn) {
+                elements.stopBtn.addEventListener('click', () => {
+                    stopPlayback();
+                });
+            }
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
+                // Only handle shortcuts if not typing in an input field
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                
                 if (e.key >= '1' && e.key <= '5') {
-                    const button = document.querySelector(`[data-key="${e.key}"]`);
-                    if (button) button.click();
-                }
-                if (e.key === 'Escape' || e.key === ' ') {
+                    e.preventDefault();
+                    playForKey(parseInt(e.key));
+                } else if (e.key === ' ') {
                     e.preventDefault();
                     stopPlayback();
                 }
             });
-
-            // Load initial data
-            await loadMedia();
-            await loadAssignments();
-            
-            // Set up periodic refresh
-            setInterval(loadAssignments, ASSIGNMENTS_REFRESH_MS);
         }
 
-        // Make functions available globally for onclick handlers
-        window.selectMedia = selectMedia;
-        window.deleteAssignment = deleteAssignment;
+        // Enhanced modal controls with escape key support and iframe breakout
+        function setupModalControls() {
+            const modal = elements.modalSection;
+            const minimizeBtn = elements.minimizeBtn;
+            const maximizeBtn = elements.maximizeBtn;
+            const closeBtn = elements.closeBtn;
+            
+            let isMaximized = false;
+            let originalStyles = {};
+            
+            // Override minimize functionality
+            minimizeBtn.removeEventListener('click', minimizeBtn.onclick);
+            minimizeBtn.addEventListener('click', () => {
+                const modalContent = elements.modalContent;
+                modal.style.height = '60px';
+                modalContent.style.display = 'none';
+                minimizeBtn.style.display = 'none';
+                maximizeBtn.textContent = '□';
+                isMaximized = false;
+                state.modalState = 'minimized';
+            });
+            
+            // Override maximize functionality
+            maximizeBtn.removeEventListener('click', maximizeBtn.onclick);
+            maximizeBtn.addEventListener('click', () => {
+                const modalContent = elements.modalContent;
+                
+                if (isMaximized) {
+                    // Check if we're in iframe breakout mode
+                    if (state.modalState === 'breakout') {
+                        // Send message to parent to close breakout modal
+                        if (window.parent && window.parent !== window) {
+                            window.parent.postMessage({
+                                type: 'voxpro-close-breakout',
+                                source: 'voxpro-companion'
+                            }, '*');
+                        }
+                        state.modalState = 'normal';
+                        isMaximized = false;
+                        maximizeBtn.textContent = '□';
+                        return;
+                    }
+                    
+                    // Restore to normal size
+                    modal.style.cssText = originalStyles.modal || '';
+                    modalContent.style.cssText = originalStyles.content || '';
+                    modalContent.style.display = 'block';
+                    minimizeBtn.style.display = 'inline-block';
+                    maximizeBtn.textContent = '□';
+                    isMaximized = false;
+                    state.modalState = 'normal';
+                } else {
+                    // Always create breakout modal to escape container constraints.
+                    // Determine current playback state and pause any playing media.
+                    const currentAssignment = state.assignments.find(a => a.key === state.playing?.key);
+                    const mediaElements = modalContent.querySelectorAll('video, audio');
+                    let currentTime = 0;
+                    let wasPlaying = false;
+                    if (mediaElements.length > 0) {
+                        const firstMedia = mediaElements[0];
+                        currentTime = firstMedia.currentTime || 0;
+                        wasPlaying = !firstMedia.paused;
+                        mediaElements.forEach(el => el.pause());
+                    }
 
-        // Start the application
-        document.addEventListener('DOMContentLoaded', init);
+                    const breakoutData = {
+                        assignment: currentAssignment,
+                        modalTitle: elements.modalTitle.textContent,
+                        modalContent: modalContent.innerHTML,
+                        currentTime: currentTime,
+                        wasPlaying: wasPlaying,
+                        mediaUrl: currentAssignment?.cloudinary_url || currentAssignment?.asset?.cloudinary_url
+                    };
+
+                    console.log('Creating breakout modal with data:', breakoutData);
+
+                    // If this widget is running inside an iframe, instruct the parent window
+                    // to open the breakout modal. Otherwise, open it in the current window.
+                    if (window.parent && window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'voxpro-breakout-modal',
+                            data: breakoutData,
+                            source: 'voxpro-companion'
+                        }, '*');
+                    } else {
+                        createBreakoutModal(breakoutData);
+                    }
+
+                    state.modalState = 'breakout';
+                    isMaximized = true;
+                    maximizeBtn.textContent = '❐';
+                }
+            });
+            
+            // Enhanced escape key support
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    // Only handle escape if not typing in an input field
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    
+                    e.preventDefault();
+                    if (state.modalState === 'breakout') {
+                        // Close breakout modal
+                        closeBreakoutModal();
+                    } else if (state.modalState === 'maximized') {
+                        // First escape: restore from maximized
+                        maximizeBtn.click();
+                    } else if (state.playing) {
+                        // Second escape or if playing: close modal and stop playback
+                        stopPlayback();
+                    }
+                }
+            });
+        }
+
+        // Create breakout modal directly in current window
+        let breakoutModal = null;
+        
+        function createBreakoutModal(data) {
+            // Remove existing modal if any
+            if (breakoutModal) {
+                closeBreakoutModal();
+            }
+            
+            // Create modal overlay that breaks out of iframe constraints
+            breakoutModal = document.createElement('div');
+            breakoutModal.id = 'voxpro-breakout-modal';
+            breakoutModal.style.cssText = `
+                position: fixed !important; top: 0 !important; left: 0 !important;
+                width: 100vw !important; height: 100vh !important;
+                background: rgba(0,0,0,0.95) !important; z-index: 2147483647 !important;
+                display: flex !important; align-items: center !important;
+                justify-content: center !important; font-family: 'Segoe UI', sans-serif !important;
+                margin: 0 !important; padding: 0 !important; border: none !important;
+                transform: scale(1) !important; overflow: hidden !important;
+            `;
+            
+            // Create modal content
+            const modalContent = document.createElement('div');
+            modalContent.style.cssText = `
+                width: 90vw !important; height: 90vh !important; max-width: 1200px !important; max-height: 800px !important;
+                background: #1a2332 !important; border-radius: 8px !important; display: flex !important;
+                flex-direction: column !important; box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+                margin: 0 !important; padding: 0 !important; border: none !important;
+                position: relative !important; z-index: 1 !important;
+            `;
+            
+            // Create header
+            const header = document.createElement('div');
+            header.style.cssText = `
+                display: flex !important; justify-content: space-between !important; align-items: center !important;
+                padding: 12px 16px !important; background: #0b1220 !important; border-radius: 8px 8px 0 0 !important;
+                border-bottom: 1px solid #2a3441 !important; margin: 0 !important;
+            `;
+            
+            const title = document.createElement('span');
+            title.textContent = data.modalTitle || 'VoxPro Player';
+            title.style.cssText = 'color: white !important; font-weight: 600 !important; font-size: 1.1rem !important; margin: 0 !important;';
+            
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '×';
+            closeBtn.style.cssText = `
+                background: #667eea !important; border: none !important; color: white !important;
+                width: 32px !important; height: 32px !important; border-radius: 4px !important;
+                cursor: pointer !important; font-size: 1.2rem !important; font-weight: bold !important;
+                margin: 0 !important; padding: 0 !important;
+            `;
+            closeBtn.onclick = () => closeBreakoutModal();
+            
+            header.appendChild(title);
+            header.appendChild(closeBtn);
+            
+            // Create content area
+            const content = document.createElement('div');
+            content.style.cssText = `
+                flex: 1 !important; padding: 20px !important; overflow: auto !important; display: flex !important;
+                align-items: center !important; justify-content: center !important; flex-direction: column !important;
+                margin: 0 !important; border: none !important;
+            `;
+            content.innerHTML = data.modalContent;
+            
+            // Resume media playback if applicable
+            const mediaElements = content.querySelectorAll('video, audio');
+            if (mediaElements.length > 0 && data.currentTime) {
+                const mediaElement = mediaElements[0];
+                mediaElement.currentTime = data.currentTime;
+                if (data.wasPlaying) {
+                    mediaElement.play();
+                }
+            }
+            
+            modalContent.appendChild(header);
+            modalContent.appendChild(content);
+            breakoutModal.appendChild(modalContent);
+            document.body.appendChild(breakoutModal);
+            
+            // Handle escape key
+            function handleEscape(e) {
+                if (e.key === 'Escape') {
+                    closeBreakoutModal();
+                }
+            }
+            document.addEventListener('keydown', handleEscape);
+            breakoutModal.escapeHandler = handleEscape;
+        }
+        
+        function closeBreakoutModal() {
+            if (breakoutModal) {
+                // Get current media state for resume
+                let resumeData = null;
+                const mediaElements = breakoutModal.querySelectorAll('video, audio');
+                if (mediaElements.length > 0) {
+                    const mediaElement = mediaElements[0];
+                    resumeData = {
+                        currentTime: mediaElement.currentTime,
+                        wasPlaying: !mediaElement.paused
+                    };
+                }
+                
+                // Remove escape handler
+                if (breakoutModal.escapeHandler) {
+                    document.removeEventListener('keydown', breakoutModal.escapeHandler);
+                }
+                
+                // Remove modal
+                document.body.removeChild(breakoutModal);
+                breakoutModal = null;
+                
+                // Reset modal state and resume playback in widget
+                state.modalState = 'normal';
+                isMaximized = false;
+                elements.maximizeBtn.textContent = '□';
+                
+                // Resume playback in widget if needed
+                if (resumeData && state.playing) {
+                    const widgetMediaElements = elements.modalContent.querySelectorAll('video, audio');
+                    if (widgetMediaElements.length > 0 && resumeData.currentTime) {
+                        widgetMediaElements[0].currentTime = resumeData.currentTime;
+                        if (resumeData.wasPlaying) {
+                            widgetMediaElements[0].play();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Parent window breakout modal handler
+        function createParentWindowHandler() {
+            const script = `
+                (function() {
+                    if (window.voxproBreakoutHandler) return; // Prevent duplicate handlers
+                    
+                    window.voxproBreakoutHandler = true;
+                    let breakoutModal = null;
+                    let currentMediaElement = null;
+                    
+                    window.addEventListener('message', function(event) {
+                        if (event.data.type === 'voxpro-breakout-modal' && event.data.source === 'voxpro-companion') {
+                            createBreakoutModal(event.data.data, event.source);
+                        } else if (event.data.type === 'voxpro-close-breakout' && event.data.source === 'voxpro-companion') {
+                            closeBreakoutModal(event.source);
+                        }
+                    });
+                    
+                    function createBreakoutModal(data, iframeWindow) {
+                        // Remove existing modal if any
+                        if (breakoutModal) {
+                            closeBreakoutModal();
+                        }
+                        
+                        // Create modal overlay
+                        breakoutModal = document.createElement('div');
+                        breakoutModal.id = 'voxpro-breakout-modal';
+                        breakoutModal.style.cssText = `
+                            position: fixed !important; top: 0 !important; left: 0 !important;
+                            width: 100vw !important; height: 100vh !important;
+                            background: rgba(0,0,0,0.95) !important; z-index: 2147483647 !important;
+                            display: flex !important; align-items: center !important;
+                            justify-content: center !important; font-family: 'Segoe UI', sans-serif !important;
+                        `;
+                        
+                        // Create modal content
+                        const modalContent = document.createElement('div');
+                        modalContent.style.cssText = `
+                            width: 90vw !important; height: 90vh !important; max-width: 1200px !important; max-height: 800px !important;
+                            background: #1a2332 !important; border-radius: 8px !important; display: flex !important;
+                            flex-direction: column !important; box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+                        `;
+                        
+                        // Create header
+                        const header = document.createElement('div');
+                        header.style.cssText = `
+                            display: flex !important; justify-content: space-between !important; align-items: center !important;
+                            padding: 12px 16px !important; background: #0b1220 !important; border-radius: 8px 8px 0 0 !important;
+                            border-bottom: 1px solid #2a3441 !important;
+                        `;
+                        
+                        const title = document.createElement('span');
+                        title.textContent = data.modalTitle || 'VoxPro Player';
+                        title.style.cssText = 'color: white !important; font-weight: 600 !important; font-size: 1.1rem !important;';
+                        
+                        const closeBtn = document.createElement('button');
+                        closeBtn.textContent = '×';
+                        closeBtn.style.cssText = `
+                            background: #667eea !important; border: none !important; color: white !important;
+                            width: 32px !important; height: 32px !important; border-radius: 4px !important;
+                            cursor: pointer !important; font-size: 1.2rem !important; font-weight: bold !important;
+                        `;
+                        closeBtn.onclick = () => closeBreakoutModal(iframeWindow);
+                        
+                        header.appendChild(title);
+                        header.appendChild(closeBtn);
+                        
+                        // Create content area
+                        const content = document.createElement('div');
+                        content.style.cssText = `
+                            flex: 1 !important; padding: 20px !important; overflow: auto !important; display: flex !important;
+                            align-items: center !important; justify-content: center !important; flex-direction: column !important;
+                        `;
+                        content.innerHTML = data.modalContent;
+                        
+                        // Resume media playback if applicable
+                        const mediaElements = content.querySelectorAll('video, audio');
+                        if (mediaElements.length > 0 && data.currentTime) {
+                            currentMediaElement = mediaElements[0];
+                            currentMediaElement.currentTime = data.currentTime;
+                            if (data.wasPlaying) {
+                                currentMediaElement.play();
+                            }
+                        }
+                        
+                        modalContent.appendChild(header);
+                        modalContent.appendChild(content);
+                        breakoutModal.appendChild(modalContent);
+                        document.body.appendChild(breakoutModal);
+                        
+                        // Handle escape key
+                        function handleEscape(e) {
+                            if (e.key === 'Escape') {
+                                closeBreakoutModal(iframeWindow);
+                            }
+                        }
+                        document.addEventListener('keydown', handleEscape);
+                        breakoutModal.escapeHandler = handleEscape;
+                    }
+                    
+                    function closeBreakoutModal(iframeWindow) {
+                        if (breakoutModal) {
+                            // Get current media state for resume
+                            let resumeData = null;
+                            if (currentMediaElement) {
+                                resumeData = {
+                                    currentTime: currentMediaElement.currentTime,
+                                    wasPlaying: !currentMediaElement.paused
+                                };
+                            }
+                            
+                            // Remove escape handler
+                            if (breakoutModal.escapeHandler) {
+                                document.removeEventListener('keydown', breakoutModal.escapeHandler);
+                            }
+                            
+                            // Remove modal
+                            document.body.removeChild(breakoutModal);
+                            breakoutModal = null;
+                            currentMediaElement = null;
+                            
+                            // Notify iframe
+                            if (iframeWindow) {
+                                iframeWindow.postMessage({
+                                    type: 'voxpro-breakout-closed',
+                                    source: 'voxpro-parent',
+                                    resumeData: resumeData
+                                }, '*');
+                            }
+                        }
+                    }
+                })();
+            `;
+            
+            // Inject script into parent window
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'voxpro-inject-handler',
+                    source: 'voxpro-companion',
+                    script: script
+                }, '*');
+            }
+        }
+
+        // Listen for messages from parent window
+        window.addEventListener('message', (event) => {
+            if (event.data.type === 'voxpro-breakout-closed' && event.data.source === 'voxpro-parent') {
+                // Reset iframe modal state when breakout is closed
+                state.modalState = 'normal';
+                isMaximized = false;
+                elements.maximizeBtn.textContent = '□';
+                
+                // Resume playback in iframe if needed
+                if (event.data.resumeData) {
+                    const mediaElements = elements.modalContent.querySelectorAll('video, audio');
+                    if (mediaElements.length > 0 && event.data.resumeData.currentTime) {
+                        mediaElements[0].currentTime = event.data.resumeData.currentTime;
+                        if (event.data.resumeData.wasPlaying) {
+                            mediaElements[0].play();
+                        }
+                    }
+                }
+            } else if (event.data.type === 'voxpro-inject-handler' && event.data.source === 'voxpro-companion') {
+                try {
+                    // Execute the handler script in parent window context
+                    const script = document.createElement('script');
+                    script.textContent = event.data.script;
+                    document.head.appendChild(script);
+                } catch (error) {
+                    console.error('Failed to inject parent window handler:', error);
+                }
+            }
+        });
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initCompanionPlayer);
     </script>
 </body>
-</html>
