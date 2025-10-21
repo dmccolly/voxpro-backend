@@ -1,323 +1,425 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VoxPro Companion Player</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoxPro Companion Player</title>
+    
+    <!-- PDF.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+    
+    <!-- Mammoth.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0b1220;
+            --bg-secondary: #1a2332;
+            --bg-tertiary: #2a3441;
+            --accent: #667eea;
+            --accent-secondary: #764ba2;
+            --text-primary: #ffffff;
+            --text-secondary: #b0bec5;
+            --text-accent: #667eea;
+            --success: #4caf50;
+            --error: #f44336;
+            --warning: #ff9800;
+        }
 
-<!-- Optional libs for document previews (kept for parity with your stack) -->
-<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
-<style>
-  :root{
-    --bg-primary:#0b1220; --bg-secondary:#1a2332; --bg-tertiary:#2a3441;
-    --text-primary:#ffffff; --text-secondary:#b0bec5; --accent:#667eea; --accent2:#764ba2;
-    --success:#4caf50; --error:#f44336;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Ubuntu,'Helvetica Neue',Arial,sans-serif;background:var(--bg-primary);color:var(--text-primary)}
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
 
-  .companion-player{width:400px;max-width:100%;background:var(--bg-secondary);border:1px solid var(--bg-tertiary);border-radius:12px;overflow:visible;box-shadow:0 8px 32px rgba(0,0,0,.3)}
-  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-primary);border-bottom:1px solid var(--bg-tertiary);border-radius:12px 12px 0 0}
-  .modal-title{font-size:.9rem;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .controls{display:flex;gap:6px}
-  .btn{background:var(--accent);color:#fff;border:0;border-radius:4px;cursor:pointer;padding:4px 8px;font-weight:600}
-  .btn:hover{background:var(--accent2)}
-  .content{padding:14px;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-  .status{display:inline-flex;align-items:center;gap:8px;margin:12px 14px}
-  .status.connected{color:var(--success);background:rgba(76,175,80,.15);padding:6px 10px;border-radius:14px}
-  .status.disconnected{color:var(--error);background:rgba(244,67,54,.15);padding:6px 10px;border-radius:14px}
-  .keys{padding:12px 14px 18px}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .key{background:var(--bg-tertiary);border:2px solid var(--bg-tertiary);border-radius:8px;color:var(--text-primary);padding:12px;cursor:pointer;font-weight:700}
-  .key.playing{outline:2px solid var(--success)}
-  .stop{grid-column:1/-1;background:var(--error);border:none;border-radius:8px;color:#fff;padding:12px;cursor:pointer}
-  @media (max-width:768px){ .grid{grid-template-columns:1fr} }
+        /* Companion player container styles.  Ensure the breakout modal
+           can escape the 400 px frame by allowing overflow to be visible. */
+        .companion-player {
+            width: 400px;
+            max-width: 100%;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--bg-tertiary);
+            overflow: visible; /* was hidden */
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
 
-  /* Parent/local overlay styles */
-  .vp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:2147483647;display:flex;align-items:center;justify-content:center}
-  .vp-window{width:90vw;height:90vh;max-width:1200px;max-height:800px;background:#1a2332;border-radius:8px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)}
-  .vp-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0b1220;border-radius:8px 8px 0 0;border-bottom:1px solid #2a3441}
-  .vp-title{color:#fff;font-weight:600}
-  .vp-close{background:#667eea;color:#fff;border:0;border-radius:4px;cursor:pointer;width:32px;height:32px;font-size:18px;font-weight:700}
-  .vp-body{flex:1;padding:20px;display:flex;align-items:center;justify-content:center;overflow:auto}
-</style>
+        /* Modal Player Section */
+        .modal-section {
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--bg-primary);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--bg-tertiary);
+            border-radius: 12px 12px 0 0;
+        }
+
+        .modal-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .modal-controls { display: flex; gap: 4px; }
+
+        .modal-btn {
+            padding: 4px 8px;
+            background: var(--accent);
+            border: none;
+            border-radius: 3px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            min-width: 24px;
+        }
+        .modal-btn:hover { background: var(--accent-secondary); }
+
+        .modal-content {
+            padding: 12px;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-placeholder { text-align: center; color: var(--text-secondary); }
+        .placeholder-icon { font-size: 2rem; margin-bottom: 8px; }
+        .placeholder-text { font-size: 0.85rem; }
+
+        .modal-content video,
+        .modal-content audio {
+            width: 100%;
+            max-height: 200px;
+            border-radius: 6px;
+        }
+
+        .modal-content img {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 6px;
+        }
+
+        .modal-content iframe {
+            width: 100%;
+            height: 200px;
+            border: none;
+            border-radius: 6px;
+        }
+
+        .description-overlay {
+            margin-top: 8px;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            width: 100%;
+            text-align: left;
+        }
+
+        /* Maximized state (legacy local maximize) */
+        .modal-section.maximized {
+            position: fixed;
+            top: 20px; left: 20px; right: 20px; bottom: 20px;
+            z-index: 1000;
+            border-radius: 8px;
+            background: var(--bg-primary);
+        }
+        .modal-section.maximized .modal-content {
+            height: calc(100% - 40px);
+            padding: 20px;
+        }
+        .modal-section.maximized .modal-content video {
+            max-height: none; height: calc(100% - 60px);
+        }
+
+        /* Minimized state */
+        .modal-section.minimized .modal-content { display: none; }
+
+        /* Keys Section */
+        .keys-section { padding: 12px; }
+        .keys-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .keys-title { font-size: 1rem; font-weight: 600; color: var(--text-accent); }
+
+        .stop-btn {
+            padding: 6px 12px; background: var(--error); border: none; border-radius: 4px;
+            color: white; cursor: pointer; font-size: 0.8rem; font-weight: 600;
+        }
+        .stop-btn:hover { background: #d32f2f; }
+
+        .keys-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+        .keys-row-2 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+
+        .key-button {
+            background: var(--bg-tertiary);
+            border: 2px solid var(--bg-tertiary);
+            border-radius: 6px; padding: 8px 4px; cursor: pointer; transition: all 0.2s ease;
+            text-align: center; min-height: 60px; display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .key-button:hover { border-color: var(--accent); background: rgba(102, 126, 234, 0.1); }
+        .key-button.playing { border-color: var(--success); background: rgba(76, 175, 80, 0.1); }
+
+        .key-number { font-size: 0.9rem; font-weight: bold; color: var(--text-accent); margin-bottom: 2px; }
+        .key-title { font-size: 0.7rem; color: var(--text-secondary); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+        /* Keys Assigned List */
+        .keys-list { background: var(--bg-primary); border-radius: 6px; padding: 8px; }
+        .keys-list-title { font-size: 0.85rem; font-weight: 600; color: var(--text-accent); margin-bottom: 6px; }
+
+        .key-item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--bg-tertiary); }
+        .key-item:last-child { border-bottom: none; }
+        .key-item-number { font-size: 0.75rem; font-weight: bold; color: var(--text-accent); min-width: 20px; text-align: center; background: var(--bg-tertiary); border-radius: 3px; padding: 2px 4px; }
+        .key-item-content { flex: 1; }
+        .key-item-title { font-size: 0.75rem; font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+        .key-item-description { font-size: 0.7rem; color: var(--text-secondary); line-height: 1.3; }
+
+        /* Status Messages */
+        .status-message {
+            position: fixed; top: 20px; right: 20px; padding: 12px 16px; border-radius: 6px; color: white;
+            font-size: 0.9rem; z-index: 1001; opacity: 0; transform: translateX(100%); transition: all 0.3s ease;
+        }
+        .status-message.show { opacity: 1; transform: translateX(0); }
+        .status-message.success { background: var(--success); }
+        .status-message.error   { background: var(--error); }
+        .status-message.warning { background: var(--warning); }
+
+        /* Parent/local overlay used by maximize */
+        .vp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:2147483647;display:flex;align-items:center;justify-content:center}
+        .vp-window{width:90vw;height:90vh;max-width:1200px;max-height:800px;background:#1a2332;border-radius:8px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+        .vp-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0b1220;border-radius:8px 8px 0 0;border-bottom:1px solid #2a3441}
+        .vp-title{color:#fff;font-weight:600}
+        .vp-close{background:#667eea;color:#fff;border:0;border-radius:4px;cursor:pointer;width:32px;height:32px;font-size:18px;font-weight:700}
+        .vp-body{flex:1;padding:20px;display:flex;align-items:center;justify-content:center;overflow:auto}
+    </style>
 </head>
 <body>
-  <div class="companion-player" id="root">
-    <div class="modal-header">
-      <div class="modal-title" id="title">VoxPro Player</div>
-      <div class="controls">
-        <button class="btn" id="minBtn" title="Minimize">–</button>
-        <button class="btn" id="maxBtn" title="Maximize">□</button>
-        <button class="btn" id="closeBtn" title="Close">×</button>
-      </div>
+    <div class="companion-player" id="companionPlayer">
+        <!-- Modal Player Section -->
+        <div class="modal-section" id="modalSection">
+            <div class="modal-header">
+                <span class="modal-title" id="modalTitle">VoxPro Player</span>
+                <div class="modal-controls">
+                    <button class="modal-btn" id="minimizeBtn" title="Minimize">−</button>
+                    <button class="modal-btn" id="maximizeBtn" title="Maximize">□</button>
+                    <button class="modal-btn" id="closeBtn" title="Close">×</button>
+                </div>
+            </div>
+            <div class="modal-content" id="modalContent">
+                <div class="modal-placeholder">
+                    <div class="placeholder-icon">🎵</div>
+                    <div class="placeholder-text">Press a key to play media</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keys Section -->
+        <div class="keys-section">
+            <div class="keys-header"><span class="keys-title">VoxPro Keys</span></div>
+            <div class="keys-grid" id="keysGrid"></div>
+            <div class="keys-row-2" id="keysRow2"></div>
+
+            <div class="keys-list">
+                <div class="keys-list-title">Keys Assigned</div>
+                <div id="keysList"></div>
+            </div>
+        </div>
     </div>
-    <div class="content" id="content">
-      <div style="font-size:2rem;opacity:.8;margin-bottom:8px">🎵</div>
-      <div>Press a key to play media</div>
-    </div>
 
-    <div class="status disconnected" id="conn"><span id="connText">Disconnected</span></div>
+    <!-- Status Messages -->
+    <div class="status-message" id="statusMessage"></div>
 
-    <div class="keys">
-      <div class="grid">
-        <button class="key" data-key="1" id="k1">KEY 1</button>
-        <button class="key" data-key="2" id="k2">KEY 2</button>
-        <button class="key" data-key="3" id="k3">KEY 3</button>
-        <button class="key" data-key="4" id="k4">KEY 4</button>
-        <button class="key" data-key="5" id="k5">KEY 5</button>
-        <button class="stop" id="stopBtn">STOP</button>
-      </div>
-    </div>
-  </div>
+    <script>
+        // VoxPro Companion Player JavaScript
+        const state = {
+            assignments: [],
+            mediaList: [],
+            playing: null,
+            currentModal: null,
+            modalState: 'normal' // normal, minimized, maximized, breakout
+        };
 
-<script>
-  // ---------------------------
-  // Config: Netlify function endpoints
-  // ---------------------------
-  const CFG = {
-    LIST_MEDIA: '/.netlify/functions/list-media',
-    ASSIGNMENTS: '/.netlify/functions/xano-proxy/voxpro_assignments'
-  };
+        const elements = {
+            modalSection:  document.getElementById('modalSection'),
+            modalTitle:    document.getElementById('modalTitle'),
+            modalContent:  document.getElementById('modalContent'),
+            minimizeBtn:   document.getElementById('minimizeBtn'),
+            maximizeBtn:   document.getElementById('maximizeBtn'),
+            closeBtn:      document.getElementById('closeBtn'),
+            stopBtn:       document.getElementById('stopBtn'),
+            keysGrid:      document.getElementById('keysGrid'),
+            keysList:      document.getElementById('keysList'),
+            statusMessage: document.getElementById('statusMessage')
+        };
 
-  // ---------------------------
-  // State
-  // ---------------------------
-  const S = {
-    assignments: [],
-    media: [],
-    playing: null,        // {key, id, url, title}
-    connected: false
-  };
+        // Determine fullscreen request (?fullscreen=1&key=3)
+        const urlParams      = new URLSearchParams(window.location.search);
+        const fullscreenMode = urlParams.get('fullscreen') === '1';
+        const autoPlayKey    = urlParams.get('key');
 
-  // ---------------------------
-  // Elements
-  // ---------------------------
-  const E = {
-    title: document.getElementById('title'),
-    content: document.getElementById('content'),
-    conn: document.getElementById('conn'),
-    connText: document.getElementById('connText'),
-    minBtn: document.getElementById('minBtn'),
-    maxBtn: document.getElementById('maxBtn'),
-    closeBtn: document.getElementById('closeBtn'),
-    keys: [1,2,3,4,5].map(n => document.getElementById('k'+n)),
-    stopBtn: document.getElementById('stopBtn')
-  };
+        async function initCompanionPlayer() {
+            try {
+                await loadMediaList();
+                await loadAssignments();
+                renderKeys();
+                renderKeysList();
+                attachEventListeners();
+                createParentWindowHandler();
+                showMessage('success', 'VoxPro Companion Player Ready');
 
-  function setConn(connected){
-    S.connected = connected;
-    E.conn.className = 'status ' + (connected ? 'connected':'disconnected');
-    E.connText.textContent = connected ? 'Connected' : 'Disconnected';
-  }
+                // Fullscreen mode sizing + optional autoplay
+                if (fullscreenMode) {
+                    const playerContainer = document.querySelector('.companion-player');
+                    if (playerContainer) {
+                        playerContainer.style.width = '90vw';
+                        playerContainer.style.maxWidth = '90vw';
+                        playerContainer.style.height = '90vh';
+                        playerContainer.style.maxHeight = '90vh';
+                    }
+                    if (autoPlayKey) {
+                        setTimeout(() => {
+                            const keyNum = parseInt(autoPlayKey, 10);
+                            if (!isNaN(keyNum)) playForKey(keyNum);
+                        }, 300);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to initialize companion player:', error);
+                showMessage('error', 'Failed to load VoxPro data');
+            }
+        }
 
-  // ---------------------------
-  // Data
-  // ---------------------------
-  async function loadAssignments(){
-    try{
-      const r = await fetch(CFG.ASSIGNMENTS, {headers:{'Accept':'application/json'}});
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const data = await r.json();
-      S.assignments = Array.isArray(data) ? data : [];
-      setConn(true);
-    }catch(e){
-      console.error('assignments error', e);
-      setConn(false);
-    }
-  }
+        // Load assignments from API
+        async function loadAssignments() {
+            try {
+                const response = await fetch('/.netlify/functions/xano-proxy/voxpro_assignments', {
+                    method: 'GET', headers: { 'Accept': 'application/json' }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
-  async function loadMedia(){
-    try{
-      const r = await fetch(CFG.LIST_MEDIA, {cache:'no-cache'});
-      if(!r.ok) throw new Error('HTTP '+r.status);
-      const data = await r.json();
-      S.media = Array.isArray(data) ? data : [];
-      setConn(true);
-    }catch(e){
-      console.error('media error', e);
-      setConn(false);
-    }
-  }
+                const data = await response.json();
+                const assignments = Array.isArray(data) ? data : [];
 
-  function urlFromAssignment(a){
-    return a?.asset?.cloudinary_url || a?.asset?.file_url || a?.asset?.media_url || a?.cloudinary_url || a?.file_url || null;
-  }
+                // Enrich with media list metadata
+                const enriched = assignments.map(a => {
+                    const m = state.mediaList.find(x => x.id === a.asset_id);
+                    return {
+                        ...a,
+                        title:       a.title       || m?.title || 'Unknown',
+                        description: a.description || m?.description || '',
+                        cloudinary_url: a.cloudinary_url || m?.cloudinary_url || m?.file_url || m?.database_url || m?.media_url,
+                        file_type:      a.file_type      || m?.file_type || ''
+                    };
+                });
 
-  // ---------------------------
-  // Playback
-  // ---------------------------
-  function clearPlaying(){
-    E.keys.forEach(btn => btn.classList.remove('playing'));
-    S.playing = null;
-  }
+                state.assignments = enriched;
+            } catch (error) {
+                console.error('Load assignments error:', error);
+                state.assignments = [];
+            }
+        }
 
-  function stopLocalPlayback(){
-    E.content.querySelectorAll('audio,video').forEach(el=>{
-      try{ el.pause(); el.removeAttribute('src'); el.load?.(); }catch(_){}
-    });
-  }
+        // Load media list from API (using your existing proxy/data path)
+        async function loadMediaList() {
+            try {
+                const response = await fetch('/.netlify/functions/xano-proxy/user_submission', {
+                    method: 'GET', headers: { 'Accept': 'application/json' }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 
-  function renderInline(type,url){
-    E.content.innerHTML = '';
-    let el;
-    if((type||'').toLowerCase().includes('video')){
-      el = document.createElement('video'); el.controls=true; el.autoplay=true; el.style.width='100%';
-    }else if((type||'').toLowerCase().includes('image')){
-      el = document.createElement('img'); el.style.maxWidth='100%';
-    }else{
-      el = document.createElement('audio'); el.controls=true; el.autoplay=true;
-    }
-    el.src=url; E.content.appendChild(el);
-    return el;
-  }
+                const data = await response.json();
+                state.mediaList = Array.isArray(data) ? data.map(item => ({
+                    ...item,
+                    title: item.title || item.name || 'Untitled',
+                    description: item.description || '',
+                    file_type: item.file_type || 'unknown'
+                })) : [];
+            } catch (error) {
+                console.error('Error loading media list:', error);
+                state.mediaList = [];
+            }
+        }
 
-  async function playForKey(n){
-    const a = S.assignments.find(x => parseInt(x.key_number)===parseInt(n));
-    if(!a){ console.warn('no assignment for key', n); return; }
-    const u = urlFromAssignment(a);
-    if(!u){ console.warn('no media url'); return; }
+        // Render key buttons
+        function renderKeys() {
+            const keysGrid = elements.keysGrid;
+            const keysRow2 = document.getElementById('keysRow2');
+            keysGrid.innerHTML = '';
+            keysRow2.innerHTML = '';
 
-    clearPlaying();
-    const btn = E.keys.find(b=>b.dataset?.key===String(n)) || document.getElementById('k'+n);
-    btn?.classList.add('playing');
+            // Keys 1–3
+            for (let i = 1; i <= 3; i++) {
+                const a = state.assignments.find(x => parseInt(x.key_number) === i);
+                const btn = document.createElement('div');
+                btn.className = 'key-button';
+                btn.id = `key${i}`;
+                btn.onclick = () => playForKey(i);
 
-    const type = a.file_type || a.asset?.file_type || '';
-    renderInline(type,u);
-    S.playing = { key:n, id:a.id, url:u, title:(a.title || a.asset?.title || 'VoxPro Player') };
-  }
+                const num = document.createElement('div');
+                num.className = 'key-number';
+                num.textContent = i;
 
-  function stopPlayback(){
-    stopLocalPlayback(); clearPlaying();
-    E.content.innerHTML = '<div style="opacity:.7">Media stopped</div>';
-  }
+                const title = document.createElement('div');
+                title.className = 'key-title';
+                title.textContent = a ? (a.title || 'Untitled') : 'Empty';
 
-  // ---------------------------
-  // Overlay (parent or local)
-  // ---------------------------
-  function openOverlayIn(doc, url, title){
-    const existing = doc.getElementById('voxpro-overlay');
-    if(existing) existing.remove(); // ensure single instance
+                btn.appendChild(num);
+                btn.appendChild(title);
+                keysGrid.appendChild(btn);
+            }
 
-    const ov = doc.createElement('div'); ov.id='voxpro-overlay';
-    ov.className='vp-overlay';
-    const win = doc.createElement('div'); win.className='vp-window';
-    const hd  = doc.createElement('div'); hd.className='vp-header';
-    const tt  = doc.createElement('div'); tt.className='vp-title'; tt.textContent = title || 'VoxPro Player';
-    const cl  = doc.createElement('button'); cl.className='vp-close'; cl.textContent='×';
-    const bd  = doc.createElement('div'); bd.className='vp-body';
-    hd.appendChild(tt); hd.appendChild(cl); win.appendChild(hd); win.appendChild(bd); ov.appendChild(win); (doc.body||doc.documentElement).appendChild(ov);
+            // Keys 4–5
+            for (let i = 4; i <= 5; i++) {
+                const a = state.assignments.find(x => parseInt(x.key_number) === i);
+                const btn = document.createElement('div');
+                btn.className = 'key-button';
+                btn.id = `key${i}`;
+                btn.onclick = () => playForKey(i);
 
-    const a = doc.createElement('audio'); a.controls=true; a.autoplay=true; a.src=url; a.style.maxWidth='100%';
-    bd.appendChild(a);
-    cl.onclick = ()=> ov.remove();
-    doc.addEventListener('keydown', e=>{ if(e.key==='Escape') ov.remove(); }, {once:true});
-  }
+                const num = document.createElement('div');
+                num.className = 'key-number';
+                num.textContent = i;
 
-  function parentOpenOverlay(url, title){
-    if(window.parent && window.parent !== window){
-      window.parent.postMessage({ type:'VP_OVERLAY_OPEN', payload:{ url, title } }, '*');
-    }else{
-      openOverlayIn(document, url, title);
-    }
-  }
+                const title = document.createElement('div');
+                title.className = 'key-title';
+                title.textContent = a ? (a.title || 'Untitled') : 'Empty';
 
-  // Parent bootstrap (installed once)
-  (function setupParent(){
-    if(!(window.parent && window.parent !== window)) return;
-    window.parent.postMessage({ type:'VP_BOOTSTRAP' }, '*');
-  })();
+                btn.appendChild(num);
+                btn.appendChild(title);
+                keysRow2.appendChild(btn);
+            }
 
-  // Local listener (rarely used, kept for completeness)
-  window.addEventListener('message', ev=>{
-    if(!ev || !ev.data) return;
-    if(ev.data.type==='VP_OVERLAY_OPEN_LOCAL' && ev.data.payload){
-      openOverlayIn(document, ev.data.payload.url, ev.data.payload.title);
-    }
-  });
+            // STOP
+            const stopButton = document.createElement('div');
+            stopButton.className = 'key-button stop-btn';
+            stopButton.id = 'stopBtn';
+            stopButton.onclick = () => stopPlayback();
+            stopButton.style.background = 'var(--error)';
+            stopButton.style.color = 'white';
 
-  // ---------------------------
-  // Controls
-  // ---------------------------
-  function wire(){
-    E.minBtn.onclick = ()=>{ const h=E.content; h.style.display='none'; E.minBtn.style.display='none'; };
-    E.closeBtn.onclick = ()=>{ stopPlayback(); E.content.style.display=''; E.minBtn.style.display=''; };
+            const stopText = document.createElement('div');
+            stopText.className = 'key-number';
+            stopText.textContent = 'STOP';
+            stopText.style.fontSize = '0.7rem';
 
-    E.maxBtn.onclick = ()=>{
-      if(!(S.playing && S.playing.url)){ console.warn('maximize: no active media'); return; }
-      // prevent duplicate audio: stop inline media before opening overlay
-      stopLocalPlayback();
-      parentOpenOverlay(S.playing.url, S.playing.title);
-    };
-
-    E.keys.forEach(btn=>{
-      btn.dataset.key = btn.id.replace('k','');
-      btn.onclick = ()=> playForKey(btn.dataset.key);
-    });
-    E.stopBtn.onclick = stopPlayback;
-  }
-
-  // ---------------------------
-  // Init
-  // ---------------------------
-  (async function init(){
-    wire();
-    try{
-      await Promise.all([loadMedia(), loadAssignments()]);
-    }catch(e){ console.error(e); }
-    setConn(S.connected);
-
-    // Parent overlay handler injection (idempotent)
-    if(window.parent && window.parent !== window){
-      window.parent.postMessage({
-        type:'VP_PARENT_INSTALL',
-        script: `
-          (function(){
-            if(window.__vpOverlayInstalled) return;
-            window.__vpOverlayInstalled = true;
-
-            window.addEventListener('message', function(ev){
-              if(!ev || !ev.data) return;
-
-              if(ev.data.type === 'VP_BOOTSTRAP'){
-                // acknowledge (optional)
-                window.postMessage({ type:'VP_PARENT_READY' }, '*');
-              }
-
-              if(ev.data.type === 'VP_OVERLAY_OPEN' && ev.data.payload){
-                var p = ev.data.payload;
-                var ex = document.getElementById('voxpro-overlay');
-                if(ex) ex.remove();
-                var d=document, ov=d.createElement('div'); ov.id='voxpro-overlay'; ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:2147483647;display:flex;align-items:center;justify-content:center';
-                var win=d.createElement('div'); win.style.cssText='width:90vw;height:90vh;max-width:1200px;max-height:800px;background:#1a2332;border-radius:8px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)';
-                var hd=d.createElement('div'); hd.style.cssText='display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#0b1220;border-radius:8px 8px 0 0;border-bottom:1px solid #2a3441';
-                var tt=d.createElement('div'); tt.textContent=p.title||'VoxPro Player'; tt.style.cssText='color:#fff;font-weight:600';
-                var cl=d.createElement('button'); cl.textContent='×'; cl.style.cssText='background:#667eea;color:#fff;border:0;border-radius:4px;width:32px;height:32px;cursor:pointer;font-size:18px;font-weight:700';
-                var bd=d.createElement('div'); bd.style.cssText='flex:1;padding:20px;display:flex;align-items:center;justify-content:center;overflow:auto';
-                hd.appendChild(tt); hd.appendChild(cl); win.appendChild(hd); win.appendChild(bd); ov.appendChild(win); (d.body||d.documentElement).appendChild(ov);
-                var a=d.createElement('audio'); a.controls=true; a.autoplay=true; a.src=p.url; a.style.maxWidth='100%'; bd.appendChild(a);
-                cl.onclick=function(){ ov.remove(); };
-              }
-
-              if(ev.data.type === 'VP_OVERLAY_CLOSE'){
-                var ex = document.getElementById('voxpro-overlay');
-                if(ex) ex.remove();
-              }
-            });
-          })();`
-      }, '*');
-    }
-  })();
-</script>
-</body>
-</html>
             stopButton.appendChild(stopText);
             keysRow2.appendChild(stopButton);
         }
 
-        // Render keys assigned list
+        // Render assignments list
         function renderKeysList() {
             const list = elements.keysList;
             list.innerHTML = '';
@@ -350,55 +452,46 @@
             }
         }
 
-        // Status message helper
+        // UI message helper
         function showMessage(type, text) {
             const box = elements.statusMessage;
             box.textContent = text;
             box.className = `status-message ${type} show`;
-            setTimeout(() => {
-                box.className = `status-message ${type}`;
-            }, 2500);
+            setTimeout(() => { box.className = `status-message ${type}`; }, 2500);
         }
 
-        // Resolve media URL for an assignment
+        // Media URL resolver
         function getMediaUrl(a) {
             return a?.asset?.cloudinary_url ||
                    a?.asset?.file_url ||
                    a?.asset?.media_url ||
-                   a?.cloudinary_url ||
-                   a?.file_url ||
-                   a?.database_url ||
+                   a?.cloudinary_url   ||
+                   a?.file_url         ||
+                   a?.database_url     ||
                    null;
         }
 
-        // Inline playback in the modal (small preview)
+        // Inline playback in the modal
         async function playForKey(keyNum) {
             const a = state.assignments.find(x => parseInt(x.key_number) === parseInt(keyNum));
-            if (!a) {
-                showMessage('error', `No media assigned to Key ${keyNum}`);
-                return;
-            }
+            if (!a) { showMessage('error', `No media assigned to Key ${keyNum}`); return; }
             const url = getMediaUrl(a);
-            if (!url) {
-                showMessage('error', 'No media URL found');
-                return;
-            }
+            if (!url) { showMessage('error', 'No media URL found'); return; }
 
-            // Visual feedback
+            // Visual state
             document.querySelectorAll('.key-button').forEach(b => b.classList.remove('playing'));
             const curBtn = document.getElementById(`key${keyNum}`);
             if (curBtn) curBtn.classList.add('playing');
 
-            // Render in modal as a small player
+            // Render small inline player
             showMediaInModal(a, url);
             state.playing = { key: keyNum, assignmentId: a.id, url, title: a.title || a.asset?.title || 'VoxPro Player' };
             showMessage('success', `Playing: ${state.playing.title}`);
         }
 
-        // Show the media in the modal area
         function showMediaInModal(assignment, url) {
             const modalContent = elements.modalContent;
-            const modalTitle = elements.modalTitle;
+            const modalTitle   = elements.modalTitle;
             const fileType = (assignment.file_type || assignment.asset?.file_type || '').toLowerCase();
 
             modalTitle.textContent = assignment.title || 'Media Player';
@@ -415,11 +508,9 @@
                 el = document.createElement('img');
                 el.style.maxWidth = '100%'; el.style.borderRadius = '6px'; el.src = url;
             } else {
-                // Generic fallback (iframe)
                 el = document.createElement('iframe');
                 el.allow = 'autoplay'; el.src = url; el.style.width = '100%'; el.style.height = '200px';
             }
-
             modalContent.appendChild(el);
 
             if (assignment.description) {
@@ -429,7 +520,7 @@
                 modalContent.appendChild(d);
             }
 
-            // Reset modal state UI
+            // Reset any prior state
             state.modalState = 'normal';
             elements.modalSection.classList.remove('minimized', 'maximized');
             elements.maximizeBtn.textContent = '□';
@@ -438,14 +529,12 @@
 
         // Stop playback + reset UI
         function stopPlayback() {
-            // Stop all local media elements
             elements.modalContent.querySelectorAll('audio,video').forEach(m => {
                 try { m.pause(); m.removeAttribute('src'); if (m.load) m.load(); } catch (_) {}
             });
-            // Clear flags
             document.querySelectorAll('.key-button').forEach(b => b.classList.remove('playing'));
             state.playing = null;
-            // Reset content
+
             elements.modalTitle.textContent = 'VoxPro Player';
             elements.modalContent.innerHTML = `
                 <div class="modal-placeholder">
@@ -460,36 +549,19 @@
             showMessage('success', 'Playback stopped');
         }
 
-        // Parent overlay builder (local fallback)
+        // Local overlay (fallback if not embedded)
         function openLocalOverlay(url, title) {
-            // remove existing
-            const ex = document.getElementById('voxpro-overlay');
-            if (ex) ex.remove();
+            const existing = document.getElementById('voxpro-overlay');
+            if (existing) existing.remove();
 
-            const ov = document.createElement('div');
-            ov.id = 'voxpro-overlay';
-            ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.92);' +
-                               'z-index:2147483647;display:flex;align-items:center;justify-content:center';
+            const ov = document.createElement('div'); ov.id = 'voxpro-overlay';
+            ov.className = 'vp-overlay';
 
-            const win = document.createElement('div');
-            win.style.cssText = 'width:90vw;height:90vh;max-width:1200px;max-height:800px;' +
-                                'background:#1a2332;border-radius:8px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.5)';
-
-            const hd = document.createElement('div');
-            hd.style.cssText = 'display:flex;align-items:center;justify-content:space-between;' +
-                               'padding:12px 16px;background:#0b1220;border-radius:8px 8px 0 0;border-bottom:1px solid #2a3441';
-
-            const tt = document.createElement('div');
-            tt.textContent = title || 'VoxPro Player';
-            tt.style.cssText = 'color:#fff;font-weight:600';
-
-            const cl = document.createElement('button');
-            cl.textContent = '×';
-            cl.style.cssText = 'background:#667eea;color:#fff;border:0;border-radius:4px;width:32px;height:32px;' +
-                               'cursor:pointer;font-size:18px;font-weight:700';
-
-            const bd = document.createElement('div');
-            bd.style.cssText = 'flex:1;padding:20px;display:flex;align-items:center;justify-content:center;overflow:auto';
+            const win = document.createElement('div'); win.className = 'vp-window';
+            const hd  = document.createElement('div'); hd.className  = 'vp-header';
+            const tt  = document.createElement('div'); tt.className  = 'vp-title'; tt.textContent = title || 'VoxPro Player';
+            const cl  = document.createElement('button'); cl.className = 'vp-close'; cl.textContent = '×';
+            const bd  = document.createElement('div'); bd.className  = 'vp-body';
 
             cl.onclick = () => ov.remove();
             hd.appendChild(tt); hd.appendChild(cl); win.appendChild(hd); win.appendChild(bd);
@@ -502,7 +574,7 @@
             document.addEventListener('keydown', (e) => { if (e.key === 'Escape') ov.remove(); }, { once: true });
         }
 
-        // Parent overlay handler injector (in parent window)
+        // Parent overlay handler (in parent window)
         function createParentWindowHandler() {
             const parentScript = `
             (function(){
@@ -537,12 +609,11 @@
               });
             })();`;
 
-            // Ask parent to install the handler
             if (window.parent && window.parent !== window) {
                 window.parent.postMessage({ type: 'VOXPRO_PARENT_INSTALL', script: parentScript }, '*');
             }
 
-            // Also listen locally for a fallback open/close (non-iframe usage)
+            // Local fallback listener (not usually hit)
             window.addEventListener('message', (e) => {
                 if (!e.data) return;
                 if (e.data.type === 'VOXPRO_OPEN_LOCAL' && e.data.payload) {
@@ -553,24 +624,19 @@
 
         // Controls & maximize behaviour
         function attachEventListeners() {
-            // minimize and close
             elements.minimizeBtn.addEventListener('click', () => {
-                const c = elements.modalContent;
                 elements.modalSection.style.height = '60px';
-                c.style.display = 'none';
+                elements.modalContent.style.display = 'none';
                 elements.minimizeBtn.style.display = 'none';
                 elements.maximizeBtn.textContent = '□';
                 state.modalState = 'minimized';
             });
 
-            elements.closeBtn.addEventListener('click', () => {
-                stopPlayback();
-            });
+            elements.closeBtn.addEventListener('click', stopPlayback);
 
             // MAXIMIZE — pause local media, then open a single overlay in parent/local
             elements.maximizeBtn.addEventListener('click', () => {
                 if (state.modalState === 'breakout') {
-                    // Tell parent to close
                     if (window.parent && window.parent !== window) {
                         window.parent.postMessage({ type: 'VOXPRO_CLOSE' }, '*');
                     } else {
@@ -582,18 +648,16 @@
                     return;
                 }
 
-                // If nothing is playing, ignore
                 if (!state.playing || !state.playing.url) {
                     showMessage('warning', 'Nothing is playing to maximize.');
                     return;
                 }
 
-                // Stop local inline media to prevent duplicate audio
+                // Prevent double audio under overlay
                 elements.modalContent.querySelectorAll('audio,video').forEach(m => {
                     try { m.pause(); m.removeAttribute('src'); if (m.load) m.load(); } catch (_) {}
                 });
 
-                // Ask parent to open the overlay; fallback to local if no parent
                 if (window.parent && window.parent !== window) {
                     window.parent.postMessage({
                         type: 'VOXPRO_OPEN',
@@ -607,16 +671,21 @@
                 elements.maximizeBtn.textContent = '❐';
             });
 
-            // STOP
+            // STOP (rendered in second row)
             const stopBtn = document.getElementById('stopBtn');
             if (stopBtn) stopBtn.onclick = stopPlayback;
+
+            // Key buttons click binding after render
+            for (let i = 1; i <= 5; i++) {
+                const b = document.getElementById(`key${i}`);
+                if (b) b.onclick = () => playForKey(i);
+            }
         }
 
-        // Parent bootstrap: allow the iframe to request the handler install
+        // Parent bootstrap: allow the iframe to install handler
         window.addEventListener('message', (ev) => {
             if (!ev || !ev.data) return;
             if (ev.data.type === 'VOXPRO_PARENT_INSTALL' && ev.data.script && (window.parent === window)) {
-                // If somehow running at top-level and asked to install, execute here
                 try {
                     const s = document.createElement('script');
                     s.textContent = ev.data.script;
