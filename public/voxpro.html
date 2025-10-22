@@ -1130,6 +1130,11 @@
 </html>
 `);
             popupWindow.document.close();
+            
+            // Hide the inline modal since we're now using the popup window
+            if (elements.modalSection) {
+                elements.modalSection.style.display = 'none';
+            }
         }
         
         function closeBreakoutModal() {
@@ -1137,6 +1142,11 @@
                 popupWindow.close();
             }
             popupWindow = null;
+            
+            // Show the inline modal again
+            if (elements.modalSection) {
+                elements.modalSection.style.display = 'block';
+            }
             
             // Reset modal state
             state.modalState = 'normal';
@@ -1271,6 +1281,11 @@
         // Listen for messages from parent window
         window.addEventListener('message', (event) => {
             if (event.data.type === 'voxpro-breakout-closed' && event.data.source === 'voxpro-parent') {
+                // Show the inline modal again
+                if (elements.modalSection) {
+                    elements.modalSection.style.display = 'block';
+                }
+                
                 // Reset iframe modal state when breakout is closed
                 state.modalState = 'normal';
                 isMaximized = false;
@@ -1286,6 +1301,16 @@
                         }
                     }
                 }
+            } else if (event.data.type === 'voxpro-breakout-closed' && event.data.source === 'voxpro-popup') {
+                // Show the inline modal again when popup closes
+                if (elements.modalSection) {
+                    elements.modalSection.style.display = 'block';
+                }
+                
+                // Reset modal state
+                state.modalState = 'normal';
+                isMaximized = false;
+                elements.maximizeBtn.textContent = '□';
             } else if (event.data.type === 'voxpro-inject-handler' && event.data.source === 'voxpro-companion') {
                 try {
                     // Execute the handler script in parent window context
