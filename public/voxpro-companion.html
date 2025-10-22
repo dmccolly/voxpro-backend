@@ -741,6 +741,12 @@
                         const ex = document.getElementById('voxpro-overlay');
                         if (ex) ex.remove();
                     }
+                    
+                    // Show the inline modal again
+                    if (elements.modalSection) {
+                        elements.modalSection.style.display = 'block';
+                    }
+                    
                     state.modalState = 'normal';
                     elements.maximizeBtn.textContent = '□';
                     return;
@@ -778,6 +784,11 @@
                     openLocalOverlay(state.playing.url, state.playing.title || 'VoxPro Player');
                 }
 
+                // Hide the inline modal since we're now using the popup window
+                if (elements.modalSection) {
+                    elements.modalSection.style.display = 'none';
+                }
+
                 state.modalState = 'breakout';
                 elements.maximizeBtn.textContent = '❐';
             });
@@ -806,6 +817,11 @@
             
             // Handle VOXPRO_CLOSE from popup window
             if (ev.data.type === 'VOXPRO_CLOSE') {
+                // Show the inline modal again
+                if (elements.modalSection) {
+                    elements.modalSection.style.display = 'block';
+                }
+                
                 // Reset the inline player state
                 if (state.playing) {
                     elements.modalContent.querySelectorAll('audio,video').forEach(m => {
