@@ -576,20 +576,28 @@
 <head>
   <title>${title || 'VoxPro Player'}</title>
   <style>
-    body{margin:0;background:#0b1220;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh}
+    body{margin:0;background:#0b1220;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh;position:relative}
     #vpHeader{padding:10px 16px;background:#0b1220;color:#fff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a3441}
     #vpTitle{font-weight:600;font-size:1rem}
+    #vpResizeHint{font-size:0.75rem;color:#b0bec5;margin-left:12px;font-weight:400}
     #vpClose{background:#667eea;color:#fff;border:0;border-radius:4px;cursor:pointer;width:32px;height:32px;font-size:18px;font-weight:700}
     #vpClose:hover{background:#764ba2}
-    #vpContent{flex:1;padding:16px;display:flex;align-items:center;justify-content:center;overflow:auto}
+    #vpContent{flex:1;padding:16px;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative}
+    #vpResizeHandle{position:fixed;bottom:0;right:0;width:40px;height:40px;cursor:nwse-resize;pointer-events:none;z-index:1000}
+    #vpResizeHandle::before{content:'';position:absolute;bottom:4px;right:4px;width:20px;height:20px;border-right:3px solid #667eea;border-bottom:3px solid #667eea;opacity:0.6}
+    #vpResizeHandle::after{content:'';position:absolute;bottom:10px;right:10px;width:10px;height:10px;border-right:2px solid #667eea;border-bottom:2px solid #667eea;opacity:0.4}
   </style>
 </head>
 <body>
   <div id="vpHeader">
-    <span id="vpTitle">${title || 'VoxPro Player'}</span>
+    <div style="display:flex;align-items:center;flex:1">
+      <span id="vpTitle">${title || 'VoxPro Player'}</span>
+      <span id="vpResizeHint">⇲ Drag corner to resize</span>
+    </div>
     <button id="vpClose">×</button>
   </div>
   <div id="vpContent">${mediaElement}</div>
+  <div id="vpResizeHandle"></div>
   <script>
     const url = '${url}';
     const media = document.getElementById('vpMedia');
@@ -656,20 +664,28 @@
 <head>
   <title>\${title || 'VoxPro Player'}</title>
   <style>
-    body{margin:0;background:#0b1220;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh}
+    body{margin:0;background:#0b1220;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh;position:relative}
     #vpHeader{padding:10px 16px;background:#0b1220;color:#fff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a3441}
     #vpTitle{font-weight:600;font-size:1rem}
+    #vpResizeHint{font-size:0.75rem;color:#b0bec5;margin-left:12px;font-weight:400}
     #vpClose{background:#667eea;color:#fff;border:0;border-radius:4px;cursor:pointer;width:32px;height:32px;font-size:18px;font-weight:700}
     #vpClose:hover{background:#764ba2}
-    #vpContent{flex:1;padding:16px;display:flex;align-items:center;justify-content:center;overflow:auto}
+    #vpContent{flex:1;padding:16px;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative}
+    #vpResizeHandle{position:fixed;bottom:0;right:0;width:40px;height:40px;cursor:nwse-resize;pointer-events:none;z-index:1000}
+    #vpResizeHandle::before{content:'';position:absolute;bottom:4px;right:4px;width:20px;height:20px;border-right:3px solid #667eea;border-bottom:3px solid #667eea;opacity:0.6}
+    #vpResizeHandle::after{content:'';position:absolute;bottom:10px;right:10px;width:10px;height:10px;border-right:2px solid #667eea;border-bottom:2px solid #667eea;opacity:0.4}
   </style>
 </head>
 <body>
   <div id="vpHeader">
-    <span id="vpTitle">\${title || 'VoxPro Player'}</span>
+    <div style="display:flex;align-items:center;flex:1">
+      <span id="vpTitle">\${title || 'VoxPro Player'}</span>
+      <span id="vpResizeHint">⇲ Drag corner to resize</span>
+    </div>
     <button id="vpClose">×</button>
   </div>
   <div id="vpContent">\${mediaElement}</div>
+  <div id="vpResizeHandle"></div>
   <script>
     const url = '\${url}';
     const startTime = \${startTime || 0};
@@ -741,6 +757,12 @@
                         const ex = document.getElementById('voxpro-overlay');
                         if (ex) ex.remove();
                     }
+                    
+                    // Show the inline modal again
+                    if (elements.modalSection) {
+                        elements.modalSection.style.display = 'block';
+                    }
+                    
                     state.modalState = 'normal';
                     elements.maximizeBtn.textContent = '□';
                     return;
@@ -778,6 +800,11 @@
                     openLocalOverlay(state.playing.url, state.playing.title || 'VoxPro Player');
                 }
 
+                // Hide the inline modal since we're now using the popup window
+                if (elements.modalSection) {
+                    elements.modalSection.style.display = 'none';
+                }
+
                 state.modalState = 'breakout';
                 elements.maximizeBtn.textContent = '❐';
             });
@@ -806,6 +833,11 @@
             
             // Handle VOXPRO_CLOSE from popup window
             if (ev.data.type === 'VOXPRO_CLOSE') {
+                // Show the inline modal again
+                if (elements.modalSection) {
+                    elements.modalSection.style.display = 'block';
+                }
+                
                 // Reset the inline player state
                 if (state.playing) {
                     elements.modalContent.querySelectorAll('audio,video').forEach(m => {
