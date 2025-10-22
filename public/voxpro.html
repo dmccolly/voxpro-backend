@@ -1044,135 +1044,114 @@
             });
         }
 
-        // Create breakout modal directly in current window
-        let breakoutModal = null;
+        // Pop-out window for breakout mode
+        let popupWindow = null;
         
         function createBreakoutModal(data) {
-            // Remove existing modal if any
-            if (breakoutModal) {
-                closeBreakoutModal();
+            // Close existing popup if any
+            if (popupWindow && !popupWindow.closed) {
+                popupWindow.close();
             }
             
-            // Create modal overlay that breaks out of iframe constraints
-            breakoutModal = document.createElement('div');
-            breakoutModal.id = 'voxpro-breakout-modal';
-            breakoutModal.style.cssText = `
-                position: fixed !important; top: 0 !important; left: 0 !important;
-                width: 100vw !important; height: 100vh !important;
-                background: rgba(0,0,0,0.95) !important; z-index: 2147483647 !important;
-                display: flex !important; align-items: center !important;
-                justify-content: center !important; font-family: 'Segoe UI', sans-serif !important;
-                margin: 0 !important; padding: 0 !important; border: none !important;
-                transform: scale(1) !important; overflow: hidden !important;
-            `;
-            
-            // Create modal content
-            const modalContent = document.createElement('div');
-            modalContent.style.cssText = `
-                width: 90vw !important; height: 90vh !important; max-width: 1200px !important; max-height: 800px !important;
-                background: #1a2332 !important; border-radius: 8px !important; display: flex !important;
-                flex-direction: column !important; box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-                margin: 0 !important; padding: 0 !important; border: none !important;
-                position: relative !important; z-index: 1 !important;
-            `;
-            
-            // Create header
-            const header = document.createElement('div');
-            header.style.cssText = `
-                display: flex !important; justify-content: space-between !important; align-items: center !important;
-                padding: 12px 16px !important; background: #0b1220 !important; border-radius: 8px 8px 0 0 !important;
-                border-bottom: 1px solid #2a3441 !important; margin: 0 !important;
-            `;
-            
-            const title = document.createElement('span');
-            title.textContent = data.modalTitle || 'VoxPro Player';
-            title.style.cssText = 'color: white !important; font-weight: 600 !important; font-size: 1.1rem !important; margin: 0 !important;';
-            
-            const closeBtn = document.createElement('button');
-            closeBtn.textContent = '×';
-            closeBtn.style.cssText = `
-                background: #667eea !important; border: none !important; color: white !important;
-                width: 32px !important; height: 32px !important; border-radius: 4px !important;
-                cursor: pointer !important; font-size: 1.2rem !important; font-weight: bold !important;
-                margin: 0 !important; padding: 0 !important;
-            `;
-            closeBtn.onclick = () => closeBreakoutModal();
-            
-            header.appendChild(title);
-            header.appendChild(closeBtn);
-            
-            // Create content area
-            const content = document.createElement('div');
-            content.style.cssText = `
-                flex: 1 !important; padding: 20px !important; overflow: auto !important; display: flex !important;
-                align-items: center !important; justify-content: center !important; flex-direction: column !important;
-                margin: 0 !important; border: none !important;
-            `;
-            content.innerHTML = data.modalContent;
-            
-            // Resume media playback if applicable
-            const mediaElements = content.querySelectorAll('video, audio');
-            if (mediaElements.length > 0 && data.currentTime) {
-                const mediaElement = mediaElements[0];
-                mediaElement.currentTime = data.currentTime;
-                if (data.wasPlaying) {
-                    mediaElement.play();
-                }
+            // Open pop-out window
+            popupWindow = window.open('', 'VoxProWindow', 'width=800,height=600,resizable=yes');
+            if (!popupWindow) {
+                alert('Pop-up blocked. Please allow pop-ups for this site.');
+                return;
             }
             
-            modalContent.appendChild(header);
-            modalContent.appendChild(content);
-            breakoutModal.appendChild(modalContent);
-            document.body.appendChild(breakoutModal);
+            // Extract media URL from modalContent HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = data.modalContent;
+            const mediaEl = tempDiv.querySelector('video, audio, img');
+            const url = mediaEl ? mediaEl.src : '';
+            const title = data.modalTitle || 'VoxPro Player';
             
-            // Handle escape key
-            function handleEscape(e) {
-                if (e.key === 'Escape') {
-                    closeBreakoutModal();
-                }
+            // Determine media type
+            const isVideo = mediaEl && mediaEl.tagName === 'VIDEO';
+            const isAudio = mediaEl && mediaEl.tagName === 'AUDIO';
+            const isImage = mediaEl && mediaEl.tagName === 'IMG';
+            
+            let mediaElement = '';
+            if (isImage) {
+                mediaElement = '<img id="vpMedia" style="max-width:100%;max-height:100%;object-fit:contain;" />';
+            } else if (isAudio) {
+                mediaElement = '<audio id="vpMedia" controls autoplay style="width:100%;max-width:600px;"></audio>';
+            } else {
+                mediaElement = '<video id="vpMedia" controls autoplay style="width:100%;max-width:100%;max-height:100%;"></video>';
             }
-            document.addEventListener('keydown', handleEscape);
-            breakoutModal.escapeHandler = handleEscape;
+            
+            popupWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+  <title>${title}</title>
+  <style>
+    body{margin:0;background:#0b1220;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh}
+    #vpHeader{padding:10px 16px;background:#0b1220;color:#fff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a3441}
+    #vpTitle{font-weight:600;font-size:1rem}
+    #vpClose{background:#667eea;color:#fff;border:0;border-radius:4px;cursor:pointer;width:32px;height:32px;font-size:18px;font-weight:700}
+    #vpClose:hover{background:#764ba2}
+    #vpContent{flex:1;padding:16px;display:flex;align-items:center;justify-content:center;overflow:auto}
+  </style>
+</head>
+<body>
+  <div id="vpHeader">
+    <span id="vpTitle">${title}</span>
+    <button id="vpClose">×</button>
+  </div>
+  <div id="vpContent">${mediaElement}</div>
+  <script>
+    const url = '${url}';
+    const startTime = ${data.currentTime || 0};
+    const media = document.getElementById('vpMedia');
+    
+    if (media) {
+      media.src = url;
+      if (media.currentTime !== undefined && startTime > 0) {
+        media.addEventListener('loadedmetadata', function() {
+          media.currentTime = startTime;
+        }, { once: true });
+      }
+    }
+    
+    document.getElementById('vpClose').onclick = function() { window.close(); };
+    
+    window.onbeforeunload = function() {
+      if (window.opener) {
+        window.opener.postMessage({ 
+          type: 'voxpro-breakout-closed',
+          source: 'voxpro-popup'
+        }, '*');
+      }
+    };
+  <\/script>
+</body>
+</html>
+`);
+            popupWindow.document.close();
+            
+            // Hide the inline modal since we're now using the popup window
+            if (elements.modalSection) {
+                elements.modalSection.style.display = 'none';
+            }
         }
         
         function closeBreakoutModal() {
-            if (breakoutModal) {
-                // Get current media state for resume
-                let resumeData = null;
-                const mediaElements = breakoutModal.querySelectorAll('video, audio');
-                if (mediaElements.length > 0) {
-                    const mediaElement = mediaElements[0];
-                    resumeData = {
-                        currentTime: mediaElement.currentTime,
-                        wasPlaying: !mediaElement.paused
-                    };
-                }
-                
-                // Remove escape handler
-                if (breakoutModal.escapeHandler) {
-                    document.removeEventListener('keydown', breakoutModal.escapeHandler);
-                }
-                
-                // Remove modal
-                document.body.removeChild(breakoutModal);
-                breakoutModal = null;
-                
-                // Reset modal state and resume playback in widget
-                state.modalState = 'normal';
-                isMaximized = false;
-                elements.maximizeBtn.textContent = '□';
-                
-                // Resume playback in widget if needed
-                if (resumeData && state.playing) {
-                    const widgetMediaElements = elements.modalContent.querySelectorAll('video, audio');
-                    if (widgetMediaElements.length > 0 && resumeData.currentTime) {
-                        widgetMediaElements[0].currentTime = resumeData.currentTime;
-                        if (resumeData.wasPlaying) {
-                            widgetMediaElements[0].play();
-                        }
-                    }
-                }
+            if (popupWindow && !popupWindow.closed) {
+                popupWindow.close();
             }
+            popupWindow = null;
+            
+            // Show the inline modal again
+            if (elements.modalSection) {
+                elements.modalSection.style.display = 'block';
+            }
+            
+            // Reset modal state
+            state.modalState = 'normal';
+            isMaximized = false;
+            elements.maximizeBtn.textContent = '□';
         }
 
         // Parent window breakout modal handler
@@ -1182,8 +1161,7 @@
                     if (window.voxproBreakoutHandler) return; // Prevent duplicate handlers
                     
                     window.voxproBreakoutHandler = true;
-                    let breakoutModal = null;
-                    let currentMediaElement = null;
+                    let popupWindow = null;
                     
                     window.addEventListener('message', function(event) {
                         if (event.data.type === 'voxpro-breakout-modal' && event.data.source === 'voxpro-companion') {
@@ -1194,116 +1172,97 @@
                     });
                     
                     function createBreakoutModal(data, iframeWindow) {
-                        // Remove existing modal if any
-                        if (breakoutModal) {
-                            closeBreakoutModal();
+                        if (popupWindow && !popupWindow.closed) {
+                            popupWindow.close();
                         }
                         
-                        // Create modal overlay
-                        breakoutModal = document.createElement('div');
-                        breakoutModal.id = 'voxpro-breakout-modal';
-                        breakoutModal.style.cssText = `
-                            position: fixed !important; top: 0 !important; left: 0 !important;
-                            width: 100vw !important; height: 100vh !important;
-                            background: rgba(0,0,0,0.95) !important; z-index: 2147483647 !important;
-                            display: flex !important; align-items: center !important;
-                            justify-content: center !important; font-family: 'Segoe UI', sans-serif !important;
-                        `;
-                        
-                        // Create modal content
-                        const modalContent = document.createElement('div');
-                        modalContent.style.cssText = `
-                            width: 90vw !important; height: 90vh !important; max-width: 1200px !important; max-height: 800px !important;
-                            background: #1a2332 !important; border-radius: 8px !important; display: flex !important;
-                            flex-direction: column !important; box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-                        `;
-                        
-                        // Create header
-                        const header = document.createElement('div');
-                        header.style.cssText = `
-                            display: flex !important; justify-content: space-between !important; align-items: center !important;
-                            padding: 12px 16px !important; background: #0b1220 !important; border-radius: 8px 8px 0 0 !important;
-                            border-bottom: 1px solid #2a3441 !important;
-                        `;
-                        
-                        const title = document.createElement('span');
-                        title.textContent = data.modalTitle || 'VoxPro Player';
-                        title.style.cssText = 'color: white !important; font-weight: 600 !important; font-size: 1.1rem !important;';
-                        
-                        const closeBtn = document.createElement('button');
-                        closeBtn.textContent = '×';
-                        closeBtn.style.cssText = `
-                            background: #667eea !important; border: none !important; color: white !important;
-                            width: 32px !important; height: 32px !important; border-radius: 4px !important;
-                            cursor: pointer !important; font-size: 1.2rem !important; font-weight: bold !important;
-                        `;
-                        closeBtn.onclick = () => closeBreakoutModal(iframeWindow);
-                        
-                        header.appendChild(title);
-                        header.appendChild(closeBtn);
-                        
-                        // Create content area
-                        const content = document.createElement('div');
-                        content.style.cssText = `
-                            flex: 1 !important; padding: 20px !important; overflow: auto !important; display: flex !important;
-                            align-items: center !important; justify-content: center !important; flex-direction: column !important;
-                        `;
-                        content.innerHTML = data.modalContent;
-                        
-                        // Resume media playback if applicable
-                        const mediaElements = content.querySelectorAll('video, audio');
-                        if (mediaElements.length > 0 && data.currentTime) {
-                            currentMediaElement = mediaElements[0];
-                            currentMediaElement.currentTime = data.currentTime;
-                            if (data.wasPlaying) {
-                                currentMediaElement.play();
-                            }
+                        popupWindow = window.open('', 'VoxProWindow', 'width=800,height=600,resizable=yes');
+                        if (!popupWindow) {
+                            alert('Pop-up blocked. Please allow pop-ups for this site.');
+                            return;
                         }
                         
-                        modalContent.appendChild(header);
-                        modalContent.appendChild(content);
-                        breakoutModal.appendChild(modalContent);
-                        document.body.appendChild(breakoutModal);
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = data.modalContent;
+                        const mediaEl = tempDiv.querySelector('video, audio, img');
+                        const url = mediaEl ? mediaEl.src : '';
+                        const title = data.modalTitle || 'VoxPro Player';
                         
-                        // Handle escape key
-                        function handleEscape(e) {
-                            if (e.key === 'Escape') {
-                                closeBreakoutModal(iframeWindow);
-                            }
+                        const isVideo = mediaEl && mediaEl.tagName === 'VIDEO';
+                        const isAudio = mediaEl && mediaEl.tagName === 'AUDIO';
+                        const isImage = mediaEl && mediaEl.tagName === 'IMG';
+                        
+                        let mediaElement = '';
+                        if (isImage) {
+                            mediaElement = '<img id="vpMedia" style="max-width:100%;max-height:100%;object-fit:contain;" />';
+                        } else if (isAudio) {
+                            mediaElement = '<audio id="vpMedia" controls autoplay style="width:100%;max-width:600px;"></audio>';
+                        } else {
+                            mediaElement = '<video id="vpMedia" controls autoplay style="width:100%;max-width:100%;max-height:100%;"></video>';
                         }
-                        document.addEventListener('keydown', handleEscape);
-                        breakoutModal.escapeHandler = handleEscape;
+                        
+                        popupWindow.document.write(\`
+<!DOCTYPE html>
+<html>
+<head>
+  <title>\${title}</title>
+  <style>
+    body{margin:0;background:#0b1220;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh}
+    #vpHeader{padding:10px 16px;background:#0b1220;color:#fff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a3441}
+    #vpTitle{font-weight:600;font-size:1rem}
+    #vpClose{background:#667eea;color:#fff;border:0;border-radius:4px;cursor:pointer;width:32px;height:32px;font-size:18px;font-weight:700}
+    #vpClose:hover{background:#764ba2}
+    #vpContent{flex:1;padding:16px;display:flex;align-items:center;justify-content:center;overflow:auto}
+  </style>
+</head>
+<body>
+  <div id="vpHeader">
+    <span id="vpTitle">\${title}</span>
+    <button id="vpClose">×</button>
+  </div>
+  <div id="vpContent">\${mediaElement}</div>
+  <script>
+    const url = '\${url}';
+    const startTime = \${data.currentTime || 0};
+    const media = document.getElementById('vpMedia');
+    
+    if (media) {
+      media.src = url;
+      if (media.currentTime !== undefined && startTime > 0) {
+        media.addEventListener('loadedmetadata', function() {
+          media.currentTime = startTime;
+        }, { once: true });
+      }
+    }
+    
+    document.getElementById('vpClose').onclick = function() { window.close(); };
+    
+    window.onbeforeunload = function() {
+      if (window.opener) {
+        window.opener.postMessage({ 
+          type: 'voxpro-breakout-closed',
+          source: 'voxpro-parent'
+        }, '*');
+      }
+    };
+  <\\/script>
+</body>
+</html>
+\`);
+                        popupWindow.document.close();
                     }
                     
                     function closeBreakoutModal(iframeWindow) {
-                        if (breakoutModal) {
-                            // Get current media state for resume
-                            let resumeData = null;
-                            if (currentMediaElement) {
-                                resumeData = {
-                                    currentTime: currentMediaElement.currentTime,
-                                    wasPlaying: !currentMediaElement.paused
-                                };
-                            }
-                            
-                            // Remove escape handler
-                            if (breakoutModal.escapeHandler) {
-                                document.removeEventListener('keydown', breakoutModal.escapeHandler);
-                            }
-                            
-                            // Remove modal
-                            document.body.removeChild(breakoutModal);
-                            breakoutModal = null;
-                            currentMediaElement = null;
-                            
-                            // Notify iframe
-                            if (iframeWindow) {
-                                iframeWindow.postMessage({
-                                    type: 'voxpro-breakout-closed',
-                                    source: 'voxpro-parent',
-                                    resumeData: resumeData
-                                }, '*');
-                            }
+                        if (popupWindow && !popupWindow.closed) {
+                            popupWindow.close();
+                        }
+                        popupWindow = null;
+                        
+                        if (iframeWindow) {
+                            iframeWindow.postMessage({
+                                type: 'voxpro-breakout-closed',
+                                source: 'voxpro-parent'
+                            }, '*');
                         }
                     }
                 })();
@@ -1322,6 +1281,11 @@
         // Listen for messages from parent window
         window.addEventListener('message', (event) => {
             if (event.data.type === 'voxpro-breakout-closed' && event.data.source === 'voxpro-parent') {
+                // Show the inline modal again
+                if (elements.modalSection) {
+                    elements.modalSection.style.display = 'block';
+                }
+                
                 // Reset iframe modal state when breakout is closed
                 state.modalState = 'normal';
                 isMaximized = false;
@@ -1337,6 +1301,16 @@
                         }
                     }
                 }
+            } else if (event.data.type === 'voxpro-breakout-closed' && event.data.source === 'voxpro-popup') {
+                // Show the inline modal again when popup closes
+                if (elements.modalSection) {
+                    elements.modalSection.style.display = 'block';
+                }
+                
+                // Reset modal state
+                state.modalState = 'normal';
+                isMaximized = false;
+                elements.maximizeBtn.textContent = '□';
             } else if (event.data.type === 'voxpro-inject-handler' && event.data.source === 'voxpro-companion') {
                 try {
                     // Execute the handler script in parent window context
