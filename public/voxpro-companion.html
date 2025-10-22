@@ -583,9 +583,9 @@
     #vpClose{background:#667eea;color:#fff;border:0;border-radius:4px;cursor:pointer;width:32px;height:32px;font-size:18px;font-weight:700}
     #vpClose:hover{background:#764ba2}
     #vpContent{flex:1;padding:16px;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative}
-    #vpResizeHandle{position:fixed;bottom:0;right:0;width:40px;height:40px;cursor:nwse-resize;pointer-events:none;z-index:1000}
-    #vpResizeHandle::before{content:'';position:absolute;bottom:4px;right:4px;width:20px;height:20px;border-right:3px solid #667eea;border-bottom:3px solid #667eea;opacity:0.6}
-    #vpResizeHandle::after{content:'';position:absolute;bottom:10px;right:10px;width:10px;height:10px;border-right:2px solid #667eea;border-bottom:2px solid #667eea;opacity:0.4}
+    #vpResizeHandle{position:fixed;bottom:0;right:0;width:80px;height:80px;cursor:nwse-resize;pointer-events:none;z-index:1000;background:linear-gradient(135deg,transparent 0%,transparent 50%,rgba(102,126,234,0.1) 50%,rgba(102,126,234,0.2) 100%)}
+    #vpResizeHandle::before{content:'⇲';position:absolute;bottom:8px;right:8px;font-size:24px;color:#667eea;opacity:0.8;text-shadow:0 0 4px rgba(102,126,234,0.5)}
+    #vpResizeHandle::after{content:'';position:absolute;bottom:0;right:0;width:60px;height:60px;border-right:4px solid #667eea;border-bottom:4px solid #667eea;opacity:0.4;border-radius:0 0 4px 0}
   </style>
 </head>
 <body>
@@ -671,9 +671,9 @@
     #vpClose{background:#667eea;color:#fff;border:0;border-radius:4px;cursor:pointer;width:32px;height:32px;font-size:18px;font-weight:700}
     #vpClose:hover{background:#764ba2}
     #vpContent{flex:1;padding:16px;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative}
-    #vpResizeHandle{position:fixed;bottom:0;right:0;width:40px;height:40px;cursor:nwse-resize;pointer-events:none;z-index:1000}
-    #vpResizeHandle::before{content:'';position:absolute;bottom:4px;right:4px;width:20px;height:20px;border-right:3px solid #667eea;border-bottom:3px solid #667eea;opacity:0.6}
-    #vpResizeHandle::after{content:'';position:absolute;bottom:10px;right:10px;width:10px;height:10px;border-right:2px solid #667eea;border-bottom:2px solid #667eea;opacity:0.4}
+    #vpResizeHandle{position:fixed;bottom:0;right:0;width:80px;height:80px;cursor:nwse-resize;pointer-events:none;z-index:1000;background:linear-gradient(135deg,transparent 0%,transparent 50%,rgba(102,126,234,0.1) 50%,rgba(102,126,234,0.2) 100%)}
+    #vpResizeHandle::before{content:'⇲';position:absolute;bottom:8px;right:8px;font-size:24px;color:#667eea;opacity:0.8;text-shadow:0 0 4px rgba(102,126,234,0.5)}
+    #vpResizeHandle::after{content:'';position:absolute;bottom:0;right:0;width:60px;height:60px;border-right:4px solid #667eea;border-bottom:4px solid #667eea;opacity:0.4;border-radius:0 0 4px 0}
   </style>
 </head>
 <body>
@@ -758,9 +758,21 @@
                         if (ex) ex.remove();
                     }
                     
-                    // Show the inline modal again
+                    // Show the inline modal again and ensure it's fully visible
                     if (elements.modalSection) {
                         elements.modalSection.style.display = 'block';
+                        elements.modalSection.style.height = ''; // Reset any minimized height
+                        elements.modalSection.classList.remove('minimized', 'maximized');
+                    }
+                    
+                    // Ensure modal content is visible
+                    if (elements.modalContent) {
+                        elements.modalContent.style.display = 'flex';
+                    }
+                    
+                    // Ensure minimize button is visible
+                    if (elements.minimizeBtn) {
+                        elements.minimizeBtn.style.display = 'inline-block';
                     }
                     
                     state.modalState = 'normal';
@@ -833,12 +845,24 @@
             
             // Handle VOXPRO_CLOSE from popup window
             if (ev.data.type === 'VOXPRO_CLOSE') {
-                // Show the inline modal again
+                // Show the inline modal again and ensure it's fully visible
                 if (elements.modalSection) {
                     elements.modalSection.style.display = 'block';
+                    elements.modalSection.style.height = ''; // Reset any minimized height
+                    elements.modalSection.classList.remove('minimized', 'maximized');
                 }
                 
-                // Reset the inline player state
+                // Ensure modal content is visible
+                if (elements.modalContent) {
+                    elements.modalContent.style.display = 'flex';
+                }
+                
+                // Ensure minimize button is visible
+                if (elements.minimizeBtn) {
+                    elements.minimizeBtn.style.display = 'inline-block';
+                }
+                
+                // Reset the inline player state (keep media loaded but paused)
                 if (state.playing) {
                     elements.modalContent.querySelectorAll('audio,video').forEach(m => {
                         try { 
