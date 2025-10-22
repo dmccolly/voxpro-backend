@@ -209,15 +209,93 @@
       container.appendChild(a);
     }
 
+    let popupWindow = null;
+
+    function closePopup(){
+      if (popupWindow && !popupWindow.closed) {
+        popupWindow.close();
+      }
+      popupWindow = null;
+    }
+
+    function openPopup(url, title, startTime){
+      closePopup();
+      
+      popupWindow = window.open('', 'VoxProWindow', 'width=800,height=600,resizable=yes');
+      if (!popupWindow) {
+        alert('Pop-up blocked. Please allow pop-ups for this site.');
+        return;
+      }
+      
+      const ext = getExt(url);
+      const isImage = ['jpg','jpeg','png','gif','webp','bmp','svg'].includes(ext);
+      const isAudio = ['mp3','wav','ogg','m4a','aac','flac'].includes(ext);
+      
+      let mediaElement = '';
+      if (isImage) {
+        mediaElement = '<img id="vpMedia" style="max-width:100%;max-height:100%;object-fit:contain;" />';
+      } else if (isAudio) {
+        mediaElement = '<audio id="vpMedia" controls autoplay style="width:100%;max-width:600px;"></audio>';
+      } else {
+        mediaElement = '<video id="vpMedia" controls autoplay style="width:100%;max-width:100%;max-height:100%;"></video>';
+      }
+      
+      popupWindow.document.write(`
+<!DOCTYPE html>
+<html>
+<head>
+  <title>${title || 'VoxPro Player'}</title>
+  <style>
+    body{margin:0;background:#0b1220;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;height:100vh}
+    #vpHeader{padding:10px 16px;background:#0b1220;color:#fff;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a3441}
+    #vpTitle{font-weight:600;font-size:1rem}
+    #vpClose{background:#667eea;color:#fff;border:0;border-radius:4px;cursor:pointer;width:32px;height:32px;font-size:18px;font-weight:700}
+    #vpClose:hover{background:#764ba2}
+    #vpContent{flex:1;padding:16px;display:flex;align-items:center;justify-content:center;overflow:auto}
+  </style>
+</head>
+<body>
+  <div id="vpHeader">
+    <span id="vpTitle">${title || 'VoxPro Player'}</span>
+    <button id="vpClose">×</button>
+  </div>
+  <div id="vpContent">${mediaElement}</div>
+  <script>
+    const url = '${url}';
+    const startTime = ${startTime || 0};
+    const media = document.getElementById('vpMedia');
+    
+    if (media) {
+      media.src = url;
+      if (media.currentTime !== undefined && startTime > 0) {
+        media.addEventListener('loadedmetadata', function() {
+          media.currentTime = startTime;
+        }, { once: true });
+      }
+    }
+    
+    document.getElementById('vpClose').onclick = function() { window.close(); };
+    
+    window.onbeforeunload = function() {
+      if (window.opener) {
+        window.opener.postMessage({ type: 'VOXPRO_CLOSE' }, '*');
+      }
+    };
+  <\/script>
+</body>
+</html>
+`);
+      popupWindow.document.close();
+    }
+
     // Listen for maximize messages from the companion
     window.addEventListener('message', function(ev){
       const d=ev && ev.data;
       if(!d) return;
       if(d.type==='VOXPRO_OPEN' && d.payload){
-        const body=buildOverlay(d.payload.title);
-        renderContent(body, d.payload.url);
+        openPopup(d.payload.url, d.payload.title, d.payload.startTime || 0);
       } else if(d.type==='VOXPRO_CLOSE'){
-        removeOverlay();
+        closePopup();
       }
     });
   })();
