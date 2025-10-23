@@ -996,15 +996,11 @@
                     elements.modalSection.style.display = 'block';
                 }
                 
-                // Reset the inline player state
-                if (state.playing) {
-                    elements.modalContent.querySelectorAll('audio,video').forEach(m => {
-                        try { 
-                            m.pause(); 
-                            m.currentTime = 0;
-                        } catch (_) {}
-                    });
+                // Re-render the media in the inline player (keep it playing)
+                if (state.playing && state.playing.url) {
+                    renderMediaInModal(state.playing.url, state.playing.fileType, 0);
                 }
+                
                 state.modalState = 'normal';
                 elements.maximizeBtn.textContent = '□';
                 elements.maximizeBtn.title = 'Maximize';
