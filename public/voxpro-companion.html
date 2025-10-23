@@ -1014,6 +1014,12 @@
                     elements.modalSection.style.height = '';
                 }
                 
+                // Reset the modal content to normal size
+                if (elements.modalContent) {
+                    elements.modalContent.style.height = '';
+                    elements.modalContent.style.maxHeight = '';
+                }
+                
                 // Re-render the media in the inline player (keep it playing)
                 if (state.playing && state.playing.url) {
                     renderMediaInModal(state.playing.url, state.playing.fileType, 0);
