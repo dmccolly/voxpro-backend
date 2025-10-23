@@ -222,6 +222,11 @@
         data.payload.startTime || 0,
         data.payload.fileType || ''
       );
+      
+      if (event.source) {
+        event.source.postMessage({ type: 'VOXPRO_POPUP_OPENED' }, '*');
+        console.log('VoxPro: Sent confirmation to iframe');
+      }
     }
     
     else if (data.type === 'VOXPRO_CLOSE') {
