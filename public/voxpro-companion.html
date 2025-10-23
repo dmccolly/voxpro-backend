@@ -327,6 +327,13 @@
                             });
                         }
                         
+                        // Also notify opener when window is closed by any means (e.g., Windows X button)
+                        window.addEventListener('beforeunload', () => {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.postMessage({ type: 'VOXPRO_CLOSE' }, '*');
+                            }
+                        });
+                        
                         // Hide minimize and maximize buttons in popup mode
                         if (elements.minimizeBtn) elements.minimizeBtn.style.display = 'none';
                         if (elements.maximizeBtn) elements.maximizeBtn.style.display = 'none';
@@ -991,9 +998,20 @@
             
             // Handle VOXPRO_CLOSE from popup window
             if (ev.data.type === 'VOXPRO_CLOSE') {
-                // Show the inline modal again
+                // Reset the player container to normal size
+                const playerContainer = document.querySelector('.companion-player');
+                if (playerContainer) {
+                    playerContainer.style.width = '400px';
+                    playerContainer.style.height = '';
+                    playerContainer.style.maxWidth = '100%';
+                    playerContainer.style.maxHeight = '';
+                }
+                
+                // Reset the modal section to normal size
                 if (elements.modalSection) {
                     elements.modalSection.style.display = 'block';
+                    elements.modalSection.style.width = '';
+                    elements.modalSection.style.height = '';
                 }
                 
                 // Re-render the media in the inline player (keep it playing)
