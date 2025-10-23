@@ -268,10 +268,61 @@
         // Determine fullscreen request (?fullscreen=1&key=3)
         const urlParams      = new URLSearchParams(window.location.search);
         const fullscreenMode = urlParams.get('fullscreen') === '1';
+        const popupMode      = urlParams.get('popup') === '1';
         const autoPlayKey    = urlParams.get('key');
 
         async function initCompanionPlayer() {
             try {
+                // Popup mode - show only the media player
+                if (popupMode) {
+                    const mediaUrl = urlParams.get('url');
+                    const mediaTitle = urlParams.get('title') || 'VoxPro Player';
+                    const startTime = parseFloat(urlParams.get('startTime') || '0');
+                    const fileType = urlParams.get('fileType') || '';
+                    
+                    if (mediaUrl) {
+                        // Hide the keys section, show only the modal player
+                        const keysSection = document.querySelector('.keys-section');
+                        if (keysSection) keysSection.style.display = 'none';
+                        
+                        // Expand the modal player to fill the window
+                        const playerContainer = document.querySelector('.companion-player');
+                        if (playerContainer) {
+                            playerContainer.style.width = '100vw';
+                            playerContainer.style.height = '100vh';
+                            playerContainer.style.maxWidth = '100vw';
+                            playerContainer.style.maxHeight = '100vh';
+                        }
+                        
+                        if (elements.modalSection) {
+                            elements.modalSection.style.display = 'block';
+                            elements.modalSection.style.width = '100%';
+                            elements.modalSection.style.height = '100%';
+                        }
+                        
+                        // Set the playing state
+                        state.playing = {
+                            url: mediaUrl,
+                            title: mediaTitle,
+                            fileType: fileType
+                        };
+                        
+                        // Update the modal title
+                        if (elements.modalTitle) {
+                            elements.modalTitle.textContent = mediaTitle;
+                        }
+                        
+                        // Render the media
+                        renderMediaInModal(mediaUrl, fileType, startTime);
+                        
+                        // Attach event listeners for modal controls
+                        attachEventListeners();
+                        
+                        showMessage('success', 'Media loaded in popup window');
+                        return;
+                    }
+                }
+                
                 await loadMediaList();
                 await loadAssignments();
                 renderKeys();
@@ -299,6 +350,55 @@
             } catch (error) {
                 console.error('Failed to initialize companion player:', error);
                 showMessage('error', 'Failed to load VoxPro data');
+            }
+        }
+        
+        // Helper function to render media in the modal
+        function renderMediaInModal(url, fileType, startTime = 0) {
+            if (!elements.modalContent) return;
+            
+            // Clear existing content
+            elements.modalContent.innerHTML = '';
+            
+            // Determine media type
+            const isImage = fileType === 'image' || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(url);
+            const isVideo = fileType === 'video' || /\.(mp4|webm|ogg|mov)$/i.test(url);
+            const isAudio = fileType === 'audio' || /\.(mp3|wav|ogg|m4a|aac)$/i.test(url);
+            
+            if (isImage) {
+                const img = document.createElement('img');
+                img.src = url;
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '100%';
+                img.style.objectFit = 'contain';
+                elements.modalContent.appendChild(img);
+            } else if (isVideo) {
+                const video = document.createElement('video');
+                video.src = url;
+                video.controls = true;
+                video.autoplay = true;
+                video.currentTime = startTime;
+                video.style.maxWidth = '100%';
+                video.style.maxHeight = '100%';
+                elements.modalContent.appendChild(video);
+            } else if (isAudio) {
+                const audio = document.createElement('audio');
+                audio.src = url;
+                audio.controls = true;
+                audio.autoplay = true;
+                audio.currentTime = startTime;
+                audio.style.width = '100%';
+                elements.modalContent.appendChild(audio);
+            } else {
+                // Unknown type - try to display as iframe or link
+                const div = document.createElement('div');
+                div.style.textAlign = 'center';
+                div.style.padding = '20px';
+                div.innerHTML = `
+                    <p>Media type: ${fileType || 'unknown'}</p>
+                    <a href="${url}" target="_blank" style="color: #667eea;">Open in new tab</a>
+                `;
+                elements.modalContent.appendChild(div);
             }
         }
 
@@ -785,66 +885,37 @@
                 // Check if we're in an iframe
                 const isInIframe = window.parent && window.parent !== window;
                 
-                if (isInIframe) {
-                    // Check if parent has the handler installed
-                    try {
-                        // Try to access parent's __voxproParentHandler
-                        const hasHandler = window.parent.__voxproParentHandler;
-                        if (!hasHandler) {
-                            showMessage('error', 'Maximize requires parent page script. See documentation.');
-                            console.error('VoxPro: Parent handler not installed. Add voxpro-parent-handler.js to parent page.');
-                            return;
-                        }
-                    } catch (e) {
-                        // Cross-origin restriction - can't check, so try anyway
-                        console.log('VoxPro: Cannot check parent handler (cross-origin), attempting anyway...');
-                    }
-                    
-                    // Send message to parent and wait for confirmation
-                    window.parent.postMessage({
-                        type: 'VOXPRO_OPEN',
-                        payload: { 
-                            url: state.playing.url, 
-                            title: state.playing.title || 'VoxPro Player',
-                            startTime: currentTime,
-                            fileType: state.playing.fileType || ''
-                        }
-                    }, '*');
-                    
-                    // Set a flag to indicate we're waiting for confirmation
-                    state.waitingForPopup = true;
-                    
-                    // Set a timeout - if no confirmation after 1 second, show error
-                    const confirmTimeout = setTimeout(() => {
-                        if (state.waitingForPopup) {
-                            state.waitingForPopup = false;
-                            showMessage('error', 'Maximize requires parent page script. Add voxpro-parent-handler.js to parent page.');
-                            console.error('VoxPro: No response from parent. Handler script may not be installed.');
-                        }
-                    }, 1000);
-                    
-                    // Store timeout ID so we can clear it if we get confirmation
-                    state.popupConfirmTimeout = confirmTimeout;
-                    
-                }else {
-                    // Not in iframe - use local popup
-                    const popupOpened = openLocalOverlay(state.playing.url, state.playing.title || 'VoxPro Player');
-                    
-                    if (popupOpened !== false) {
-                        // Pause and clear inline player to prevent double audio
-                        elements.modalContent.querySelectorAll('audio,video').forEach(m => {
-                            try { m.pause(); m.removeAttribute('src'); if (m.load) m.load(); } catch (_) {}
-                        });
-                        
-                        // Hide the inline modal since we're now using the popup window
-                        if (elements.modalSection) {
-                            elements.modalSection.style.display = 'none';
-                        }
-                        
-                        state.modalState = 'breakout';
-                        elements.maximizeBtn.textContent = '❐';
-                    }
+                // Build the popup URL with parameters
+                const popupUrl = new URL(window.location.origin + window.location.pathname);
+                popupUrl.searchParams.set('popup', '1');
+                popupUrl.searchParams.set('url', state.playing.url);
+                popupUrl.searchParams.set('title', state.playing.title || 'VoxPro Player');
+                popupUrl.searchParams.set('startTime', currentTime.toString());
+                popupUrl.searchParams.set('fileType', state.playing.fileType || '');
+                
+                // Use a link element with target="_blank" to bypass popup blockers
+                const link = document.createElement('a');
+                link.href = popupUrl.toString();
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Hide the inline modal and update state
+                if (elements.modalSection) {
+                    elements.modalSection.style.display = 'none';
                 }
+                
+                // Pause inline player to prevent double audio
+                elements.modalContent.querySelectorAll('audio,video').forEach(m => {
+                    try { m.pause(); m.removeAttribute('src'); if (m.load) m.load(); } catch (_) {}
+                });
+                
+                state.modalState = 'breakout';
+                elements.maximizeBtn.textContent = '❐';
+                showMessage('success', 'Media opened in popup window');
             });
 
             // STOP (rendered in second row)
