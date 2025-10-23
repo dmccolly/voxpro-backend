@@ -554,7 +554,7 @@
             const popupWindow = window.open('', 'VoxProWindow', 'width=800,height=600,resizable=yes');
             if (!popupWindow) {
                 showMessage('error', 'Pop-up blocked. Please allow pop-ups for this site.');
-                return;
+                return false;
             }
 
             const ext = url.split('.').pop().toLowerCase();
@@ -618,6 +618,7 @@
 </html>
 `);
             popupWindow.document.close();
+            return true;
         }
 
         // Parent overlay handler (in parent window)
@@ -781,12 +782,25 @@
                     currentTime = activeMedia.currentTime || 0;
                 }
 
-                // Pause and clear inline player to prevent double audio
-                elements.modalContent.querySelectorAll('audio,video').forEach(m => {
-                    try { m.pause(); m.removeAttribute('src'); if (m.load) m.load(); } catch (_) {}
-                });
-
-                if (window.parent && window.parent !== window) {
+                // Check if we're in an iframe
+                const isInIframe = window.parent && window.parent !== window;
+                
+                if (isInIframe) {
+                    // Check if parent has the handler installed
+                    try {
+                        // Try to access parent's __voxproParentHandler
+                        const hasHandler = window.parent.__voxproParentHandler;
+                        if (!hasHandler) {
+                            showMessage('error', 'Maximize requires parent page script. See documentation.');
+                            console.error('VoxPro: Parent handler not installed. Add voxpro-parent-handler.js to parent page.');
+                            return;
+                        }
+                    } catch (e) {
+                        // Cross-origin restriction - can't check, so try anyway
+                        console.log('VoxPro: Cannot check parent handler (cross-origin), attempting anyway...');
+                    }
+                    
+                    // Send message to parent
                     window.parent.postMessage({
                         type: 'VOXPRO_OPEN',
                         payload: { 
@@ -796,17 +810,54 @@
                             fileType: state.playing.fileType || ''
                         }
                     }, '*');
+                    
+                    // Wait for confirmation before hiding inline player
+                    // Set a timeout to restore if no response
+                    const hideTimeout = setTimeout(() => {
+                        if (state.modalState !== 'breakout') {
+                            showMessage('error', 'Popup failed to open. Check browser popup settings.');
+                            // Restore the media
+                            if (state.playing && state.playing.url) {
+                                const assignment = state.assignments.find(a => a.id === state.playing.assignmentId);
+                                if (assignment) {
+                                    showMediaInModal(assignment, state.playing.url);
+                                }
+                            }
+                        }
+                    }, 1000);
+                    
+                    // Pause inline player to prevent double audio
+                    elements.modalContent.querySelectorAll('audio,video').forEach(m => {
+                        try { m.pause(); } catch (_) {}
+                    });
+                    
+                    // Hide the inline modal
+                    if (elements.modalSection) {
+                        elements.modalSection.style.display = 'none';
+                    }
+                    
+                    state.modalState = 'breakout';
+                    elements.maximizeBtn.textContent = '❐';
+                    
                 } else {
-                    openLocalOverlay(state.playing.url, state.playing.title || 'VoxPro Player');
+                    // Not in iframe - use local popup
+                    const popupOpened = openLocalOverlay(state.playing.url, state.playing.title || 'VoxPro Player');
+                    
+                    if (popupOpened !== false) {
+                        // Pause and clear inline player to prevent double audio
+                        elements.modalContent.querySelectorAll('audio,video').forEach(m => {
+                            try { m.pause(); m.removeAttribute('src'); if (m.load) m.load(); } catch (_) {}
+                        });
+                        
+                        // Hide the inline modal since we're now using the popup window
+                        if (elements.modalSection) {
+                            elements.modalSection.style.display = 'none';
+                        }
+                        
+                        state.modalState = 'breakout';
+                        elements.maximizeBtn.textContent = '❐';
+                    }
                 }
-
-                // Hide the inline modal since we're now using the popup window
-                if (elements.modalSection) {
-                    elements.modalSection.style.display = 'none';
-                }
-
-                state.modalState = 'breakout';
-                elements.maximizeBtn.textContent = '❐';
             });
 
             // STOP (rendered in second row)
