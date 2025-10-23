@@ -315,8 +315,21 @@
                         // Render the media
                         renderMediaInModal(mediaUrl, fileType, startTime);
                         
-                        // Attach event listeners for modal controls
-                        attachEventListeners();
+                        // Override close button to close the popup window
+                        if (elements.closeBtn) {
+                            elements.closeBtn.addEventListener('click', () => {
+                                // Notify opener that popup is closing
+                                if (window.opener && !window.opener.closed) {
+                                    window.opener.postMessage({ type: 'VOXPRO_CLOSE' }, '*');
+                                }
+                                // Close the popup window
+                                window.close();
+                            });
+                        }
+                        
+                        // Hide minimize and maximize buttons in popup mode
+                        if (elements.minimizeBtn) elements.minimizeBtn.style.display = 'none';
+                        if (elements.maximizeBtn) elements.maximizeBtn.style.display = 'none';
                         
                         showMessage('success', 'Media loaded in popup window');
                         return;
@@ -893,15 +906,27 @@
                 popupUrl.searchParams.set('startTime', currentTime.toString());
                 popupUrl.searchParams.set('fileType', state.playing.fileType || '');
                 
-                // Use a link element with target="_blank" to bypass popup blockers
-                const link = document.createElement('a');
-                link.href = popupUrl.toString();
-                link.target = '_blank';
-                link.rel = 'noopener noreferrer';
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+                // Try to open a 600x600 popup window
+                // Position it to the right of the current window
+                const left = window.screenX + window.outerWidth + 10;
+                const top = window.screenY;
+                const features = `width=600,height=600,left=${left},top=${top},resizable=yes,scrollbars=yes`;
+                
+                let popupWindow = null;
+                try {
+                    popupWindow = window.open(popupUrl.toString(), 'VoxProPopup', features);
+                } catch (e) {
+                    console.error('Failed to open popup:', e);
+                }
+                
+                // If popup was blocked or failed, show error and don't hide inline player
+                if (!popupWindow || popupWindow.closed) {
+                    showMessage('error', 'Popup blocked. Please allow popups for this site.');
+                    return;
+                }
+                
+                // Store reference to popup window
+                state.popupWindow = popupWindow;
                 
                 // Hide the inline modal and update state
                 if (elements.modalSection) {
