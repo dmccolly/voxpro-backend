@@ -343,12 +343,20 @@
                     }
                 }
                 
-                await loadMediaList();
-                await loadAssignments();
+                // Render immediately with empty state so UI appears instantly on mobile
                 renderKeys();
                 renderKeysList();
                 attachEventListeners();
                 createParentWindowHandler();
+                
+                // Load data - media list first (needed for assignment enrichment), then assignments
+                await loadMediaList();
+                await loadAssignments();
+                
+                // Re-render with loaded data
+                renderKeys();
+                renderKeysList();
+                
                 showMessage('success', 'VoxPro Companion Player Ready');
 
                 // Fullscreen mode sizing + optional autoplay
