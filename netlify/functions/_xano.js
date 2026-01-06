@@ -1,8 +1,31 @@
-// Xano schema adapter + helpers. Configure via env XANO_FIELDS_JSON and XANO_TAGS_TYPE.
+// Xano schema adapter + helpers. Configure via xano-fields-config.json and XANO_TAGS_TYPE env.
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 export const fields = (() => {
-let m = { id: 'id', public_id: 'public_id', resource_type: 'resource_type', title: 'title', description: 'description', station: 'station', tags: 'tags', collection_id: 'collection_id', categories: 'categories', deleted_at: 'deleted_at' };
-try { const s = process.env.XANO_FIELDS_JSON; if (s) m = { ...m, ...JSON.parse(s) }; } catch {}
-return m;
+  let m = { id: 'id', public_id: 'public_id', resource_type: 'resource_type', title: 'title', description: 'description', station: 'station', tags: 'tags', collection_id: 'collection_id', categories: 'categories', deleted_at: 'deleted_at' };
+  
+  // Try to load from config file first
+  try {
+    const configPath = join(__dirname, 'xano-fields-config.json');
+    const configData = readFileSync(configPath, 'utf8');
+    const configFields = JSON.parse(configData);
+    m = { ...m, ...configFields };
+  } catch (err) {
+    console.warn('Could not load xano-fields-config.json, using defaults:', err.message);
+  }
+  
+  // Fall back to environment variable if still needed (for backward compatibility)
+  try { 
+    const s = process.env.XANO_FIELDS_JSON; 
+    if (s) m = { ...m, ...JSON.parse(s) }; 
+  } catch {}
+  
+  return m;
 })();
 
 

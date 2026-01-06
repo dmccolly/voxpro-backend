@@ -1,0 +1,12 @@
+{
+  "id": "id",
+  "public_id": "public_id",
+  "resource_type": "resource_type",
+  "title": "title",
+  "description": "description",
+  "station": "station",
+  "tags": "tags",
+  "collection_id": "collection_id",
+  "categories": "categories",
+  "deleted_at": "deleted_at"
+}
