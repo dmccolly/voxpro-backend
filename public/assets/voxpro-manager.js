@@ -637,8 +637,8 @@
                 parseInt(a.key_number) === parseInt(keySlot)
             );
             
+            // Build assignment data
             const assignmentData = {
-                asset_id: state.selectedMedia.id,
                 key_number: parseInt(keySlot),
                 title: elements.titleInput?.value || state.selectedMedia.title,
                 description: elements.descriptionInput?.value || state.selectedMedia.description,
@@ -648,6 +648,12 @@
                 file_type: state.selectedMedia.file_type,
                 cloudinary_url: state.selectedMedia.cloudinary_url || state.selectedMedia.file_url || state.selectedMedia.database_url
             };
+            
+            // Only include asset_id if it's a numeric ID (from Xano)
+            // For Cloudinary assets, the id is a string (public_id), so we skip it
+            if (state.selectedMedia.source === 'xano' && typeof state.selectedMedia.id === 'number') {
+                assignmentData.asset_id = state.selectedMedia.id;
+            }
             
             if (existingAssignment) {
                 // Update existing assignment
